@@ -1,0 +1,62 @@
+name = "weather-gripe"
+main = "src/index.js"
+compatibility_date = "2024-01-01"
+workers_dev = true
+
+# Production environment variables
+[vars]
+DOMAIN = "weather.gripe"
+ADMIN_EMAIL = "admin@weather.gripe"
+USER_AGENT = "weather.gripe/1.0 (https://weather.gripe; admin@weather.gripe)"
+NOMINATIM_URL = "https://nominatim.openstreetmap.org"
+NWS_API_URL = "https://api.weather.gov"
+
+# KV Namespace bindings for persistent state only
+# Weather and location data use Cache API instead
+[[kv_namespaces]]
+binding = "FOLLOWERS"
+id = "PLACEHOLDER_FOLLOWERS_ID"
+preview_id = "PLACEHOLDER_FOLLOWERS_PREVIEW_ID"
+
+[[kv_namespaces]]
+binding = "POSTS"
+id = "PLACEHOLDER_POSTS_ID"
+preview_id = "PLACEHOLDER_POSTS_PREVIEW_ID"
+
+[[kv_namespaces]]
+binding = "ALERTS"
+id = "PLACEHOLDER_ALERTS_ID"
+preview_id = "PLACEHOLDER_ALERTS_PREVIEW_ID"
+
+[[kv_namespaces]]
+binding = "DELIVERY_QUEUE"
+id = "PLACEHOLDER_DELIVERY_QUEUE_ID"
+preview_id = "PLACEHOLDER_DELIVERY_QUEUE_PREVIEW_ID"
+
+[[kv_namespaces]]
+binding = "KEYS"
+id = "PLACEHOLDER_KEYS_ID"
+preview_id = "PLACEHOLDER_KEYS_PREVIEW_ID"
+
+# Cron triggers for scheduled posts and alert monitoring
+[triggers]
+crons = [
+  "*/5 * * * *"  # Run every 5 minutes for severe weather alerts and hourly posts
+]
+
+# Staging environment
+[env.staging]
+name = "weather-gripe-staging"
+vars = { DOMAIN = "staging.weather.gripe", ENVIRONMENT = "staging" }
+
+[[env.staging.kv_namespaces]]
+binding = "FOLLOWERS"
+id = "PLACEHOLDER_STAGING_FOLLOWERS_ID"
+
+[[env.staging.kv_namespaces]]
+binding = "POSTS"
+id = "PLACEHOLDER_STAGING_POSTS_ID"
+
+[[env.staging.kv_namespaces]]
+binding = "ALERTS"
+id = "PLACEHOLDER_STAGING_ALERTS_ID"

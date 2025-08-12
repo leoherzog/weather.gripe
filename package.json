@@ -1,0 +1,41 @@
+{
+  "name": "weather.gripe",
+  "version": "1.0.0",
+  "description": "ActivityPub weather service for following location-based weather forecasts and alerts",
+  "main": "src/index.js",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "deploy:staging": "wrangler deploy --env staging",
+    "tail": "wrangler tail",
+    "test": "vitest",
+    "test:watch": "vitest --watch",
+    "test:coverage": "vitest run --coverage"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/leoherzog/weather.gripe.git"
+  },
+  "keywords": [
+    "activitypub",
+    "weather",
+    "cloudflare-workers",
+    "mastodon",
+    "fediverse"
+  ],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/leoherzog/weather.gripe/issues"
+  },
+  "homepage": "https://github.com/leoherzog/weather.gripe#readme",
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.5.0",
+    "@vitest/coverage-v8": "^2.1.8",
+    "miniflare": "^4.20250803.0",
+    "vitest": "^2.1.8",
+    "vitest-environment-miniflare": "^2.14.4",
+    "wrangler": "^4.28.1"
+  }
+}
