@@ -3,6 +3,8 @@
  * Handles caching of HTTP responses using Cloudflare Cache API
  */
 
+import { CACHE_TTL } from '../config/constants.js';
+
 export class HttpCache {
   constructor(env, logger) {
     this.env = env;
@@ -74,8 +76,8 @@ export class HttpCache {
       headers: { 'Content-Type': 'application/json' }
     });
     
-    // Cache for 6 hours (21600 seconds)
-    await this.cacheResponse(key, response, 21600);
+    // Cache for configured TTL
+    await this.cacheResponse(key, response, CACHE_TTL.WEATHER_DATA);
   }
 
   /**
@@ -107,8 +109,8 @@ export class HttpCache {
       headers: { 'Content-Type': 'application/json' }
     });
     
-    // Cache for 30 days (2592000 seconds)
-    await this.cacheResponse(key, response, 2592000);
+    // Cache for configured TTL
+    await this.cacheResponse(key, response, CACHE_TTL.GEOCODING);
   }
 
   /**
@@ -141,8 +143,8 @@ export class HttpCache {
       }
     });
     
-    // Cache for 1 hour (3600 seconds)
-    await this.cacheResponse(key, response, 3600);
+    // Cache for configured TTL
+    await this.cacheResponse(key, response, CACHE_TTL.ACTIVITYPUB);
   }
 
   /**

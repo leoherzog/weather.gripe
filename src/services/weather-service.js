@@ -3,13 +3,13 @@
  * Handles fetching weather data from OpenMeteo API
  */
 
-import { CacheService } from './cache-service.js';
+import { HttpCache } from './http-cache.js';
 
 export class WeatherService {
-  constructor(env, logger) {
+  constructor(env, logger, httpCache = null) {
     this.env = env;
     this.logger = logger;
-    this.cacheService = new CacheService(env, logger);
+    this.httpCache = httpCache || new HttpCache(env, logger);
     this.openMeteoBaseUrl = 'https://api.open-meteo.com/v1';
     this.userAgent = env.USER_AGENT || 'weather.gripe/1.0 (https://weather.gripe)';
   }
@@ -31,7 +31,7 @@ export class WeatherService {
     // Check cache for single location requests
     if (!isBulk && locationsList.length === 1) {
       const loc = locationsList[0];
-      const cached = await this.cacheService.getCachedWeatherData(loc.lat, loc.lon, 'forecast');
+      const cached = await this.httpCache.getCachedWeatherData(loc.lat, loc.lon, 'forecast');
       if (cached) {
         this.logger.debug('Forecast cache hit', { lat: loc.lat, lon: loc.lon });
         return cached;

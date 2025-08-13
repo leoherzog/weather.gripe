@@ -32,23 +32,29 @@ async function getActiveLocations(env, logger) {
     // List all keys in the FOLLOWERS namespace
     const list = await env.FOLLOWERS.list({ prefix: 'followers:' });
     
-    for (const key of list.keys) {
-      // Extract location ID from key (format: followers:{locationId})
+    // Batch fetch all follower data
+    const followerPromises = list.keys.map(async (key) => {
       const locationId = key.name.replace('followers:', '');
-      
-      // Get follower list to check if not empty
       const followersData = await env.FOLLOWERS.get(key.name);
+      
       if (followersData) {
         const followers = JSON.parse(followersData);
         if (followers.length > 0) {
-          locations.push({
+          return {
             id: locationId,
             name: locationId, // Will be enhanced with geocoding later
             followers: followers.length
-          });
+          };
         }
       }
-    }
+      return null;
+    });
+    
+    // Wait for all fetches to complete
+    const results = await Promise.all(followerPromises);
+    
+    // Filter out null results
+    locations.push(...results.filter(loc => loc !== null));
     
     logger.info('Active locations found', { count: locations.length });
     return locations;
@@ -173,38 +179,35 @@ async function checkAndPostForecasts(locations, now, env, deliveryService, logge
         // Generate deterministic post ID
         const postId = generatePostId(location.id, localTime, postType);
         
-        // Check if this post already exists
-        const exists = await WeatherPost.exists(postId, env);
+        // Fetch weather forecast first
+        const { WeatherService } = await import('./services/weather-service.js');
+        const weatherService = new WeatherService(env, logger);
         
-        if (!exists) {
-          // Fetch weather forecast
-          const { WeatherService } = await import('./services/weather-service.js');
-          const weatherService = new WeatherService(env, logger);
+        const forecast = await weatherService.getForecast(location, {
+          forecastDays: 2,
+          includeCurrent: true
+        });
+        
+        if (forecast) {
+          // Format forecast content based on type
+          const content = await formatForecastContent(forecast, postType, location);
           
-          const forecast = await weatherService.getForecast(location, {
-            forecastDays: 2,
-            includeCurrent: true
+          // Create the post
+          const post = WeatherPost.createForecastPost({
+            locationId: location.id,
+            locationName: location.name,
+            postTime: localTime,
+            postType,
+            content,
+            hashtags: ['weather', location.hashtag],
+            domain: env.DOMAIN
           });
           
-          if (forecast) {
-            // Format forecast content based on type
-            const content = await formatForecastContent(forecast, postType, location);
-            
-            // Create the post
-            const post = WeatherPost.createForecastPost({
-              locationId: location.id,
-              locationName: location.name,
-              postTime: localTime,
-              postType,
-              content,
-              hashtags: ['weather', location.hashtag],
-              domain: env.DOMAIN
-            });
-            
-            // Store the post
-            await WeatherPost.store(post, env);
-            
-            // Deliver to followers
+          // Atomically store the post (prevents race conditions)
+          const stored = await WeatherPost.storeIfNotExists(post, env);
+          
+          if (stored) {
+            // Only deliver if we actually created a new post
             await deliveryService.deliverPostToFollowers(location.id, post);
             
             forecastsPosted.push({ 
@@ -218,6 +221,8 @@ async function checkAndPostForecasts(locations, now, env, deliveryService, logge
               postType,
               localTime: `${localHour}:${localMinute}`
             });
+          } else {
+            logger.debug('Post already exists', { postId, locationId: location.id });
           }
         }
       }
@@ -301,28 +306,28 @@ function generateAlertsFromForecast(forecast, location) {
     });
   }
   
-  // Check for extreme temperatures (Celsius)
-  if (temp > 37.8) { // >100°F
+  // Check for extreme temperatures (Fahrenheit - as returned by API)
+  if (temp > 100) { // >100°F
     alerts.push({
       id: `heat-${location.id}-${Date.now()}`,
       event: 'Excessive Heat Warning',
       severity: 'Extreme',
       urgency: 'Expected',
       headline: 'Excessive Heat Warning',
-      description: `Dangerously hot conditions with temperatures reaching ${Math.round(temp * 1.8 + 32)}°F.`,
+      description: `Dangerously hot conditions with temperatures reaching ${Math.round(temp)}°F.`,
       effective: new Date().toISOString(),
       expires: new Date(Date.now() + 7200000).toISOString() // 2 hours
     });
   }
   
-  if (temp < -17.8) { // <0°F
+  if (temp < 0) { // <0°F
     alerts.push({
       id: `cold-${location.id}-${Date.now()}`,
       event: 'Extreme Cold Warning',
       severity: 'Extreme',
       urgency: 'Expected',
       headline: 'Extreme Cold Warning',
-      description: `Dangerously cold conditions with temperatures dropping to ${Math.round(temp * 1.8 + 32)}°F.`,
+      description: `Dangerously cold conditions with temperatures dropping to ${Math.round(temp)}°F.`,
       effective: new Date().toISOString(),
       expires: new Date(Date.now() + 7200000).toISOString() // 2 hours
     });

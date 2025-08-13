@@ -165,10 +165,15 @@ export class DeliveryService {
             retryCount: retryCount + 1,
             retryAfter: Date.now() + delay
           });
-        } else {
-          // If no queue available, retry inline after delay
+        } else if (retryCount < MAX_RETRIES - 1) {
+          // If no queue available, retry inline after delay (but respect max retries)
           await new Promise(resolve => setTimeout(resolve, delay));
           return this.deliverToInbox(inboxUrl, activity, actorId, retryCount + 1);
+        } else {
+          this.logger.warn('Cannot retry delivery - no queue and max retries reached', {
+            inboxUrl,
+            retryCount
+          });
         }
       } else {
         this.logger.error('Failed to deliver to inbox after retries', { 

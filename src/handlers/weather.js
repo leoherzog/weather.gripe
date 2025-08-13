@@ -159,23 +159,23 @@ async function getAlerts(location, env, logger) {
         expires: new Date(Date.now() + 3600000).toISOString() // 1 hour
       });
     }
-    // Check for extreme temperatures
-    if (forecast.current.temperature > 37.8) { // >100°F
+    // Check for extreme temperatures (Fahrenheit - as returned by API)
+    if (forecast.current.temperature > 100) { // >100°F
       alerts.push({
         event: 'Excessive Heat Warning',
         severity: 'Extreme',
         urgency: 'Expected',
-        description: `Extreme heat with temperatures reaching ${Math.round(forecast.current.temperature * 1.8 + 32)}°F`,
+        description: `Extreme heat with temperatures reaching ${Math.round(forecast.current.temperature)}°F`,
         effective: new Date().toISOString(),
         expires: new Date(Date.now() + 7200000).toISOString() // 2 hours
       });
     }
-    if (forecast.current.temperature < -17.8) { // <0°F
+    if (forecast.current.temperature < 0) { // <0°F
       alerts.push({
         event: 'Extreme Cold Warning',
         severity: 'Extreme',
         urgency: 'Expected',
-        description: `Extreme cold with temperatures reaching ${Math.round(forecast.current.temperature * 1.8 + 32)}°F`,
+        description: `Extreme cold with temperatures reaching ${Math.round(forecast.current.temperature)}°F`,
         effective: new Date().toISOString(),
         expires: new Date(Date.now() + 7200000).toISOString() // 2 hours
       });

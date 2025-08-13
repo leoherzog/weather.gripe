@@ -31,8 +31,8 @@ export async function handleWebFinger(request, env, logger) {
 
   const [, locationName, domain] = match;
 
-  // Verify the domain matches
-  if (domain !== env.DOMAIN) {
+  // Verify the domain matches (case-insensitive, prevent subdomain spoofing)
+  if (domain.toLowerCase() !== env.DOMAIN.toLowerCase()) {
     throw new NotFoundError('Unknown domain');
   }
 

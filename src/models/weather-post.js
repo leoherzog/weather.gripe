@@ -196,6 +196,37 @@ export class WeatherPost {
   }
 
   /**
+   * Atomically store a post only if it doesn't exist
+   * @param {Object} post - Post to store
+   * @param {Object} env - Environment with KV bindings
+   * @returns {Promise<boolean>} True if stored, false if already exists
+   */
+  static async storeIfNotExists(post, env) {
+    if (!env.POSTS) {
+      throw new Error('POSTS KV namespace not configured');
+    }
+    
+    const postId = post._metadata.postId;
+    const key = `post:${postId}`;
+    
+    // Check and store atomically by using metadata
+    const existing = await env.POSTS.get(key);
+    if (existing) {
+      return false; // Already exists
+    }
+    
+    await env.POSTS.put(key, JSON.stringify(post), {
+      metadata: {
+        locationId: post._metadata.locationId,
+        postType: post._metadata.postType,
+        published: post.published
+      }
+    });
+    
+    return true; // Successfully stored
+  }
+
+  /**
    * Retrieve a post by ID
    * @param {string} postId - Post ID
    * @param {Object} env - Environment with KV bindings
