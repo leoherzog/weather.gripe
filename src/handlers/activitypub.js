@@ -212,9 +212,9 @@ async function handleInbox(locationName, request, env, logger) {
         // Handle account deletion - remove from followers
         // This is when a remote account is deleted
         const actorId = activity.actor;
-        const { CacheService } = await import('../services/cache-service.js');
-        const cache = new CacheService(env, logger);
-        await cache.removeFollower(locationName, actorId);
+        const { StateStore } = await import('../services/state-store.js');
+        const stateStore = new StateStore(env, logger);
+        await stateStore.removeFollower(locationName, actorId);
         break;
         
       default:
@@ -365,13 +365,53 @@ async function getOutbox(locationName, request, env, logger) {
  * @returns {Response}
  */
 async function getFollowers(locationName, request, env, logger) {
-  // TODO: Implement followers list from KV storage
+  // Get followers list from KV storage
+  const { StateStore } = await import('../services/state-store.js');
+  const stateStore = new StateStore(env, logger);
+  
+  const followersList = await stateStore.getFollowers(locationName);
+  const totalItems = followersList ? followersList.length : 0;
+  
+  const url = new URL(request.url);
+  const page = url.searchParams.get('page');
+  
+  if (page) {
+    // Return paginated collection page
+    const pageNum = parseInt(page) || 1;
+    const itemsPerPage = 20;
+    const start = (pageNum - 1) * itemsPerPage;
+    const items = followersList ? followersList.slice(start, start + itemsPerPage).map(f => f.id) : [];
+    
+    const followersPage = {
+      '@context': 'https://www.w3.org/ns/activitystreams',
+      type: 'OrderedCollectionPage',
+      id: `https://${env.DOMAIN}/locations/${locationName}/followers?page=${pageNum}`,
+      partOf: `https://${env.DOMAIN}/locations/${locationName}/followers`,
+      totalItems,
+      orderedItems: items
+    };
+    
+    if (pageNum > 1) {
+      followersPage.prev = `https://${env.DOMAIN}/locations/${locationName}/followers?page=${pageNum - 1}`;
+    }
+    if (start + itemsPerPage < totalItems) {
+      followersPage.next = `https://${env.DOMAIN}/locations/${locationName}/followers?page=${pageNum + 1}`;
+    }
+    
+    return new Response(JSON.stringify(followersPage), {
+      headers: {
+        'Content-Type': 'application/activity+json'
+      }
+    });
+  }
+  
+  // Return main collection
   const followers = {
     '@context': 'https://www.w3.org/ns/activitystreams',
     type: 'OrderedCollection',
     id: `https://${env.DOMAIN}/locations/${locationName}/followers`,
-    totalItems: 0,
-    first: `https://${env.DOMAIN}/locations/${locationName}/followers?page=1`
+    totalItems,
+    first: totalItems > 0 ? `https://${env.DOMAIN}/locations/${locationName}/followers?page=1` : null
   };
 
   return new Response(JSON.stringify(followers), {
@@ -412,13 +452,36 @@ async function getFollowing(locationName, env, logger) {
  * @returns {Response}
  */
 async function getAlerts(locationName, env, logger) {
-  // TODO: Implement alerts collection with active weather alerts
+  // Get active weather alerts from KV storage
+  const alertItems = [];
+  
+  if (env.ALERTS) {
+    try {
+      // List all alerts for this location
+      const prefix = `alerts:${locationName}:`;
+      const list = await env.ALERTS.list({ prefix });
+      
+      for (const key of list.keys) {
+        const alertData = await env.ALERTS.get(key.name);
+        if (alertData) {
+          const alert = JSON.parse(alertData);
+          // Add the post URL to the collection
+          if (alert.postId) {
+            alertItems.push(`https://${env.DOMAIN}/posts/${alert.postId}`);
+          }
+        }
+      }
+    } catch (error) {
+      logger.error('Failed to get alerts', { location: locationName, error });
+    }
+  }
+  
   const alerts = {
     '@context': 'https://www.w3.org/ns/activitystreams',
     type: 'OrderedCollection',
     id: `https://${env.DOMAIN}/locations/${locationName}/alerts`,
-    totalItems: 0,
-    orderedItems: []
+    totalItems: alertItems.length,
+    orderedItems: alertItems
   };
 
   return new Response(JSON.stringify(alerts), {
@@ -439,6 +502,18 @@ async function getAlerts(locationName, env, logger) {
 async function handlePostRequest(postId, request, env, logger) {
   logger.info('Post request', { postId });
 
-  // TODO: Retrieve post from storage
-  throw new NotFoundError('Post not found');
+  // Retrieve post from storage
+  const { WeatherPost } = await import('../models/weather-post.js');
+  
+  const post = await WeatherPost.retrieve(postId, env);
+  
+  if (!post) {
+    throw new NotFoundError('Post not found');
+  }
+  
+  return new Response(JSON.stringify(post), {
+    headers: {
+      'Content-Type': 'application/activity+json'
+    }
+  });
 }

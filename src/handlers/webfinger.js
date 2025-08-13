@@ -36,8 +36,15 @@ export async function handleWebFinger(request, env, logger) {
     throw new NotFoundError('Unknown domain');
   }
 
-  // TODO: Verify the location exists by geocoding it
-  // For now, we'll accept any location name
+  // Verify the location exists by geocoding it
+  try {
+    const { LocationService } = await import('../services/location-service.js');
+    const locationService = new LocationService(env, logger);
+    await locationService.searchLocation(locationName);
+  } catch (error) {
+    logger.warn('Location verification failed', { location: locationName, error });
+    // Continue anyway - allow discovery even if geocoding fails
+  }
 
   // Return WebFinger response
   const response = {

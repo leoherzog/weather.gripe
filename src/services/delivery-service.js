@@ -188,9 +188,9 @@ export class DeliveryService {
    */
   async getFollowerInboxes(locationId) {
     try {
-      const cacheService = await import('./cache-service.js');
-      const cache = new cacheService.CacheService(this.env, this.logger);
-      const followers = await cache.getFollowers(locationId);
+      const { StateStore } = await import('./state-store.js');
+      const stateStore = new StateStore(this.env, this.logger);
+      const followers = await stateStore.getFollowers(locationId);
       
       // Extract unique inbox URLs (dedup shared inboxes)
       const inboxes = [...new Set(followers.map(f => f.inbox || f.sharedInbox))];
@@ -323,9 +323,9 @@ export class DeliveryService {
       }
 
       // Add to followers list
-      const cacheService = await import('./cache-service.js');
-      const cache = new cacheService.CacheService(this.env, this.logger);
-      await cache.addFollower(locationId, {
+      const { StateStore } = await import('./state-store.js');
+      const stateStore = new StateStore(this.env, this.logger);
+      await stateStore.addFollower(locationId, {
         id: followerActor,
         inbox: followerData.inbox,
         sharedInbox: followerData.endpoints?.sharedInbox
@@ -364,9 +364,9 @@ export class DeliveryService {
       const followerActor = followActivity.actor;
 
       // Remove from followers list
-      const cacheService = await import('./cache-service.js');
-      const cache = new cacheService.CacheService(this.env, this.logger);
-      await cache.removeFollower(locationId, followerActor);
+      const { StateStore } = await import('./state-store.js');
+      const stateStore = new StateStore(this.env, this.logger);
+      await stateStore.removeFollower(locationId, followerActor);
 
       this.logger.info('Processed unfollow', { 
         locationId, 

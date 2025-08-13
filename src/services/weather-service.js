@@ -137,7 +137,7 @@ export class WeatherService {
       // Cache single location results
       if (!isBulk && locationsList.length === 1) {
         const loc = locationsList[0];
-        await this.cacheService.cacheWeatherData(loc.lat, loc.lon, 'forecast', processedData);
+        await this.httpCache.cacheWeatherData(loc.lat, loc.lon, 'forecast', processedData);
       }
       
       return processedData;

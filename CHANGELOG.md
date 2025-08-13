@@ -4,7 +4,28 @@ All notable changes to the Weather.gripe ActivityPub service will be documented 
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [Unreleased] - 2025-08-12
+## [Unreleased] - 2025-08-13
+
+### Technical Debt Cleanup - 2025-08-13
+
+#### Completed Improvements
+- **Implemented all missing weather functionality** - Removed 17 TODO comments by implementing weather API endpoints
+- **Split CacheService god object** - Refactored into three focused services:
+  - `HttpCache` - Handles HTTP response caching via Cache API
+  - `StateStore` - Manages persistent KV storage operations
+  - `PostRepository` - Handles post-specific storage and retrieval
+- **Improved architecture** - Applied dependency injection pattern preparation
+- **Enhanced maintainability** - Reduced coupling between services
+
+#### Technical Changes
+- Implemented weather forecast, current conditions, alerts, and geocoding endpoints in `/handlers/weather.js`
+- Created `generateAlertsFromForecast()` function to derive alerts from weather conditions
+- Implemented `getActiveLocations()` to list locations with followers
+- Fixed async/await patterns in forecast content formatting
+- Updated all services to use new focused service classes
+- Added proper followers collection implementation with pagination
+- Implemented alerts collection for active weather warnings
+- Fixed post retrieval from KV storage
 
 ### Architecture Review - 2025-08-12
 
