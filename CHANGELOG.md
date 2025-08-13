@@ -4,30 +4,49 @@ All notable changes to the Weather.gripe ActivityPub service will be documented 
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [Unreleased] - 2025-08-13
+## [0.3.0] - 2025-08-13
 
-### Technical Debt Cleanup - 2025-08-13
+### Major Improvements
 
-#### Completed Improvements
-- **Implemented all missing weather functionality** - Removed 17 TODO comments by implementing weather API endpoints
-- **Split CacheService god object** - Refactored into three focused services:
-  - `HttpCache` - Handles HTTP response caching via Cache API
-  - `StateStore` - Manages persistent KV storage operations
-  - `PostRepository` - Handles post-specific storage and retrieval
-- **Improved architecture** - Applied dependency injection pattern preparation
-- **Enhanced maintainability** - Reduced coupling between services
+#### Architecture Refactoring
+- **Split CacheService god object** into three focused services:
+  - `HttpCache` - HTTP response caching via Cache API
+  - `StateStore` - Persistent KV storage operations  
+  - `PostRepository` - Post-specific storage and retrieval
+- **Extracted configuration constants** to centralized `/config/constants.js`
+- **Improved separation of concerns** with dependency injection preparation
 
-#### Technical Changes
-- Implemented weather forecast, current conditions, alerts, and geocoding endpoints in `/handlers/weather.js`
-- Created `generateAlertsFromForecast()` function to derive alerts from weather conditions
-- Implemented `getActiveLocations()` to list locations with followers
-- Fixed async/await patterns in forecast content formatting
-- Updated all services to use new focused service classes
-- Added proper followers collection implementation with pagination
-- Implemented alerts collection for active weather warnings
-- Fixed post retrieval from KV storage
+#### Critical Bug Fixes
+- **Fixed temperature unit inconsistency** - Corrected Fahrenheit/Celsius comparisons in alert generation
+- **Fixed race condition** in post creation with atomic `storeIfNotExists` method
+- **Fixed delivery retry logic** - Enforced max retry limits to prevent infinite loops
+- **Fixed N+1 query pattern** in `getActiveLocations` with parallel fetching
+- **Fixed import issues** - Corrected HttpCache/CacheService references
 
-### Architecture Review - 2025-08-12
+#### Feature Implementation  
+- **Implemented all missing weather functionality** (17 TODOs resolved):
+  - Weather forecast endpoint (`/api/weather/forecast`)
+  - Current conditions endpoint (`/api/weather/current`)
+  - Weather alerts endpoint (`/api/weather/alerts`)
+  - Geocoding endpoint (`/api/weather/geocode`)
+- **Created alert generation system** from weather conditions:
+  - Temperature extremes (heat/cold warnings)
+  - Severe weather (thunderstorms, snow)
+  - UV index warnings
+- **Implemented getActiveLocations** to list locations with followers
+- **Added followers collection** with proper pagination
+- **Implemented alerts collection** for active weather warnings
+- **Fixed post retrieval** from KV storage
+
+#### Documentation Updates
+- Completely rewrote README.md with production-ready status
+- Updated TECHNICAL_DEBT.md with completed items and roadmap
+- Revised IMPLEMENTATION.md with current architecture
+- Cleaned up all documentation for clarity
+
+## [0.2.1] - 2025-08-12
+
+### Architecture Review
 
 #### Discovered Issues
 - **Critical**: Found duplicate index files (`index.js` and `index-broken.js`) with 80% code duplication
