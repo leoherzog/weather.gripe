@@ -20,9 +20,48 @@ import { formatAlertContent } from './utils/alert-utils.js';
  * @returns {Promise<Array>} Active locations
  */
 async function getActiveLocations(env, logger) {
-  // TODO: Implement - for now return empty
-  // This would list all locations that have at least one follower
-  return [];
+  // Get all locations with followers from KV storage
+  const locations = [];
+  
+  if (!env.FOLLOWERS) {
+    logger.warn('FOLLOWERS KV namespace not available');
+    return [];
+  }
+  
+  try {
+    // List all keys in the FOLLOWERS namespace
+    const list = await env.FOLLOWERS.list({ prefix: 'followers:' });
+    
+    // Batch fetch all follower data
+    const followerPromises = list.keys.map(async (key) => {
+      const locationId = key.name.replace('followers:', '');
+      const followersData = await env.FOLLOWERS.get(key.name);
+      
+      if (followersData) {
+        const followers = JSON.parse(followersData);
+        if (followers.length > 0) {
+          return {
+            id: locationId,
+            name: locationId, // Will be enhanced with geocoding later
+            followers: followers.length
+          };
+        }
+      }
+      return null;
+    });
+    
+    // Wait for all fetches to complete
+    const results = await Promise.all(followerPromises);
+    
+    // Filter out null results
+    locations.push(...results.filter(loc => loc !== null));
+    
+    logger.info('Active locations found', { count: locations.length });
+    return locations;
+  } catch (error) {
+    logger.error('Failed to get active locations', { error });
+    return [];
+  }
 }
 
 
@@ -39,8 +78,17 @@ async function checkAndPostAlerts(locations, env, deliveryService, logger) {
   
   for (const location of locations) {
     try {
-      // TODO: Fetch current alerts from NWS API
-      const alerts = []; // await weatherService.getAlerts(location.lat, location.lon);
+      // Fetch current alerts (generated from severe weather conditions)
+      const { WeatherService } = await import('./services/weather-service.js');
+      const weatherService = new WeatherService(env, logger);
+      
+      // Get forecast to check for severe conditions
+      const forecast = await weatherService.getForecast(location, {
+        forecastDays: 1,
+        includeCurrent: true
+      });
+      
+      const alerts = generateAlertsFromForecast(forecast, location);
       
       for (const alert of alerts) {
         // Check if we've already posted this alert
@@ -131,32 +179,35 @@ async function checkAndPostForecasts(locations, now, env, deliveryService, logge
         // Generate deterministic post ID
         const postId = generatePostId(location.id, localTime, postType);
         
-        // Check if this post already exists
-        const exists = await WeatherPost.exists(postId, env);
+        // Fetch weather forecast first
+        const { WeatherService } = await import('./services/weather-service.js');
+        const weatherService = new WeatherService(env, logger);
         
-        if (!exists) {
-          // TODO: Fetch weather forecast from NWS
-          const forecast = null; // await weatherService.getForecast(location.lat, location.lon);
+        const forecast = await weatherService.getForecast(location, {
+          forecastDays: 2,
+          includeCurrent: true
+        });
+        
+        if (forecast) {
+          // Format forecast content based on type
+          const content = await formatForecastContent(forecast, postType, location);
           
-          if (forecast) {
-            // Format forecast content based on type
-            const content = formatForecastContent(forecast, postType, location);
-            
-            // Create the post
-            const post = WeatherPost.createForecastPost({
-              locationId: location.id,
-              locationName: location.name,
-              postTime: localTime,
-              postType,
-              content,
-              hashtags: ['weather', location.hashtag],
-              domain: env.DOMAIN
-            });
-            
-            // Store the post
-            await WeatherPost.store(post, env);
-            
-            // Deliver to followers
+          // Create the post
+          const post = WeatherPost.createForecastPost({
+            locationId: location.id,
+            locationName: location.name,
+            postTime: localTime,
+            postType,
+            content,
+            hashtags: ['weather', location.hashtag],
+            domain: env.DOMAIN
+          });
+          
+          // Atomically store the post (prevents race conditions)
+          const stored = await WeatherPost.storeIfNotExists(post, env);
+          
+          if (stored) {
+            // Only deliver if we actually created a new post
             await deliveryService.deliverPostToFollowers(location.id, post);
             
             forecastsPosted.push({ 
@@ -170,6 +221,8 @@ async function checkAndPostForecasts(locations, now, env, deliveryService, logge
               postType,
               localTime: `${localHour}:${localMinute}`
             });
+          } else {
+            logger.debug('Post already exists', { postId, locationId: location.id });
           }
         }
       }
@@ -193,10 +246,111 @@ async function checkAndPostForecasts(locations, now, env, deliveryService, logge
  * @param {Object} location - Location object
  * @returns {string} Formatted content
  */
-function formatForecastContent(forecast, postType, location) {
-  // TODO: Implement proper forecast formatting
-  // This should use the ported weather formatting functions
-  return `Weather forecast for ${location.name}: ${postType}`;
+async function formatForecastContent(forecast, postType, location) {
+  const { formatMorningForecast, formatNoonForecast, formatEveningForecast } = 
+    await import('./utils/weather-formatters.js');
+  
+  switch (postType) {
+    case 'forecast-morning':
+      return formatMorningForecast(forecast, location);
+    case 'forecast-noon':
+      return formatNoonForecast(forecast, location);
+    case 'forecast-evening':
+      return formatEveningForecast(forecast, location);
+    default:
+      return `Weather update for ${location.name}`;
+  }
+}
+
+/**
+ * Generate alerts from weather forecast data
+ * @param {Object} forecast - Weather forecast data
+ * @param {Object} location - Location object
+ * @returns {Array} Array of alert objects
+ */
+function generateAlertsFromForecast(forecast, location) {
+  const alerts = [];
+  
+  if (!forecast || !forecast.current) {
+    return alerts;
+  }
+  
+  const code = forecast.current.weatherCode;
+  const temp = forecast.current.temperature;
+  
+  // Check for severe weather codes
+  if (code >= 95 && code <= 99) { // Thunderstorms
+    alerts.push({
+      id: `thunderstorm-${location.id}-${Date.now()}`,
+      event: 'Thunderstorm Warning',
+      severity: 'Severe',
+      urgency: 'Immediate',
+      headline: 'Severe Thunderstorm Warning',
+      description: 'Severe thunderstorms are occurring or imminent in your area.',
+      effective: new Date().toISOString(),
+      expires: new Date(Date.now() + 3600000).toISOString() // 1 hour
+    });
+  }
+  
+  // Check for heavy snow
+  if ((code >= 73 && code <= 77) || (code >= 85 && code <= 86)) {
+    alerts.push({
+      id: `snow-${location.id}-${Date.now()}`,
+      event: 'Winter Storm Warning',
+      severity: 'Severe',
+      urgency: 'Expected',
+      headline: 'Winter Storm Warning',
+      description: 'Heavy snow is expected or occurring.',
+      effective: new Date().toISOString(),
+      expires: new Date(Date.now() + 7200000).toISOString() // 2 hours
+    });
+  }
+  
+  // Check for extreme temperatures (Fahrenheit - as returned by API)
+  if (temp > 100) { // >100°F
+    alerts.push({
+      id: `heat-${location.id}-${Date.now()}`,
+      event: 'Excessive Heat Warning',
+      severity: 'Extreme',
+      urgency: 'Expected',
+      headline: 'Excessive Heat Warning',
+      description: `Dangerously hot conditions with temperatures reaching ${Math.round(temp)}°F.`,
+      effective: new Date().toISOString(),
+      expires: new Date(Date.now() + 7200000).toISOString() // 2 hours
+    });
+  }
+  
+  if (temp < 0) { // <0°F
+    alerts.push({
+      id: `cold-${location.id}-${Date.now()}`,
+      event: 'Extreme Cold Warning',
+      severity: 'Extreme',
+      urgency: 'Expected',
+      headline: 'Extreme Cold Warning',
+      description: `Dangerously cold conditions with temperatures dropping to ${Math.round(temp)}°F.`,
+      effective: new Date().toISOString(),
+      expires: new Date(Date.now() + 7200000).toISOString() // 2 hours
+    });
+  }
+  
+  // Check for high UV index in daily forecast
+  if (forecast.daily && forecast.daily.length > 0) {
+    const todayUV = forecast.daily[0].uvIndexMax;
+    if (todayUV >= 11) {
+      alerts.push({
+        id: `uv-${location.id}-${Date.now()}`,
+        event: 'UV Index Alert',
+        severity: 'Moderate',
+        urgency: 'Expected',
+        headline: 'Extreme UV Index',
+        description: `UV index reaching extreme levels (${todayUV}). Avoid sun exposure during midday hours.`,
+        effective: new Date().toISOString(),
+        expires: new Date(Date.now() + 14400000).toISOString() // 4 hours
+      });
+    }
+  }
+  
+  return alerts;
 }
 
 // Main export for Cloudflare Worker

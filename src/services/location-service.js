@@ -3,14 +3,14 @@
  * Handles geocoding location names to coordinates using Nominatim
  */
 
-import { CacheService } from './cache-service.js';
+import { HttpCache } from './http-cache.js';
 import { ValidationError } from '../utils/error-handler.js';
 
 export class LocationService {
-  constructor(env, logger) {
+  constructor(env, logger, httpCache = null) {
     this.env = env;
     this.logger = logger;
-    this.cacheService = new CacheService(env, logger);
+    this.httpCache = httpCache || new HttpCache(env, logger);
     this.nominatimBaseUrl = 'https://nominatim.openstreetmap.org';
     this.userAgent = env.USER_AGENT || 'weather.gripe/1.0';
   }
@@ -28,7 +28,7 @@ export class LocationService {
     const normalizedName = this.normalizeLocationName(locationName);
     
     // Check cache first (30-day TTL)
-    const cached = await this.cacheService.getCachedGeocodingResult(normalizedName);
+    const cached = await this.httpCache.getCachedGeocodingResult(normalizedName);
     if (cached) {
       this.logger.info('Geocoding cache hit', { location: normalizedName });
       return cached;
@@ -66,7 +66,7 @@ export class LocationService {
       const location = this.selectBestLocation(results, normalizedName);
       
       // Cache the result
-      await this.cacheService.cacheGeocodingResult(normalizedName, location);
+      await this.httpCache.cacheGeocodingResult(normalizedName, location);
       
       this.logger.info('Geocoding successful', { 
         location: normalizedName,
@@ -98,7 +98,7 @@ export class LocationService {
     const cacheKey = `${lat.toFixed(4)},${lon.toFixed(4)}`;
     
     // Check cache
-    const cached = await this.cacheService.getCachedGeocodingResult(cacheKey);
+    const cached = await this.httpCache.getCachedGeocodingResult(cacheKey);
     if (cached) {
       return cached;
     }
@@ -125,7 +125,7 @@ export class LocationService {
       const location = this.processLocationResult(result);
       
       // Cache the result
-      await this.cacheService.cacheGeocodingResult(cacheKey, location);
+      await this.httpCache.cacheGeocodingResult(cacheKey, location);
       
       return location;
     } catch (error) {
