@@ -68,3 +68,6 @@ id = "ad4a3a45756143c8a527b34929dd717d"
 [[env.staging.kv_namespaces]]
 binding = "KEYS"
 id = "7810c66d6ef84993a962186b95df5311"
+
+[observability.logs]
+enabled = true
