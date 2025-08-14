@@ -31,8 +31,16 @@ export async function handleWebFinger(request, env, logger) {
 
   const [, locationName, domain] = match;
 
-  // Verify the domain matches (case-insensitive, prevent subdomain spoofing)
-  if (domain.toLowerCase() !== env.DOMAIN.toLowerCase()) {
+  // Get the hostname from the current request
+  const requestDomain = new URL(request.url).hostname;
+  
+  // Accept the configured domain and the actual request domain
+  const acceptedDomains = [
+    env.DOMAIN.toLowerCase(),
+    requestDomain.toLowerCase()
+  ];
+  
+  if (!acceptedDomains.includes(domain.toLowerCase())) {
     throw new NotFoundError('Unknown domain');
   }
 
