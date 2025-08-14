@@ -15,28 +15,28 @@ NWS_API_URL = "https://api.weather.gov"
 # Weather and location data use Cache API instead
 [[kv_namespaces]]
 binding = "FOLLOWERS"
-id = "PLACEHOLDER_FOLLOWERS_ID"
-preview_id = "PLACEHOLDER_FOLLOWERS_PREVIEW_ID"
+id = "231e3ac502bd4fa1a60334662f253b8d"
+preview_id = "231e3ac502bd4fa1a60334662f253b8d"
 
 [[kv_namespaces]]
 binding = "POSTS"
-id = "PLACEHOLDER_POSTS_ID"
-preview_id = "PLACEHOLDER_POSTS_PREVIEW_ID"
+id = "7ac48a8ed5b846f9ba1fbf0d3abb66a3"
+preview_id = "7ac48a8ed5b846f9ba1fbf0d3abb66a3"
 
 [[kv_namespaces]]
 binding = "ALERTS"
-id = "PLACEHOLDER_ALERTS_ID"
-preview_id = "PLACEHOLDER_ALERTS_PREVIEW_ID"
+id = "054f2d2785d142efbf9177ed861fb9eb"
+preview_id = "054f2d2785d142efbf9177ed861fb9eb"
 
 [[kv_namespaces]]
 binding = "DELIVERY_QUEUE"
-id = "PLACEHOLDER_DELIVERY_QUEUE_ID"
-preview_id = "PLACEHOLDER_DELIVERY_QUEUE_PREVIEW_ID"
+id = "ad4a3a45756143c8a527b34929dd717d"
+preview_id = "ad4a3a45756143c8a527b34929dd717d"
 
 [[kv_namespaces]]
 binding = "KEYS"
-id = "PLACEHOLDER_KEYS_ID"
-preview_id = "PLACEHOLDER_KEYS_PREVIEW_ID"
+id = "7810c66d6ef84993a962186b95df5311"
+preview_id = "7810c66d6ef84993a962186b95df5311"
 
 # Cron triggers for scheduled posts and alert monitoring
 [triggers]
@@ -51,12 +51,20 @@ vars = { DOMAIN = "staging.weather.gripe", ENVIRONMENT = "staging" }
 
 [[env.staging.kv_namespaces]]
 binding = "FOLLOWERS"
-id = "PLACEHOLDER_STAGING_FOLLOWERS_ID"
+id = "231e3ac502bd4fa1a60334662f253b8d"
 
 [[env.staging.kv_namespaces]]
 binding = "POSTS"
-id = "PLACEHOLDER_STAGING_POSTS_ID"
+id = "7ac48a8ed5b846f9ba1fbf0d3abb66a3"
 
 [[env.staging.kv_namespaces]]
 binding = "ALERTS"
-id = "PLACEHOLDER_STAGING_ALERTS_ID"
+id = "054f2d2785d142efbf9177ed861fb9eb"
+
+[[env.staging.kv_namespaces]]
+binding = "DELIVERY_QUEUE"
+id = "ad4a3a45756143c8a527b34929dd717d"
+
+[[env.staging.kv_namespaces]]
+binding = "KEYS"
+id = "7810c66d6ef84993a962186b95df5311"
