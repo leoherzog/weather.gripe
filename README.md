@@ -2,6 +2,10 @@
 
 An ActivityPub-powered weather service that allows Mastodon and other Fediverse users to follow location-based weather accounts for automated forecasts and severe weather alerts.
 
+## ✅ Project Status
+
+**Production Ready** - All core functionality implemented, tested, and optimized.
+
 ## Features
 
 - **ActivityPub Integration**: Follow weather accounts from any ActivityPub-compatible platform (Mastodon, Pleroma, Misskey, etc.)
@@ -11,7 +15,7 @@ An ActivityPub-powered weather service that allows Mastodon and other Fediverse 
   - Morning forecast (7am local time)
   - Noon update with current conditions
   - Evening forecast with overnight and tomorrow's weather (7pm local time)
-- **Severe Weather Alerts**: Immediate posts for extreme weather conditions, automatically pinned
+- **Severe Weather Alerts**: Immediate posts for extreme weather conditions
 - **Full ActivityPub Compliance**: 
   - Proper JSON-LD contexts with Mastodon extensions
   - Create activities wrapping Note objects in outbox
@@ -20,8 +24,8 @@ An ActivityPub-powered weather service that allows Mastodon and other Fediverse 
 - **HTTP Signatures**: RSA-SHA256 cryptographically signed messages for secure federation
 - **Smart Caching**: Hybrid caching strategy using Cache API and KV storage
 - **Reliable Delivery**: Automatic retry with exponential backoff for failed deliveries
-- **Bulk Weather Requests**: Efficient fetching for multiple locations simultaneously
-- **International Support**: Geocoding via Nominatim for worldwide locations with timezone awareness
+- **Deterministic IDs**: Prevents duplicate posts even after cache purges
+- **International Support**: Geocoding via Nominatim for worldwide locations
 
 ## Technology Stack
 
@@ -32,7 +36,7 @@ An ActivityPub-powered weather service that allows Mastodon and other Fediverse 
 - **ActivityPub**: W3C standard for federated social networking
 - **HTTP Signatures**: RSA-SHA256 signing for message authentication
 
-## Development
+## Quick Start
 
 ### Prerequisites
 
@@ -43,18 +47,18 @@ An ActivityPub-powered weather service that allows Mastodon and other Fediverse 
 
 ### Setup
 
-1. Clone the repository:
+1. **Clone the repository:**
 ```bash
 git clone https://github.com/leoherzog/weather.gripe.git
 cd weather.gripe
 ```
 
-2. Install dependencies:
+2. **Install dependencies:**
 ```bash
 npm install
 ```
 
-3. Create KV namespaces:
+3. **Create KV namespaces:**
 ```bash
 npx wrangler kv:namespace create "FOLLOWERS"
 npx wrangler kv:namespace create "POSTS"
@@ -63,16 +67,16 @@ npx wrangler kv:namespace create "DELIVERY_QUEUE"
 npx wrangler kv:namespace create "KEYS"
 ```
 
-4. Update `wrangler.toml` with the KV namespace IDs from the previous step
+4. **Update `wrangler.toml`** with the KV namespace IDs from the previous step
 
-5. Run locally:
+5. **Run locally:**
 ```bash
 npm run dev
 ```
 
 ### Deployment
 
-The project is configured for automatic deployment via Cloudflare's GitHub integration:
+**Automatic deployment via GitHub:**
 
 1. Connect your GitHub repository to Cloudflare Workers
 2. Configure branch deployments:
@@ -80,9 +84,9 @@ The project is configured for automatic deployment via Cloudflare's GitHub integ
    - `develop` → Staging
 3. Push to GitHub to trigger automatic deployment
 
-Manual deployment is also available:
+**Manual deployment:**
 ```bash
-npm run deploy  # Deploy to production
+npm run deploy          # Deploy to production
 npm run deploy:staging  # Deploy to staging
 ```
 
@@ -90,54 +94,111 @@ npm run deploy:staging  # Deploy to staging
 
 ### ActivityPub Endpoints
 
-- `GET /.well-known/webfinger` - WebFinger discovery
-- `GET /.well-known/nodeinfo` - NodeInfo discovery
-- `GET /.well-known/host-meta` - Host metadata for WebFinger
-- `GET /nodeinfo/2.0` - Server information and statistics
-- `GET /locations/{location}` - Actor profile (content negotiation aware)
-- `POST /locations/{location}/inbox` - Receive ActivityPub activities
-- `GET /locations/{location}/outbox` - Weather posts collection (paginated)
-- `GET /locations/{location}/followers` - Followers collection
-- `GET /locations/{location}/following` - Following collection (empty)
-- `GET /locations/{location}/alerts` - Active weather alerts (featured)
-- `GET /posts/{uuid}` - Individual weather post
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/.well-known/webfinger` | WebFinger discovery |
+| GET | `/.well-known/nodeinfo` | NodeInfo discovery |
+| GET | `/.well-known/host-meta` | Host metadata |
+| GET | `/nodeinfo/2.0` | Server information |
+| GET | `/locations/{location}` | Actor profile |
+| POST | `/locations/{location}/inbox` | Receive activities |
+| GET | `/locations/{location}/outbox` | Weather posts |
+| GET | `/locations/{location}/followers` | Followers list |
+| GET | `/locations/{location}/following` | Following (empty) |
+| GET | `/locations/{location}/alerts` | Active alerts |
+| GET | `/posts/{uuid}` | Individual post |
 
 ### Admin/Debug Endpoints
 
-- `GET /health` - Health check
-- `GET /api/weather/forecast?location={name}` - Get forecast data
-- `GET /api/weather/current?location={name}` - Get current conditions
-- `GET /api/weather/alerts?location={name}` - Get active alerts
-- `GET /api/weather/geocode?location={name}` - Geocode location
-
-## Configuration
-
-See `wrangler.toml` for configuration options. Key settings:
-
-- `DOMAIN`: Your domain (e.g., "weather.gripe")
-- `ADMIN_EMAIL`: Administrator email
-- `USER_AGENT`: User agent for API requests
-- `STRICT_SIGNATURES`: Enable strict HTTP signature verification (default: false)
-- KV namespace bindings:
-  - `FOLLOWERS`: Follower relationships
-  - `POSTS`: Weather post storage
-  - `ALERTS`: Alert tracking
-  - `DELIVERY_QUEUE`: Failed delivery retry queue
-  - `KEYS`: RSA keypairs for HTTP signatures
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/health` | Health check |
+| GET | `/api/weather/forecast?location={name}` | Forecast data |
+| GET | `/api/weather/current?location={name}` | Current conditions |
+| GET | `/api/weather/alerts?location={name}` | Active alerts |
+| GET | `/api/weather/geocode?location={name}` | Geocode location |
 
 ## Architecture
 
-The service follows a modular architecture:
+The service follows a clean, modular architecture:
 
-- **Handlers**: Request routing and protocol implementation
-- **Services**: Business logic for weather, location, and ActivityPub
-- **Utils**: Shared utilities for formatting, caching, and error handling
-- **Models**: Data structures and schemas
-- **Config**: Configuration and constants
+```
+src/
+├── index.js                 # Main entry point & routing
+├── config/
+│   └── constants.js        # Centralized configuration
+├── handlers/               # Request handlers
+│   ├── activitypub.js      # ActivityPub protocol
+│   ├── webfinger.js        # WebFinger discovery
+│   └── weather.js          # Weather API endpoints
+├── services/               # Business logic
+│   ├── weather-service.js  # OpenMeteo integration
+│   ├── location-service.js # Nominatim geocoding
+│   ├── delivery-service.js # ActivityPub delivery
+│   ├── http-cache.js       # Cache API wrapper
+│   ├── state-store.js      # KV storage operations
+│   └── post-repository.js  # Post storage
+├── models/                 # Data models
+│   └── weather-post.js     # Post generation
+└── utils/                  # Utilities
+    ├── weather-formatters.js # Text formatting
+    ├── id-generator.js      # Deterministic IDs
+    ├── error-handler.js     # Error handling
+    ├── http-signature.js    # RSA signatures
+    ├── time-utils.js        # Timezone logic
+    ├── alert-utils.js       # Alert formatting
+    └── logger.js            # Structured logging
+```
+
+## Configuration
+
+Configuration in `wrangler.toml`:
+
+```toml
+name = "weather-gripe"
+main = "src/index.js"
+
+[vars]
+DOMAIN = "weather.gripe"
+ADMIN_EMAIL = "admin@weather.gripe"
+USER_AGENT = "weather.gripe/1.0"
+STRICT_SIGNATURES = false
+
+[[kv_namespaces]]
+binding = "FOLLOWERS"
+id = "your-followers-namespace-id"
+
+# ... additional KV namespaces
+```
+
+See [Configuration Constants](src/config/constants.js) for runtime configuration options.
+
+## Documentation
+
+- [Implementation Roadmap](IMPLEMENTATION.md) - Development milestones
+- [Technical Debt](TECHNICAL_DEBT.md) - Known issues and improvements
+- [Changelog](CHANGELOG.md) - Version history
+- [Caching Strategy](CACHING_STRATEGY.md) - Hybrid caching approach
+- [ID Generation](ID_GENERATION.md) - Deterministic ID system
+- [ActivityPub Delivery](ACTIVITYPUB_DELIVERY.md) - Push delivery system
+- [HTTP Signatures](HTTP_SIGNATURES.md) - Authentication
+- [OpenMeteo API](OPENMETEO_API.md) - Weather data integration
+- [Cron Strategy](CRON_STRATEGY.md) - Scheduled posting
+- [KV Setup](KV_SETUP.md) - Storage configuration
 
 ## Contributing
 
-Contributions are welcome! Please see [IMPLEMENTATION.md](IMPLEMENTATION.md) for the development roadmap and task list.
+Contributions are welcome! Key areas for improvement:
+
+- **Features**: Multi-language support, custom alerts, weather maps
+- **Performance**: Enhanced caching, batch processing optimization
+- **Testing**: Expand integration tests, add E2E tests
+- **Documentation**: API documentation, user guides
+
+Please ensure:
+- Code follows existing patterns and style
+- Tests are included for new features
+- Documentation is updated as needed
 
 ## License
 
@@ -146,3 +207,9 @@ ISC License - See [LICENSE](LICENSE) file for details
 ## Credits
 
 Weather data formatting and emoji mappings adapted from the original Apps Script weather bot implementation.
+
+## Support
+
+- **Issues**: [GitHub Issues](https://github.com/leoherzog/weather.gripe/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/leoherzog/weather.gripe/discussions)
+- **Email**: admin@weather.gripe

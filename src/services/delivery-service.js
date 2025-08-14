@@ -165,10 +165,15 @@ export class DeliveryService {
             retryCount: retryCount + 1,
             retryAfter: Date.now() + delay
           });
-        } else {
-          // If no queue available, retry inline after delay
+        } else if (retryCount < MAX_RETRIES - 1) {
+          // If no queue available, retry inline after delay (but respect max retries)
           await new Promise(resolve => setTimeout(resolve, delay));
           return this.deliverToInbox(inboxUrl, activity, actorId, retryCount + 1);
+        } else {
+          this.logger.warn('Cannot retry delivery - no queue and max retries reached', {
+            inboxUrl,
+            retryCount
+          });
         }
       } else {
         this.logger.error('Failed to deliver to inbox after retries', { 
@@ -188,9 +193,9 @@ export class DeliveryService {
    */
   async getFollowerInboxes(locationId) {
     try {
-      const cacheService = await import('./cache-service.js');
-      const cache = new cacheService.CacheService(this.env, this.logger);
-      const followers = await cache.getFollowers(locationId);
+      const { StateStore } = await import('./state-store.js');
+      const stateStore = new StateStore(this.env, this.logger);
+      const followers = await stateStore.getFollowers(locationId);
       
       // Extract unique inbox URLs (dedup shared inboxes)
       const inboxes = [...new Set(followers.map(f => f.inbox || f.sharedInbox))];
@@ -323,9 +328,9 @@ export class DeliveryService {
       }
 
       // Add to followers list
-      const cacheService = await import('./cache-service.js');
-      const cache = new cacheService.CacheService(this.env, this.logger);
-      await cache.addFollower(locationId, {
+      const { StateStore } = await import('./state-store.js');
+      const stateStore = new StateStore(this.env, this.logger);
+      await stateStore.addFollower(locationId, {
         id: followerActor,
         inbox: followerData.inbox,
         sharedInbox: followerData.endpoints?.sharedInbox
@@ -364,9 +369,9 @@ export class DeliveryService {
       const followerActor = followActivity.actor;
 
       // Remove from followers list
-      const cacheService = await import('./cache-service.js');
-      const cache = new cacheService.CacheService(this.env, this.logger);
-      await cache.removeFollower(locationId, followerActor);
+      const { StateStore } = await import('./state-store.js');
+      const stateStore = new StateStore(this.env, this.logger);
+      await stateStore.removeFollower(locationId, followerActor);
 
       this.logger.info('Processed unfollow', { 
         locationId, 

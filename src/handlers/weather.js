@@ -57,10 +57,28 @@ export async function handleWeather(request, env, logger) {
  * @returns {Response}
  */
 async function getForecast(location, env, logger) {
-  // TODO: Implement forecast fetching from NWS API
+  const { LocationService } = await import('../services/location-service.js');
+  const { WeatherService } = await import('../services/weather-service.js');
+  
+  const locationService = new LocationService(env, logger);
+  const weatherService = new WeatherService(env, logger);
+  
+  // Geocode the location
+  const locationData = await locationService.searchLocation(location);
+  
+  // Get forecast
+  const forecast = await weatherService.getForecast(locationData, {
+    forecastDays: 2,
+    includeCurrent: true
+  });
+  
   return new Response(JSON.stringify({
-    location,
-    forecast: 'Not yet implemented'
+    location: locationData.displayName || location,
+    coordinates: {
+      lat: locationData.lat,
+      lon: locationData.lon
+    },
+    forecast
   }), {
     headers: { 'Content-Type': 'application/json' }
   });
@@ -74,10 +92,28 @@ async function getForecast(location, env, logger) {
  * @returns {Response}
  */
 async function getCurrentConditions(location, env, logger) {
-  // TODO: Implement current conditions fetching from NWS API
+  const { LocationService } = await import('../services/location-service.js');
+  const { WeatherService } = await import('../services/weather-service.js');
+  
+  const locationService = new LocationService(env, logger);
+  const weatherService = new WeatherService(env, logger);
+  
+  // Geocode the location
+  const locationData = await locationService.searchLocation(location);
+  
+  // Get forecast with current conditions
+  const forecast = await weatherService.getForecast(locationData, {
+    forecastDays: 1,
+    includeCurrent: true
+  });
+  
   return new Response(JSON.stringify({
-    location,
-    current: 'Not yet implemented'
+    location: locationData.displayName || location,
+    coordinates: {
+      lat: locationData.lat,
+      lon: locationData.lon
+    },
+    current: forecast.current || {}
   }), {
     headers: { 'Content-Type': 'application/json' }
   });
@@ -91,10 +127,68 @@ async function getCurrentConditions(location, env, logger) {
  * @returns {Response}
  */
 async function getAlerts(location, env, logger) {
-  // TODO: Implement alerts fetching from NWS API
+  const { LocationService } = await import('../services/location-service.js');
+  const { WeatherService } = await import('../services/weather-service.js');
+  
+  const locationService = new LocationService(env, logger);
+  const weatherService = new WeatherService(env, logger);
+  
+  // Geocode the location
+  const locationData = await locationService.searchLocation(location);
+  
+  // Get forecast to check for severe conditions
+  const forecast = await weatherService.getForecast(locationData, {
+    forecastDays: 2,
+    includeCurrent: true
+  });
+  
+  // Generate alerts from severe weather conditions
+  // OpenMeteo doesn't have dedicated alerts, so we generate from weather codes
+  const alerts = [];
+  
+  if (forecast.current) {
+    const code = forecast.current.weatherCode;
+    // Check for severe weather codes
+    if (code >= 95 && code <= 99) { // Thunderstorms
+      alerts.push({
+        event: 'Thunderstorm Warning',
+        severity: 'Severe',
+        urgency: 'Immediate',
+        description: 'Severe thunderstorms are occurring or imminent',
+        effective: new Date().toISOString(),
+        expires: new Date(Date.now() + 3600000).toISOString() // 1 hour
+      });
+    }
+    // Check for extreme temperatures (Fahrenheit - as returned by API)
+    if (forecast.current.temperature > 100) { // >100°F
+      alerts.push({
+        event: 'Excessive Heat Warning',
+        severity: 'Extreme',
+        urgency: 'Expected',
+        description: `Extreme heat with temperatures reaching ${Math.round(forecast.current.temperature)}°F`,
+        effective: new Date().toISOString(),
+        expires: new Date(Date.now() + 7200000).toISOString() // 2 hours
+      });
+    }
+    if (forecast.current.temperature < 0) { // <0°F
+      alerts.push({
+        event: 'Extreme Cold Warning',
+        severity: 'Extreme',
+        urgency: 'Expected',
+        description: `Extreme cold with temperatures reaching ${Math.round(forecast.current.temperature)}°F`,
+        effective: new Date().toISOString(),
+        expires: new Date(Date.now() + 7200000).toISOString() // 2 hours
+      });
+    }
+  }
+  
   return new Response(JSON.stringify({
-    location,
-    alerts: []
+    location: locationData.displayName || location,
+    coordinates: {
+      lat: locationData.lat,
+      lon: locationData.lon
+    },
+    alerts
   }), {
     headers: { 'Content-Type': 'application/json' }
   });
@@ -108,10 +202,26 @@ async function getAlerts(location, env, logger) {
  * @returns {Response}
  */
 async function geocodeLocation(location, env, logger) {
-  // TODO: Implement geocoding via Nominatim API
+  const { LocationService } = await import('../services/location-service.js');
+  
+  const locationService = new LocationService(env, logger);
+  
+  // Geocode the location
+  const locationData = await locationService.searchLocation(location);
+  
   return new Response(JSON.stringify({
-    location,
-    coordinates: 'Not yet implemented'
+    location: locationData.displayName || location,
+    coordinates: {
+      lat: locationData.lat,
+      lon: locationData.lon
+    },
+    metadata: {
+      country: locationData.country,
+      state: locationData.state,
+      city: locationData.city,
+      type: locationData.type,
+      importance: locationData.importance
+    }
   }), {
     headers: { 'Content-Type': 'application/json' }
   });
