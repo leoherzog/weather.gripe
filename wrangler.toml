@@ -1,0 +1,9 @@
+name = "weather-gripe"
+main = "src/index.js"
+compatibility_date = "2025-01-01"
+
+[observability]
+enabled = true
+
+[assets]
+directory = "public"
