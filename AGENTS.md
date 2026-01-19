@@ -19,10 +19,12 @@ This is a Cloudflare Workers application that serves a weather website with shar
 ### Backend (Cloudflare Worker)
 
 **`src/index.js`** - Main Worker entry point that handles API routing and proxies external services:
-- `/api/weather` - Proxies Open-Meteo forecast API (15min cache)
-- `/api/geocode` - Proxies Open-Meteo geocoding API (24hr cache)
+- `/api/location` - **Primary endpoint**: Consolidated weather data endpoint (5min cache)
+  - Accepts `lat`+`lon` (coordinates) or `q` (search query)
+  - Returns location info (via Nominatim), weather data (Open-Meteo), and alerts (NWS)
+  - Backend fetches all data in parallel for optimal performance
+- `/api/geocode` - Proxies Open-Meteo geocoding API for search autocomplete (24hr cache)
 - `/api/unsplash` - Proxies Unsplash photo search (hides API key, 24hr cache)
-- `/api/alerts` - Proxies NWS weather alerts for US locations (5min cache, filters to Severe/Extreme only)
 - All other routes served via Cloudflare static assets from `public/`
 
 Coordinates are truncated to 3 decimal places (~111m precision) for cache efficiency.
