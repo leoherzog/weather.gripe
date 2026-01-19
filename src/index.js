@@ -1,69 +1,217 @@
 // Weather.gripe Cloudflare Worker
 // Proxies and caches Open-Meteo and Unsplash APIs
 
-const WEATHER_CACHE_TTL = 15 * 60; // 15 minutes
 const GEOCODE_CACHE_TTL = 24 * 60 * 60; // 24 hours
 const UNSPLASH_CACHE_TTL = 24 * 60 * 60; // 24 hours
-const ALERTS_CACHE_TTL = 5 * 60; // 5 minutes
+const LOCATION_CACHE_TTL = 5 * 60; // 5 minutes (limited by alerts)
+
+const NOMINATIM_HEADERS = {
+  'User-Agent': 'weather.gripe/1.0 (https://weather.gripe)',
+  'Accept': 'application/json'
+};
 
 // Truncate coordinates to 3 decimal places (~111m precision)
 function truncateCoord(coord) {
   return Math.round(parseFloat(coord) * 1000) / 1000;
 }
 
-// Handle weather API proxy
-async function handleWeather(request, env, ctx) {
+// Reverse geocode coordinates to location name via Nominatim
+async function reverseGeocode(lat, lon) {
+  const url = new URL('https://nominatim.openstreetmap.org/reverse');
+  url.searchParams.set('lat', lat.toString());
+  url.searchParams.set('lon', lon.toString());
+  url.searchParams.set('format', 'jsonv2');
+
+  const response = await fetch(url.toString(), { headers: NOMINATIM_HEADERS });
+  if (!response.ok) throw new Error('Reverse geocoding failed');
+
+  const data = await response.json();
+
+  // Handle Nominatim error responses or missing data
+  if (data.error || !data.lat || !data.lon) {
+    return {
+      name: 'Unknown Location',
+      region: '',
+      latitude: lat,
+      longitude: lon,
+      country_code: null
+    };
+  }
+
+  const addr = data.address || {};
+
+  return {
+    name: addr.city || addr.town || addr.village || addr.municipality || addr.county || 'Unknown',
+    region: [addr.state, addr.country].filter(Boolean).join(', '),
+    latitude: parseFloat(data.lat),
+    longitude: parseFloat(data.lon),
+    country_code: addr.country_code
+  };
+}
+
+// Forward geocode query to coordinates via Nominatim
+async function forwardGeocode(query) {
+  const url = new URL('https://nominatim.openstreetmap.org/search');
+  url.searchParams.set('q', query);
+  url.searchParams.set('format', 'jsonv2');
+  url.searchParams.set('limit', '1');
+
+  const response = await fetch(url.toString(), { headers: NOMINATIM_HEADERS });
+  if (!response.ok) throw new Error('Forward geocoding failed');
+
+  const data = await response.json();
+  if (!data.length) throw new Error('Location not found');
+
+  const result = data[0];
+  // Parse display_name to extract city and region
+  const parts = result.display_name.split(', ');
+
+  return {
+    name: parts[0] || 'Unknown',
+    region: parts.slice(1).join(', '),
+    latitude: parseFloat(result.lat),
+    longitude: parseFloat(result.lon)
+  };
+}
+
+// Fetch weather data from Open-Meteo
+async function fetchWeather(lat, lon) {
+  const url = new URL('https://api.open-meteo.com/v1/forecast');
+  url.searchParams.set('latitude', lat.toString());
+  url.searchParams.set('longitude', lon.toString());
+  url.searchParams.set('current', 'temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,wind_direction_10m,uv_index');
+  url.searchParams.set('hourly', 'temperature_2m,weather_code,precipitation_probability,precipitation,snowfall,rain');
+  url.searchParams.set('daily', 'weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,uv_index_max,precipitation_probability_max,precipitation_sum,snowfall_sum,rain_sum');
+  url.searchParams.set('timezone', 'auto');
+  url.searchParams.set('forecast_days', '7');
+  url.searchParams.set('precipitation_unit', 'inch');
+
+  const response = await fetch(url.toString());
+  if (!response.ok) throw new Error('Weather fetch failed');
+  return response.json();
+}
+
+// Fetch alerts from NWS
+async function fetchAlerts(lat, lon) {
+  const url = new URL('https://api.weather.gov/alerts');
+  url.searchParams.set('point', `${lat},${lon}`);
+  url.searchParams.set('status', 'actual');
+  url.searchParams.set('active', 'true');
+
+  try {
+    const response = await fetch(url.toString(), {
+      headers: {
+        'User-Agent': 'weather.gripe (https://weather.gripe)',
+        'Accept': 'application/geo+json'
+      }
+    });
+
+    if (!response.ok) {
+      if (response.status === 404) return []; // Non-US location
+      throw new Error(`NWS API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const allAlerts = (data.features || []).map(f => ({
+      id: f.properties.id,
+      event: f.properties.event,
+      headline: f.properties.headline,
+      severity: f.properties.severity,
+      urgency: f.properties.urgency,
+      sent: f.properties.sent,
+      onset: f.properties.onset,
+      ends: f.properties.ends,
+      description: f.properties.description,
+      instruction: f.properties.instruction,
+      senderName: f.properties.senderName
+    }));
+
+    // Deduplicate by event type, keeping most recent
+    const alertsByEvent = new Map();
+    for (const alert of allAlerts) {
+      const existing = alertsByEvent.get(alert.event);
+      if (!existing || new Date(alert.sent) > new Date(existing.sent)) {
+        alertsByEvent.set(alert.event, alert);
+      }
+    }
+    return Array.from(alertsByEvent.values());
+  } catch (e) {
+    console.error('NWS alerts error:', e);
+    return [];
+  }
+}
+
+// Handle consolidated location API
+async function handleLocation(request, env, ctx) {
   const url = new URL(request.url);
   const lat = url.searchParams.get('lat');
   const lon = url.searchParams.get('lon');
+  const query = url.searchParams.get('q');
 
-  if (!lat || !lon) {
-    return new Response(JSON.stringify({ error: 'Missing lat/lon parameters' }), {
+  if ((!lat || !lon) && !query) {
+    return new Response(JSON.stringify({ error: 'Missing lat/lon or q parameter' }), {
       status: 400,
-      headers: { 'Content-Type': 'application/json' }
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
     });
   }
 
-  const truncLat = truncateCoord(lat);
-  const truncLon = truncateCoord(lon);
-
-  // Check cache first
+  // Check cache
   const cache = caches.default;
+  const cacheKey = lat && lon
+    ? `location:${truncateCoord(lat)},${truncateCoord(lon)}`
+    : `location:q:${encodeURIComponent(query)}`;
   const cacheUrl = new URL(request.url);
-  cacheUrl.searchParams.set('lat', truncLat.toString());
-  cacheUrl.searchParams.set('lon', truncLon.toString());
+  cacheUrl.pathname = `/api/location-cache/${cacheKey}`;
   const cacheRequest = new Request(cacheUrl.toString());
 
-  let response = await cache.match(cacheRequest);
-  if (response) {
-    return response;
-  }
+  const cached = await cache.match(cacheRequest);
+  if (cached) return cached;
 
-  // Fetch from Open-Meteo (always metric)
-  const openMeteoUrl = new URL('https://api.open-meteo.com/v1/forecast');
-  openMeteoUrl.searchParams.set('latitude', truncLat.toString());
-  openMeteoUrl.searchParams.set('longitude', truncLon.toString());
-  openMeteoUrl.searchParams.set('current', 'temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,wind_direction_10m,uv_index');
-  openMeteoUrl.searchParams.set('hourly', 'temperature_2m,weather_code,precipitation_probability');
-  openMeteoUrl.searchParams.set('daily', 'weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,uv_index_max,precipitation_probability_max');
-  openMeteoUrl.searchParams.set('timezone', 'auto');
-  openMeteoUrl.searchParams.set('forecast_days', '7');
+  try {
+    // Get location info
+    let location;
+    let coords;
 
-  const apiResponse = await fetch(openMeteoUrl.toString());
-  const data = await apiResponse.json();
-
-  response = new Response(JSON.stringify(data), {
-    headers: {
-      'Content-Type': 'application/json',
-      'Cache-Control': `public, max-age=${WEATHER_CACHE_TTL}`,
-      'Access-Control-Allow-Origin': '*'
+    if (lat && lon) {
+      coords = { lat: truncateCoord(lat), lon: truncateCoord(lon) };
+      location = await reverseGeocode(coords.lat, coords.lon);
+    } else {
+      location = await forwardGeocode(query);
+      coords = { lat: truncateCoord(location.latitude), lon: truncateCoord(location.longitude) };
     }
-  });
 
-  // Store in cache
-  ctx.waitUntil(cache.put(cacheRequest, response.clone()));
+    // Fetch weather and alerts in parallel
+    const [weather, alerts] = await Promise.all([
+      fetchWeather(coords.lat, coords.lon),
+      fetchAlerts(coords.lat, coords.lon)
+    ]);
 
-  return response;
+    const result = {
+      location: {
+        ...location,
+        timezone: weather.timezone
+      },
+      weather,
+      alerts
+    };
+
+    const response = new Response(JSON.stringify(result), {
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': `public, max-age=${LOCATION_CACHE_TTL}`,
+        'Access-Control-Allow-Origin': '*'
+      }
+    });
+
+    ctx.waitUntil(cache.put(cacheRequest, response.clone()));
+    return response;
+  } catch (e) {
+    console.error('Location API error:', e);
+    return new Response(JSON.stringify({ error: e.message || 'Failed to fetch location data' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+    });
+  }
 }
 
 // Handle geocoding API proxy
@@ -156,6 +304,7 @@ async function handleUnsplash(request, env, ctx) {
       url: photo.urls.regular,
       thumb: photo.urls.thumb,
       photographer: photo.user.name,
+      username: photo.user.username,
       photographerUrl: photo.user.links.html,
       unsplashUrl: photo.links.html
     };
@@ -175,112 +324,20 @@ async function handleUnsplash(request, env, ctx) {
   return response;
 }
 
-// Handle NWS alerts API proxy
-async function handleAlerts(request, env, ctx) {
-  const url = new URL(request.url);
-  const lat = url.searchParams.get('lat');
-  const lon = url.searchParams.get('lon');
-
-  if (!lat || !lon) {
-    return new Response(JSON.stringify({ error: 'Missing lat/lon parameters' }), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json' }
-    });
-  }
-
-  const truncLat = truncateCoord(lat);
-  const truncLon = truncateCoord(lon);
-
-  // Check cache
-  const cache = caches.default;
-  const cacheUrl = new URL(request.url);
-  cacheUrl.searchParams.set('lat', truncLat.toString());
-  cacheUrl.searchParams.set('lon', truncLon.toString());
-  const cacheRequest = new Request(cacheUrl.toString());
-
-  let response = await cache.match(cacheRequest);
-  if (response) return response;
-
-  // Fetch from NWS
-  const nwsUrl = new URL('https://api.weather.gov/alerts/active');
-  nwsUrl.searchParams.set('point', `${truncLat},${truncLon}`);
-  nwsUrl.searchParams.set('status', 'actual');
-  nwsUrl.searchParams.set('message_type', 'alert,update');
-
-  try {
-    const apiResponse = await fetch(nwsUrl.toString(), {
-      headers: {
-        'User-Agent': 'weather.gripe (https://weather.gripe)',
-        'Accept': 'application/geo+json'
-      }
-    });
-
-    if (!apiResponse.ok) {
-      // NWS returns 404 for non-US locations
-      if (apiResponse.status === 404) {
-        return new Response(JSON.stringify({ features: [] }), {
-          headers: {
-            'Content-Type': 'application/json',
-            'Cache-Control': `public, max-age=${ALERTS_CACHE_TTL}`,
-            'Access-Control-Allow-Origin': '*'
-          }
-        });
-      }
-      throw new Error(`NWS API error: ${apiResponse.status}`);
-    }
-
-    const data = await apiResponse.json();
-
-    // Filter to Severe/Extreme only, transform to minimal shape
-    const alerts = (data.features || [])
-      .filter(f => f.properties?.severity === 'Severe' || f.properties?.severity === 'Extreme')
-      .map(f => ({
-        id: f.properties.id,
-        event: f.properties.event,
-        headline: f.properties.headline,
-        severity: f.properties.severity,
-        description: f.properties.description,
-        instruction: f.properties.instruction,
-        effective: f.properties.effective,
-        expires: f.properties.expires
-      }));
-
-    response = new Response(JSON.stringify({ features: alerts }), {
-      headers: {
-        'Content-Type': 'application/json',
-        'Cache-Control': `public, max-age=${ALERTS_CACHE_TTL}`,
-        'Access-Control-Allow-Origin': '*'
-      }
-    });
-
-    ctx.waitUntil(cache.put(cacheRequest, response.clone()));
-    return response;
-  } catch (e) {
-    console.error('NWS API error:', e);
-    return new Response(JSON.stringify({ error: 'Failed to fetch alerts', features: [] }), {
-      status: 502,
-      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-    });
-  }
-}
-
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const path = url.pathname;
 
     // API routes
-    if (path === '/api/weather') {
-      return handleWeather(request, env, ctx);
+    if (path === '/api/location') {
+      return handleLocation(request, env, ctx);
     }
     if (path === '/api/geocode') {
       return handleGeocode(request, env, ctx);
     }
     if (path === '/api/unsplash') {
       return handleUnsplash(request, env, ctx);
-    }
-    if (path === '/api/alerts') {
-      return handleAlerts(request, env, ctx);
     }
 
     // For all other routes, let the static assets handler take over

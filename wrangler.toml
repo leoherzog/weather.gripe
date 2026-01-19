@@ -7,3 +7,4 @@ enabled = true
 
 [assets]
 directory = "public"
+binding = "ASSETS"
