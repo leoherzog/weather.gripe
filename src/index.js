@@ -4,6 +4,7 @@
 const GEOCODE_CACHE_TTL = 24 * 60 * 60; // 24 hours
 const UNSPLASH_CACHE_TTL = 24 * 60 * 60; // 24 hours
 const LOCATION_CACHE_TTL = 5 * 60; // 5 minutes (limited by alerts)
+const WXSTORY_CACHE_TTL = 5 * 60; // 5 minutes
 
 const NOMINATIM_HEADERS = {
   'User-Agent': 'weather.gripe/1.0 (https://weather.gripe)',
@@ -141,6 +142,25 @@ async function fetchAlerts(lat, lon) {
   }
 }
 
+// Fetch NWS office code for a location
+async function fetchNWSOffice(lat, lon) {
+  const url = `https://api.weather.gov/points/${lat},${lon}`;
+  try {
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'weather.gripe (https://weather.gripe)',
+        'Accept': 'application/geo+json'
+      }
+    });
+    if (!response.ok) return null; // Non-US location returns 404
+    const data = await response.json();
+    return data.properties?.gridId || null;
+  } catch (e) {
+    console.error('NWS office lookup error:', e);
+    return null;
+  }
+}
+
 // Handle consolidated location API
 async function handleLocation(request, env, ctx) {
   const url = new URL(request.url);
@@ -180,16 +200,18 @@ async function handleLocation(request, env, ctx) {
       coords = { lat: truncateCoord(location.latitude), lon: truncateCoord(location.longitude) };
     }
 
-    // Fetch weather and alerts in parallel
-    const [weather, alerts] = await Promise.all([
+    // Fetch weather, alerts, and NWS office in parallel
+    const [weather, alerts, nwsOffice] = await Promise.all([
       fetchWeather(coords.lat, coords.lon),
-      fetchAlerts(coords.lat, coords.lon)
+      fetchAlerts(coords.lat, coords.lon),
+      fetchNWSOffice(coords.lat, coords.lon)
     ]);
 
     const result = {
       location: {
         ...location,
-        timezone: weather.timezone
+        timezone: weather.timezone,
+        nwsOffice
       },
       weather,
       alerts
@@ -324,6 +346,117 @@ async function handleUnsplash(request, env, ctx) {
   return response;
 }
 
+// HTMLRewriter handler to collect wxstory images
+class ImageCollector {
+  constructor() {
+    this.images = [];
+  }
+
+  element(element) {
+    if (element.tagName === 'img') {
+      const src = element.getAttribute('src');
+      if (src && src.toLowerCase().includes('wxstory')) {
+        let fullUrl = src;
+        if (src.startsWith('//')) {
+          fullUrl = 'https:' + src;
+        } else if (src.startsWith('/')) {
+          fullUrl = 'https://www.weather.gov' + src;
+        }
+        this.images.push(fullUrl);
+      }
+    }
+  }
+}
+
+// Handle weather story API
+async function handleWxStory(request, env, ctx) {
+  const url = new URL(request.url);
+  const office = url.searchParams.get('office');
+
+  if (!office || !/^[A-Za-z]{3}$/.test(office)) {
+    return new Response(JSON.stringify({
+      error: 'Invalid office code. Please provide a 3-letter NWS office code.'
+    }), {
+      status: 400,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*'
+      }
+    });
+  }
+
+  // Check cache first
+  const cache = caches.default;
+  const cacheKey = `wxstory:${office.toUpperCase()}`;
+  const cacheUrl = new URL(request.url);
+  cacheUrl.pathname = `/api/wxstory-cache/${cacheKey}`;
+  const cacheRequest = new Request(cacheUrl.toString());
+
+  const cached = await cache.match(cacheRequest);
+  if (cached) return cached;
+
+  try {
+    const storyResponse = await fetch(
+      `https://www.weather.gov/${office.toLowerCase()}/weatherstory`,
+      {
+        headers: {
+          'User-Agent': 'weather.gripe (https://weather.gripe)'
+        }
+      }
+    );
+
+    if (!storyResponse.ok) {
+      return new Response(JSON.stringify({
+        office: office.toUpperCase(),
+        images: []
+      }), {
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': `public, max-age=${WXSTORY_CACHE_TTL}`,
+          'Access-Control-Allow-Origin': '*'
+        }
+      });
+    }
+
+    const collector = new ImageCollector();
+    const transformed = new HTMLRewriter()
+      .on('img', collector)
+      .transform(storyResponse);
+    await transformed.text(); // consume to populate collector.images
+
+    // Clean up double slashes in URLs
+    const images = collector.images.map(x =>
+      x.replaceAll('//', '/').replace(':/', '://')
+    );
+
+    const response = new Response(JSON.stringify({
+      office: office.toUpperCase(),
+      images
+    }), {
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': `public, max-age=${WXSTORY_CACHE_TTL}`,
+        'Access-Control-Allow-Origin': '*'
+      }
+    });
+
+    ctx.waitUntil(cache.put(cacheRequest, response.clone()));
+    return response;
+  } catch (e) {
+    console.error('Weather story fetch error:', e);
+    return new Response(JSON.stringify({
+      error: 'Failed to fetch weather story',
+      details: e.message
+    }), {
+      status: 500,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*'
+      }
+    });
+  }
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -338,6 +471,9 @@ export default {
     }
     if (path === '/api/unsplash') {
       return handleUnsplash(request, env, ctx);
+    }
+    if (path === '/api/wxstory') {
+      return handleWxStory(request, env, ctx);
     }
 
     // For all other routes, let the static assets handler take over
