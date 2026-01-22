@@ -3,10 +3,14 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "wrangler dev",
-    "deploy": "wrangler deploy"
+    "build:css": "tailwindcss -i ./src/styles/input.css -o ./public/style.css --minify",
+    "watch:css": "tailwindcss -i ./src/styles/input.css -o ./public/style.css --watch",
+    "dev": "npm run watch:css & wrangler dev",
+    "deploy": "npm run build:css && wrangler deploy"
   },
   "devDependencies": {
-    "wrangler": "^4.59.2"
+    "@tailwindcss/cli": "^4.1.18",
+    "tailwindcss": "^4.1.18",
+    "wrangler": "^4.60.0"
   }
 }

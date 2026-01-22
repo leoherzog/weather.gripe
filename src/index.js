@@ -16,6 +16,18 @@ function truncateCoord(coord) {
   return Math.round(parseFloat(coord) * 1000) / 1000;
 }
 
+// Create JSON response with standard headers
+function jsonResponse(data, status = 200, cacheTTL = null) {
+  const headers = {
+    'Content-Type': 'application/json',
+    'Access-Control-Allow-Origin': '*'
+  };
+  if (cacheTTL) {
+    headers['Cache-Control'] = `public, max-age=${cacheTTL}`;
+  }
+  return new Response(JSON.stringify(data), { status, headers });
+}
+
 // Reverse geocode coordinates to location name via Nominatim
 async function reverseGeocode(lat, lon) {
   const url = new URL('https://nominatim.openstreetmap.org/reverse');
@@ -56,6 +68,7 @@ async function forwardGeocode(query) {
   url.searchParams.set('q', query);
   url.searchParams.set('format', 'jsonv2');
   url.searchParams.set('limit', '1');
+  url.searchParams.set('addressdetails', '1');
 
   const response = await fetch(url.toString(), { headers: NOMINATIM_HEADERS });
   if (!response.ok) throw new Error('Forward geocoding failed');
@@ -64,6 +77,7 @@ async function forwardGeocode(query) {
   if (!data.length) throw new Error('Location not found');
 
   const result = data[0];
+  const addr = result.address || {};
   // Parse display_name to extract city and region
   const parts = result.display_name.split(', ');
 
@@ -71,7 +85,8 @@ async function forwardGeocode(query) {
     name: parts[0] || 'Unknown',
     region: parts.slice(1).join(', '),
     latitude: parseFloat(result.lat),
-    longitude: parseFloat(result.lon)
+    longitude: parseFloat(result.lon),
+    country_code: addr.country_code || null
   };
 }
 
@@ -169,10 +184,7 @@ async function handleLocation(request, env, ctx) {
   const query = url.searchParams.get('q');
 
   if ((!lat || !lon) && !query) {
-    return new Response(JSON.stringify({ error: 'Missing lat/lon or q parameter' }), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-    });
+    return jsonResponse({ error: 'Missing lat/lon or q parameter' }, 400);
   }
 
   // Check cache
@@ -229,10 +241,7 @@ async function handleLocation(request, env, ctx) {
     return response;
   } catch (e) {
     console.error('Location API error:', e);
-    return new Response(JSON.stringify({ error: e.message || 'Failed to fetch location data' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-    });
+    return jsonResponse({ error: e.message || 'Failed to fetch location data' }, 500);
   }
 }
 
@@ -242,10 +251,7 @@ async function handleGeocode(request, env, ctx) {
   const query = url.searchParams.get('q');
 
   if (!query) {
-    return new Response(JSON.stringify({ error: 'Missing q parameter' }), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json' }
-    });
+    return jsonResponse({ error: 'Missing q parameter' }, 400);
   }
 
   // Check cache first
@@ -285,17 +291,11 @@ async function handleUnsplash(request, env, ctx) {
   const query = url.searchParams.get('query');
 
   if (!query) {
-    return new Response(JSON.stringify({ error: 'Missing query parameter' }), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json' }
-    });
+    return jsonResponse({ error: 'Missing query parameter' }, 400);
   }
 
   if (!env.UNSPLASH_ACCESS_KEY) {
-    return new Response(JSON.stringify({ error: 'Unsplash API not configured' }), {
-      status: 503,
-      headers: { 'Content-Type': 'application/json' }
-    });
+    return jsonResponse({ error: 'Unsplash API not configured' }, 503);
   }
 
   // Check cache first
@@ -368,21 +368,30 @@ class ImageCollector {
   }
 }
 
+// Handle Cloudflare location detection API
+async function handleCfLocation(request) {
+  const cf = request.cf || {};
+
+  if (!cf.latitude || !cf.longitude) {
+    return jsonResponse({ error: 'Location not available' }, 404);
+  }
+
+  return jsonResponse({
+    latitude: cf.latitude,
+    longitude: cf.longitude,
+    city: cf.city || null,
+    region: cf.region || null,
+    country: cf.country || null
+  });
+}
+
 // Handle weather story API
 async function handleWxStory(request, env, ctx) {
   const url = new URL(request.url);
   const office = url.searchParams.get('office');
 
   if (!office || !/^[A-Za-z]{3}$/.test(office)) {
-    return new Response(JSON.stringify({
-      error: 'Invalid office code. Please provide a 3-letter NWS office code.'
-    }), {
-      status: 400,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*'
-      }
-    });
+    return jsonResponse({ error: 'Invalid office code. Please provide a 3-letter NWS office code.' }, 400);
   }
 
   // Check cache first
@@ -444,16 +453,7 @@ async function handleWxStory(request, env, ctx) {
     return response;
   } catch (e) {
     console.error('Weather story fetch error:', e);
-    return new Response(JSON.stringify({
-      error: 'Failed to fetch weather story',
-      details: e.message
-    }), {
-      status: 500,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*'
-      }
-    });
+    return jsonResponse({ error: 'Failed to fetch weather story', details: e.message }, 500);
   }
 }
 
@@ -474,6 +474,9 @@ export default {
     }
     if (path === '/api/wxstory') {
       return handleWxStory(request, env, ctx);
+    }
+    if (path === '/api/cf-location') {
+      return handleCfLocation(request);
     }
 
     // For all other routes, let the static assets handler take over

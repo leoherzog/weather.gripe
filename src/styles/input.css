@@ -1,0 +1,12 @@
+@import "tailwindcss";
+
+/* Use class-based dark mode instead of media query */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Custom component styles */
+@layer components {
+  /* Loading spinner */
+  .spinner {
+    @apply inline-block w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin;
+  }
+}
