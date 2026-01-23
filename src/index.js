@@ -11,6 +11,11 @@ const NOMINATIM_HEADERS = {
   'Accept': 'application/json'
 };
 
+const NWS_HEADERS = {
+  'User-Agent': 'weather.gripe (https://weather.gripe)',
+  'Accept': 'application/geo+json'
+};
+
 // Truncate coordinates to 3 decimal places (~111m precision)
 function truncateCoord(coord) {
   return Math.round(parseFloat(coord) * 1000) / 1000;
@@ -96,7 +101,7 @@ async function fetchWeather(lat, lon) {
   url.searchParams.set('latitude', lat.toString());
   url.searchParams.set('longitude', lon.toString());
   url.searchParams.set('current', 'temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,wind_direction_10m,uv_index');
-  url.searchParams.set('hourly', 'temperature_2m,weather_code,precipitation_probability,precipitation,snowfall,rain');
+  // Hourly data not used by frontend, omitting to reduce payload
   url.searchParams.set('daily', 'weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,uv_index_max,precipitation_probability_max,precipitation_sum,snowfall_sum,rain_sum');
   url.searchParams.set('timezone', 'auto');
   url.searchParams.set('forecast_days', '7');
@@ -115,12 +120,7 @@ async function fetchAlerts(lat, lon) {
   url.searchParams.set('active', 'true');
 
   try {
-    const response = await fetch(url.toString(), {
-      headers: {
-        'User-Agent': 'weather.gripe (https://weather.gripe)',
-        'Accept': 'application/geo+json'
-      }
-    });
+    const response = await fetch(url.toString(), { headers: NWS_HEADERS });
 
     if (!response.ok) {
       if (response.status === 404) return []; // Non-US location
@@ -161,12 +161,7 @@ async function fetchAlerts(lat, lon) {
 async function fetchNWSOffice(lat, lon) {
   const url = `https://api.weather.gov/points/${lat},${lon}`;
   try {
-    const response = await fetch(url, {
-      headers: {
-        'User-Agent': 'weather.gripe (https://weather.gripe)',
-        'Accept': 'application/geo+json'
-      }
-    });
+    const response = await fetch(url, { headers: NWS_HEADERS });
     if (!response.ok) return null; // Non-US location returns 404
     const data = await response.json();
     return data.properties?.gridId || null;
@@ -185,6 +180,15 @@ async function handleLocation(request, env, ctx) {
 
   if ((!lat || !lon) && !query) {
     return jsonResponse({ error: 'Missing lat/lon or q parameter' }, 400);
+  }
+
+  // Validate lat/lon are finite numbers
+  if (lat && lon) {
+    const latNum = parseFloat(lat);
+    const lonNum = parseFloat(lon);
+    if (!Number.isFinite(latNum) || !Number.isFinite(lonNum)) {
+      return jsonResponse({ error: 'Invalid lat/lon values' }, 400);
+    }
   }
 
   // Check cache
@@ -229,14 +233,7 @@ async function handleLocation(request, env, ctx) {
       alerts
     };
 
-    const response = new Response(JSON.stringify(result), {
-      headers: {
-        'Content-Type': 'application/json',
-        'Cache-Control': `public, max-age=${LOCATION_CACHE_TTL}`,
-        'Access-Control-Allow-Origin': '*'
-      }
-    });
-
+    const response = jsonResponse(result, 200, LOCATION_CACHE_TTL);
     ctx.waitUntil(cache.put(cacheRequest, response.clone()));
     return response;
   } catch (e) {
@@ -269,19 +266,13 @@ async function handleGeocode(request, env, ctx) {
   geocodeUrl.searchParams.set('format', 'json');
 
   const apiResponse = await fetch(geocodeUrl.toString());
+  if (!apiResponse.ok) {
+    return jsonResponse({ error: 'Upstream API error' }, 502);
+  }
   const data = await apiResponse.json();
 
-  response = new Response(JSON.stringify(data), {
-    headers: {
-      'Content-Type': 'application/json',
-      'Cache-Control': `public, max-age=${GEOCODE_CACHE_TTL}`,
-      'Access-Control-Allow-Origin': '*'
-    }
-  });
-
-  // Store in cache
+  response = jsonResponse(data, 200, GEOCODE_CACHE_TTL);
   ctx.waitUntil(cache.put(request, response.clone()));
-
   return response;
 }
 
@@ -316,6 +307,9 @@ async function handleUnsplash(request, env, ctx) {
       'Authorization': `Client-ID ${env.UNSPLASH_ACCESS_KEY}`
     }
   });
+  if (!apiResponse.ok) {
+    return jsonResponse({ error: 'Upstream API error' }, 502);
+  }
   const data = await apiResponse.json();
 
   // Extract just the image URL and attribution
@@ -332,17 +326,8 @@ async function handleUnsplash(request, env, ctx) {
     };
   }
 
-  response = new Response(JSON.stringify(result), {
-    headers: {
-      'Content-Type': 'application/json',
-      'Cache-Control': `public, max-age=${UNSPLASH_CACHE_TTL}`,
-      'Access-Control-Allow-Origin': '*'
-    }
-  });
-
-  // Store in cache
+  response = jsonResponse(result, 200, UNSPLASH_CACHE_TTL);
   ctx.waitUntil(cache.put(request, response.clone()));
-
   return response;
 }
 
@@ -365,6 +350,25 @@ class ImageCollector {
         this.images.push(fullUrl);
       }
     }
+  }
+}
+
+// Countries that use imperial units
+const IMPERIAL_COUNTRIES = new Set(['US', 'LR', 'MM']);
+
+// Get default unit system based on country
+function getDefaultUnits(countryCode) {
+  return IMPERIAL_COUNTRIES.has(countryCode) ? 'imperial' : 'metric';
+}
+
+// HTMLRewriter to inject default units script
+class DefaultUnitsInjector {
+  constructor(units) {
+    this.units = units;
+  }
+
+  element(element) {
+    element.prepend(`<script>window.__defaultUnits="${this.units}";</script>`, { html: true });
   }
 }
 
@@ -415,16 +419,7 @@ async function handleWxStory(request, env, ctx) {
     );
 
     if (!storyResponse.ok) {
-      return new Response(JSON.stringify({
-        office: office.toUpperCase(),
-        images: []
-      }), {
-        headers: {
-          'Content-Type': 'application/json',
-          'Cache-Control': `public, max-age=${WXSTORY_CACHE_TTL}`,
-          'Access-Control-Allow-Origin': '*'
-        }
-      });
+      return jsonResponse({ office: office.toUpperCase(), images: [] }, 200, WXSTORY_CACHE_TTL);
     }
 
     const collector = new ImageCollector();
@@ -438,17 +433,7 @@ async function handleWxStory(request, env, ctx) {
       x.replaceAll('//', '/').replace(':/', '://')
     );
 
-    const response = new Response(JSON.stringify({
-      office: office.toUpperCase(),
-      images
-    }), {
-      headers: {
-        'Content-Type': 'application/json',
-        'Cache-Control': `public, max-age=${WXSTORY_CACHE_TTL}`,
-        'Access-Control-Allow-Origin': '*'
-      }
-    });
-
+    const response = jsonResponse({ office: office.toUpperCase(), images }, 200, WXSTORY_CACHE_TTL);
     ctx.waitUntil(cache.put(cacheRequest, response.clone()));
     return response;
   } catch (e) {
@@ -480,7 +465,18 @@ export default {
     }
 
     // For all other routes, let the static assets handler take over
-    // This is handled by Cloudflare Workers' assets feature
-    return env.ASSETS.fetch(request);
+    const response = await env.ASSETS.fetch(request);
+
+    // Inject default units into HTML responses based on country
+    const contentType = response.headers.get('content-type') || '';
+    if (contentType.includes('text/html')) {
+      const country = request.cf?.country || 'US';
+      const defaultUnits = getDefaultUnits(country);
+      return new HTMLRewriter()
+        .on('head', new DefaultUnitsInjector(defaultUnits))
+        .transform(response);
+    }
+
+    return response;
   }
 };
