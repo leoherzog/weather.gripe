@@ -145,6 +145,19 @@ function truncateCoord(coord) {
   return Math.round(parseFloat(coord) * 1000) / 1000;
 }
 
+// Parse max-age from Cache-Control header
+function parseCacheControl(header) {
+  if (!header) return null;
+  const match = header.match(/max-age=(\d+)/);
+  return match ? parseInt(match[1], 10) : null;
+}
+
+// Check if cache should be bypassed via ?cache=false
+function shouldSkipCache(request) {
+  const url = new URL(request.url);
+  return url.searchParams.get('cache') === 'false';
+}
+
 // Create JSON response with standard headers
 function jsonResponse(data, status = 200, cacheTTL = null) {
   const headers = {
@@ -220,15 +233,20 @@ async function forwardGeocode(query) {
 }
 
 // Fetch NWS grid point data with caching
-async function fetchNWSPoints(lat, lon, cache, ctx) {
+async function fetchNWSPoints(lat, lon, cache, ctx, skipCache = false) {
   const cacheKey = `nws-points:${truncateCoord(lat)},${truncateCoord(lon)}`;
   const cacheUrl = `https://weather.gripe/api/nws-points-cache/${cacheKey}`;
   const cacheRequest = new Request(cacheUrl);
 
-  // Check cache first
-  const cached = await cache.match(cacheRequest);
-  if (cached) {
-    return cached.json();
+  // Delete existing cache if bypassing
+  if (skipCache) {
+    ctx.waitUntil(cache.delete(cacheRequest));
+  } else {
+    // Check cache first
+    const cached = await cache.match(cacheRequest);
+    if (cached) {
+      return cached.json();
+    }
   }
 
   const url = `https://api.weather.gov/points/${lat},${lon}`;
@@ -251,9 +269,11 @@ async function fetchNWSPoints(lat, lon, cache, ctx) {
     timeZone: props.timeZone
   };
 
-  // Cache for 24 hours
+  // Respect NWS Cache-Control header, fallback to 24 hours
+  const nwsCacheControl = response.headers.get('Cache-Control');
+  const maxAge = parseCacheControl(nwsCacheControl) || NWS_POINTS_CACHE_TTL;
   const cacheResponse = new Response(JSON.stringify(result), {
-    headers: { 'Cache-Control': `public, max-age=${NWS_POINTS_CACHE_TTL}` }
+    headers: { 'Cache-Control': `public, max-age=${maxAge}` }
   });
   ctx.waitUntil(cache.put(cacheRequest, cacheResponse));
 
@@ -303,9 +323,9 @@ async function fetchNWSObservation(stationsUrl) {
 }
 
 // Fetch complete weather data from NWS and transform to unified schema
-async function fetchWeatherNWS(lat, lon, cache, ctx) {
+async function fetchWeatherNWS(lat, lon, cache, ctx, skipCache = false) {
   // 1. Get grid point (cached)
-  const points = await fetchNWSPoints(lat, lon, cache, ctx);
+  const points = await fetchNWSPoints(lat, lon, cache, ctx, skipCache);
 
   // 2. Parallel fetch forecast + observation
   const [forecastRes, observation] = await Promise.all([
@@ -441,7 +461,24 @@ function parseWindDirection(dirStr) {
 }
 
 // Fetch weather data from Open-Meteo and transform to unified schema
-async function fetchWeatherOpenMeteo(lat, lon) {
+const OPENMETEO_CACHE_TTL = 5 * 60; // 5 minutes
+
+async function fetchWeatherOpenMeteo(lat, lon, cache, ctx, skipCache = false) {
+  const cacheKey = `openmeteo:${truncateCoord(lat)},${truncateCoord(lon)}`;
+  const cacheUrl = `https://weather.gripe/api/openmeteo-cache/${cacheKey}`;
+  const cacheRequest = new Request(cacheUrl);
+
+  // Delete existing cache if bypassing
+  if (skipCache) {
+    ctx.waitUntil(cache.delete(cacheRequest));
+  } else {
+    // Check cache first
+    const cached = await cache.match(cacheRequest);
+    if (cached) {
+      return cached.json();
+    }
+  }
+
   const url = new URL('https://api.open-meteo.com/v1/forecast');
   url.searchParams.set('latitude', lat.toString());
   url.searchParams.set('longitude', lon.toString());
@@ -461,7 +498,7 @@ async function fetchWeatherOpenMeteo(lat, lon) {
   const data = await response.json();
 
   // Transform to unified schema
-  return {
+  const result = {
     current: {
       temperature: data.current.temperature_2m,
       feelsLike: data.current.apparent_temperature,
@@ -492,6 +529,17 @@ async function fetchWeatherOpenMeteo(lat, lon) {
     })),
     timezone: data.timezone
   };
+
+  // Cache for 5 minutes
+  const cacheResponse = new Response(JSON.stringify(result), {
+    headers: {
+      'Cache-Control': `public, max-age=${OPENMETEO_CACHE_TTL}`,
+      'Content-Type': 'application/json'
+    }
+  });
+  ctx.waitUntil(cache.put(cacheRequest, cacheResponse));
+
+  return result;
 }
 
 // Fetch alerts from NWS
@@ -545,6 +593,7 @@ async function handleLocation(request, env, ctx) {
   const lat = url.searchParams.get('lat');
   const lon = url.searchParams.get('lon');
   const query = url.searchParams.get('q');
+  const skipCache = shouldSkipCache(request);
 
   if ((!lat || !lon) && !query) {
     return jsonResponse({ error: 'Missing lat/lon or q parameter' }, 400);
@@ -568,8 +617,13 @@ async function handleLocation(request, env, ctx) {
   cacheUrl.pathname = `/api/location-cache/${cacheKey}`;
   const cacheRequest = new Request(cacheUrl.toString());
 
-  const cached = await cache.match(cacheRequest);
-  if (cached) return cached;
+  // Delete existing cache if bypassing
+  if (skipCache) {
+    ctx.waitUntil(cache.delete(cacheRequest));
+  } else {
+    const cached = await cache.match(cacheRequest);
+    if (cached) return cached;
+  }
 
   try {
     // Get location info
@@ -599,15 +653,15 @@ async function handleLocation(request, env, ctx) {
       // Try NWS first for US locations
       try {
         // Get NWS points data first (we need gridId for nwsOffice)
-        const points = await fetchNWSPoints(coords.lat, coords.lon, cache, ctx);
+        const points = await fetchNWSPoints(coords.lat, coords.lon, cache, ctx, skipCache);
         nwsOffice = points.gridId;
-        weather = await fetchWeatherNWS(coords.lat, coords.lon, cache, ctx);
+        weather = await fetchWeatherNWS(coords.lat, coords.lon, cache, ctx, skipCache);
       } catch (e) {
         console.error('NWS failed, falling back to Open-Meteo:', e);
-        weather = await fetchWeatherOpenMeteo(coords.lat, coords.lon);
+        weather = await fetchWeatherOpenMeteo(coords.lat, coords.lon, cache, ctx, skipCache);
         // Try to get NWS office for wxstory even if weather fetch failed
         try {
-          const points = await fetchNWSPoints(coords.lat, coords.lon, cache, ctx);
+          const points = await fetchNWSPoints(coords.lat, coords.lon, cache, ctx, skipCache);
           nwsOffice = points.gridId;
         } catch (e2) {
           // Ignore - nwsOffice stays null
@@ -618,7 +672,7 @@ async function handleLocation(request, env, ctx) {
       alerts = await alertsPromise;
     } else {
       // Use Open-Meteo for non-US locations
-      weather = await fetchWeatherOpenMeteo(coords.lat, coords.lon);
+      weather = await fetchWeatherOpenMeteo(coords.lat, coords.lon, cache, ctx, skipCache);
     }
 
     const result = {
@@ -644,16 +698,21 @@ async function handleLocation(request, env, ctx) {
 async function handleGeocode(request, env, ctx) {
   const url = new URL(request.url);
   const query = url.searchParams.get('q');
+  const skipCache = shouldSkipCache(request);
 
   if (!query) {
     return jsonResponse({ error: 'Missing q parameter' }, 400);
   }
 
-  // Check cache first
+  // Check cache
   const cache = caches.default;
-  let response = await cache.match(request);
-  if (response) {
-    return response;
+  if (skipCache) {
+    ctx.waitUntil(cache.delete(request));
+  } else {
+    const response = await cache.match(request);
+    if (response) {
+      return response;
+    }
   }
 
   // Fetch from Open-Meteo geocoding
@@ -678,6 +737,7 @@ async function handleGeocode(request, env, ctx) {
 async function handleUnsplash(request, env, ctx) {
   const url = new URL(request.url);
   const query = url.searchParams.get('query');
+  const skipCache = shouldSkipCache(request);
 
   if (!query) {
     return jsonResponse({ error: 'Missing query parameter' }, 400);
@@ -687,11 +747,15 @@ async function handleUnsplash(request, env, ctx) {
     return jsonResponse({ error: 'Unsplash API not configured' }, 503);
   }
 
-  // Check cache first
+  // Check cache
   const cache = caches.default;
-  let response = await cache.match(request);
-  if (response) {
-    return response;
+  if (skipCache) {
+    ctx.waitUntil(cache.delete(request));
+  } else {
+    const response = await cache.match(request);
+    if (response) {
+      return response;
+    }
   }
 
   // Fetch from Unsplash
@@ -720,7 +784,8 @@ async function handleUnsplash(request, env, ctx) {
       photographer: photo.user.name,
       username: photo.user.username,
       photographerUrl: photo.user.links.html,
-      unsplashUrl: photo.links.html
+      unsplashUrl: photo.links.html,
+      downloadLocation: photo.links.download_location
     };
   }
 
@@ -787,24 +852,61 @@ async function handleCfLocation(request) {
   });
 }
 
+// Handle Unsplash download tracking (for API compliance)
+async function handleUnsplashDownload(request, env) {
+  const url = new URL(request.url);
+  const downloadUrl = url.searchParams.get('url');
+
+  if (!downloadUrl) {
+    return jsonResponse({ error: 'Missing url parameter' }, 400);
+  }
+
+  // Validate it's an Unsplash URL
+  if (!downloadUrl.startsWith('https://api.unsplash.com/')) {
+    return jsonResponse({ error: 'Invalid download URL' }, 400);
+  }
+
+  if (!env.UNSPLASH_ACCESS_KEY) {
+    return jsonResponse({ error: 'Unsplash API not configured' }, 503);
+  }
+
+  try {
+    // Trigger the download tracking (fire-and-forget on Unsplash's side)
+    await fetch(downloadUrl, {
+      headers: {
+        'Authorization': `Client-ID ${env.UNSPLASH_ACCESS_KEY}`
+      }
+    });
+    return jsonResponse({ success: true });
+  } catch (e) {
+    console.error('Unsplash download tracking error:', e);
+    return jsonResponse({ error: 'Tracking failed' }, 500);
+  }
+}
+
 // Handle weather story API
 async function handleWxStory(request, env, ctx) {
   const url = new URL(request.url);
   const office = url.searchParams.get('office');
+  const skipCache = shouldSkipCache(request);
 
   if (!office || !/^[A-Za-z]{3}$/.test(office)) {
     return jsonResponse({ error: 'Invalid office code. Please provide a 3-letter NWS office code.' }, 400);
   }
 
-  // Check cache first
+  // Check cache
   const cache = caches.default;
   const cacheKey = `wxstory:${office.toUpperCase()}`;
   const cacheUrl = new URL(request.url);
   cacheUrl.pathname = `/api/wxstory-cache/${cacheKey}`;
   const cacheRequest = new Request(cacheUrl.toString());
 
-  const cached = await cache.match(cacheRequest);
-  if (cached) return cached;
+  if (skipCache) {
+    ctx.waitUntil(cache.delete(cacheRequest));
+  } else {
+    const cached = await cache.match(cacheRequest);
+    if (cached) return cached;
+  }
 
   try {
     const storyResponse = await fetch(
@@ -854,6 +956,9 @@ export default {
     }
     if (path === '/api/unsplash') {
       return handleUnsplash(request, env, ctx);
+    }
+    if (path === '/api/unsplash/download') {
+      return handleUnsplashDownload(request, env);
     }
     if (path === '/api/wxstory') {
       return handleWxStory(request, env, ctx);
