@@ -568,7 +568,20 @@ async function fetchWeatherNWS(lat, lon, cache, ctx, skipCache = false, existing
         rain: null
       },
       sunrise: sunTimes.sunrise,
-      sunset: sunTimes.sunset
+      sunset: sunTimes.sunset,
+      // Detailed forecast objects for text forecast cards
+      dayForecast: dayPeriod ? {
+        name: dayPeriod.name,
+        detailedForecast: dayPeriod.detailedForecast,
+        shortForecast: dayPeriod.shortForecast,
+        condition: mapNWSIconToCondition(dayPeriod.icon, dayPeriod.shortForecast)
+      } : null,
+      nightForecast: nightPeriod ? {
+        name: nightPeriod.name,
+        detailedForecast: nightPeriod.detailedForecast,
+        shortForecast: nightPeriod.shortForecast,
+        condition: mapNWSIconToCondition(nightPeriod.icon, nightPeriod.shortForecast)
+      } : null
     });
   }
 
@@ -608,7 +621,8 @@ async function fetchWeatherNWS(lat, lon, cache, ctx, skipCache = false, existing
   return {
     current,
     daily,
-    timezone: points.timeZone
+    timezone: points.timeZone,
+    source: 'nws'
   };
 }
 
@@ -705,7 +719,8 @@ async function fetchWeatherOpenMeteo(lat, lon, cache, ctx, skipCache = false) {
       sunrise: data.daily.sunrise[i],
       sunset: data.daily.sunset[i]
     })),
-    timezone: data.timezone
+    timezone: data.timezone,
+    source: 'open-meteo'
   };
 
   // Cache for 5 minutes
