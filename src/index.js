@@ -51,8 +51,162 @@ const WMO_CONDITIONS = {
   99: { code: 'thunderstorm-severe', text: 'Thunderstorm with heavy hail', icon: 'cloud-bolt' }
 };
 
-// Map NWS forecast text to unified condition object
-function mapNWSCondition(text) {
+// NWS icon code to unified condition mapping
+// Based on https://www.weather.gov/forecast-icons/
+const NWS_ICON_CONDITIONS = {
+  // Clear/Sky conditions
+  'skc': { code: 'clear', text: 'Clear', icon: 'sun' },
+  'nskc': { code: 'clear', text: 'Clear', icon: 'sun' },
+  'few': { code: 'mostly-clear', text: 'Mostly Clear', icon: 'sun' },
+  'nfew': { code: 'mostly-clear', text: 'Mostly Clear', icon: 'sun' },
+  'sct': { code: 'partly-cloudy', text: 'Partly Cloudy', icon: 'cloud-sun' },
+  'nsct': { code: 'partly-cloudy', text: 'Partly Cloudy', icon: 'cloud-sun' },
+  'bkn': { code: 'mostly-cloudy', text: 'Mostly Cloudy', icon: 'cloud' },
+  'nbkn': { code: 'mostly-cloudy', text: 'Mostly Cloudy', icon: 'cloud' },
+  'ovc': { code: 'overcast', text: 'Overcast', icon: 'cloud' },
+  'novc': { code: 'overcast', text: 'Overcast', icon: 'cloud' },
+
+  // Wind variants (map to base sky condition)
+  'wind_skc': { code: 'clear', text: 'Clear and Windy', icon: 'sun' },
+  'wind_few': { code: 'mostly-clear', text: 'Mostly Clear and Windy', icon: 'sun' },
+  'wind_sct': { code: 'partly-cloudy', text: 'Partly Cloudy and Windy', icon: 'cloud-sun' },
+  'wind_bkn': { code: 'mostly-cloudy', text: 'Mostly Cloudy and Windy', icon: 'cloud' },
+  'wind_ovc': { code: 'overcast', text: 'Overcast and Windy', icon: 'cloud' },
+  'nwind_skc': { code: 'clear', text: 'Clear and Windy', icon: 'sun' },
+  'nwind_few': { code: 'mostly-clear', text: 'Mostly Clear and Windy', icon: 'sun' },
+  'nwind_sct': { code: 'partly-cloudy', text: 'Partly Cloudy and Windy', icon: 'cloud-sun' },
+  'nwind_bkn': { code: 'mostly-cloudy', text: 'Mostly Cloudy and Windy', icon: 'cloud' },
+  'nwind_ovc': { code: 'overcast', text: 'Overcast and Windy', icon: 'cloud' },
+
+  // Rain
+  'ra': { code: 'rain', text: 'Rain', icon: 'cloud-showers-heavy' },
+  'nra': { code: 'rain', text: 'Rain', icon: 'cloud-showers-heavy' },
+  'minus_ra': { code: 'rain-light', text: 'Light Rain', icon: 'cloud-rain' },
+  'hi_shwrs': { code: 'rain-light', text: 'Showers', icon: 'cloud-sun-rain' },
+  'hi_nshwrs': { code: 'rain-light', text: 'Showers', icon: 'cloud-sun-rain' },
+  'shra': { code: 'rain', text: 'Rain Showers', icon: 'cloud-showers-heavy' },
+  'nshra': { code: 'rain', text: 'Rain Showers', icon: 'cloud-showers-heavy' },
+
+  // Snow (API uses both 'sn' and 'snow' codes)
+  'sn': { code: 'snow', text: 'Snow', icon: 'snowflake' },
+  'nsn': { code: 'snow', text: 'Snow', icon: 'snowflake' },
+  'snow': { code: 'snow', text: 'Snow', icon: 'snowflake' },
+  'nsnow': { code: 'snow', text: 'Snow', icon: 'snowflake' },
+  'ra_sn': { code: 'snow', text: 'Rain/Snow Mix', icon: 'snowflake' },
+  'nra_sn': { code: 'snow', text: 'Rain/Snow Mix', icon: 'snowflake' },
+  'snip': { code: 'snow', text: 'Snow/Ice Pellets', icon: 'snowflake' },
+  'nsnip': { code: 'snow', text: 'Snow/Ice Pellets', icon: 'snowflake' },
+
+  // Freezing precipitation
+  'fzra': { code: 'freezing-rain', text: 'Freezing Rain', icon: 'cloud-rain' },
+  'nfzra': { code: 'freezing-rain', text: 'Freezing Rain', icon: 'cloud-rain' },
+  'ra_fzra': { code: 'freezing-rain', text: 'Rain/Freezing Rain', icon: 'cloud-rain' },
+  'nra_fzra': { code: 'freezing-rain', text: 'Rain/Freezing Rain', icon: 'cloud-rain' },
+  'fzra_sn': { code: 'freezing-rain', text: 'Freezing Rain/Snow', icon: 'cloud-rain' },
+  'nfzra_sn': { code: 'freezing-rain', text: 'Freezing Rain/Snow', icon: 'cloud-rain' },
+  'ip': { code: 'freezing-rain', text: 'Ice Pellets', icon: 'cloud-rain' },
+  'nip': { code: 'freezing-rain', text: 'Ice Pellets', icon: 'cloud-rain' },
+  'raip': { code: 'freezing-rain', text: 'Rain/Ice Pellets', icon: 'cloud-rain' },
+  'nraip': { code: 'freezing-rain', text: 'Rain/Ice Pellets', icon: 'cloud-rain' },
+  'mix': { code: 'freezing-rain', text: 'Wintry Mix', icon: 'cloud-rain' },
+  'nmix': { code: 'freezing-rain', text: 'Wintry Mix', icon: 'cloud-rain' },
+
+  // Thunderstorms
+  'tsra': { code: 'thunderstorm', text: 'Thunderstorm', icon: 'cloud-bolt' },
+  'ntsra': { code: 'thunderstorm', text: 'Thunderstorm', icon: 'cloud-bolt' },
+  'scttsra': { code: 'thunderstorm', text: 'Scattered Thunderstorms', icon: 'cloud-bolt' },
+  'nscttsra': { code: 'thunderstorm', text: 'Scattered Thunderstorms', icon: 'cloud-bolt' },
+  'hi_tsra': { code: 'thunderstorm', text: 'Thunderstorms', icon: 'cloud-bolt' },
+  'hi_ntsra': { code: 'thunderstorm', text: 'Thunderstorms', icon: 'cloud-bolt' },
+  'fc': { code: 'thunderstorm-severe', text: 'Funnel Cloud', icon: 'cloud-bolt' },
+  'nfc': { code: 'thunderstorm-severe', text: 'Funnel Cloud', icon: 'cloud-bolt' },
+  'tor': { code: 'thunderstorm-severe', text: 'Tornado', icon: 'cloud-bolt' },
+  'ntor': { code: 'thunderstorm-severe', text: 'Tornado', icon: 'cloud-bolt' },
+
+  // Fog/Haze/Smoke
+  'fg': { code: 'fog', text: 'Fog', icon: 'smog' },
+  'nfg': { code: 'fog', text: 'Fog', icon: 'smog' },
+  'hz': { code: 'fog', text: 'Haze', icon: 'smog' },
+  'fu': { code: 'fog', text: 'Smoke', icon: 'smog' },
+  'nfu': { code: 'fog', text: 'Smoke', icon: 'smog' },
+  'du': { code: 'fog', text: 'Dust', icon: 'smog' },
+  'ndu': { code: 'fog', text: 'Dust', icon: 'smog' },
+
+  // Additional full-word variants used by NWS API
+  'rain': { code: 'rain', text: 'Rain', icon: 'cloud-showers-heavy' },
+  'nrain': { code: 'rain', text: 'Rain', icon: 'cloud-showers-heavy' },
+  'rain_showers': { code: 'rain', text: 'Rain Showers', icon: 'cloud-showers-heavy' },
+  'rain_showers_hi': { code: 'rain-light', text: 'Showers', icon: 'cloud-sun-rain' },
+  'tsra_hi': { code: 'thunderstorm', text: 'Thunderstorms', icon: 'cloud-bolt' },
+  'tsra_sct': { code: 'thunderstorm', text: 'Scattered Thunderstorms', icon: 'cloud-bolt' },
+
+  // Severe/Hazardous
+  'blizzard': { code: 'snow-heavy', text: 'Blizzard', icon: 'snowflake' },
+  'nblizzard': { code: 'snow-heavy', text: 'Blizzard', icon: 'snowflake' },
+  'cold': { code: 'clear', text: 'Cold', icon: 'sun' },
+  'ncold': { code: 'clear', text: 'Cold', icon: 'sun' },
+  'hot': { code: 'clear', text: 'Hot', icon: 'sun' },
+
+  // Tropical (day only typically)
+  'hur_warn': { code: 'thunderstorm-severe', text: 'Hurricane Warning', icon: 'cloud-bolt' },
+  'hur_watch': { code: 'thunderstorm-severe', text: 'Hurricane Watch', icon: 'cloud-bolt' },
+  'ts_warn': { code: 'thunderstorm-severe', text: 'Tropical Storm Warning', icon: 'cloud-bolt' },
+  'ts_watch': { code: 'thunderstorm-severe', text: 'Tropical Storm Watch', icon: 'cloud-bolt' },
+};
+
+// Parse NWS icon URL to extract condition code and probability
+// URL format: https://api.weather.gov/icons/land/{day|night}/{condition}?size=medium
+// Condition can be: "bkn" or "tsra,40" or "tsra,40/ra,60" (dual icons with probabilities)
+function parseNWSIconUrl(iconUrl) {
+  if (!iconUrl) return null;
+  try {
+    const url = new URL(iconUrl);
+    const parts = url.pathname.split('/');
+    // Find the condition part (after "day" or "night")
+    const dayNightIndex = parts.findIndex(p => p === 'day' || p === 'night');
+    if (dayNightIndex === -1 || dayNightIndex >= parts.length - 1) return null;
+    const isNight = parts[dayNightIndex] === 'night';
+
+    const conditionPart = parts[dayNightIndex + 1];
+    // Handle dual icons: "tsra,40/ra,60" - take the more severe (first) condition
+    const conditions = conditionPart.split('/');
+    const firstCondition = conditions[0];
+    // Split condition and probability: "tsra,40" -> ["tsra", "40"]
+    const [conditionCode, probStr] = firstCondition.split(',');
+    const probability = probStr ? parseInt(probStr, 10) : null;
+
+    return {
+      code: conditionCode,
+      probability,
+      isNight,
+      // If dual icon, include secondary condition info
+      secondary: conditions[1] ? {
+        code: conditions[1].split(',')[0],
+        probability: conditions[1].split(',')[1] ? parseInt(conditions[1].split(',')[1], 10) : null
+      } : null
+    };
+  } catch (e) {
+    return null;
+  }
+}
+
+// Map NWS icon URL to unified condition object
+function mapNWSIconToCondition(iconUrl, fallbackText) {
+  const parsed = parseNWSIconUrl(iconUrl);
+  if (parsed && NWS_ICON_CONDITIONS[parsed.code]) {
+    const condition = { ...NWS_ICON_CONDITIONS[parsed.code] };
+    // Include probability if present in icon URL
+    if (parsed.probability != null) {
+      condition.probability = parsed.probability;
+    }
+    return condition;
+  }
+  // Fallback to text-based parsing if icon not recognized
+  return mapNWSConditionFromText(fallbackText);
+}
+
+// Map NWS forecast text to unified condition object (fallback)
+function mapNWSConditionFromText(text) {
   const lower = (text || '').toLowerCase();
 
   // Thunderstorms (check first as they may include rain/wind descriptions)
@@ -170,8 +324,20 @@ function jsonResponse(data, status = 200, cacheTTL = null) {
   return new Response(JSON.stringify(data), { status, headers });
 }
 
-// Reverse geocode coordinates to location name via Nominatim
-async function reverseGeocode(lat, lon) {
+// Reverse geocode coordinates to location name via Nominatim (with caching)
+async function reverseGeocode(lat, lon, cache, ctx) {
+  const cacheKey = `reverse-geocode:${truncateCoord(lat)},${truncateCoord(lon)}`;
+  const cacheUrl = `https://weather.gripe/api/geocode-cache/${cacheKey}`;
+  const cacheRequest = new Request(cacheUrl);
+
+  // Check cache first
+  if (cache) {
+    const cached = await cache.match(cacheRequest);
+    if (cached) {
+      return cached.json();
+    }
+  }
+
   const url = new URL('https://nominatim.openstreetmap.org/reverse');
   url.searchParams.set('lat', lat.toString());
   url.searchParams.set('lon', lon.toString());
@@ -195,13 +361,23 @@ async function reverseGeocode(lat, lon) {
 
   const addr = data.address || {};
 
-  return {
+  const result = {
     name: addr.city || addr.town || addr.village || addr.municipality || addr.county || 'Unknown',
     region: [addr.state, addr.country].filter(Boolean).join(', '),
     latitude: parseFloat(data.lat),
     longitude: parseFloat(data.lon),
     country_code: addr.country_code
   };
+
+  // Cache for 24 hours (location names don't change)
+  if (cache && ctx) {
+    const cacheResponse = new Response(JSON.stringify(result), {
+      headers: { 'Cache-Control': `public, max-age=${GEOCODE_CACHE_TTL}` }
+    });
+    ctx.waitUntil(cache.put(cacheRequest, cacheResponse));
+  }
+
+  return result;
 }
 
 // Forward geocode query to coordinates via Nominatim
@@ -323,9 +499,10 @@ async function fetchNWSObservation(stationsUrl) {
 }
 
 // Fetch complete weather data from NWS and transform to unified schema
-async function fetchWeatherNWS(lat, lon, cache, ctx, skipCache = false) {
-  // 1. Get grid point (cached)
-  const points = await fetchNWSPoints(lat, lon, cache, ctx, skipCache);
+// Accepts optional pre-fetched points to avoid redundant API call
+async function fetchWeatherNWS(lat, lon, cache, ctx, skipCache = false, existingPoints = null) {
+  // 1. Get grid point (use existing or fetch)
+  const points = existingPoints || await fetchNWSPoints(lat, lon, cache, ctx, skipCache);
 
   // 2. Parallel fetch forecast + observation
   const [forecastRes, observation] = await Promise.all([
@@ -365,7 +542,8 @@ async function fetchWeatherNWS(lat, lon, cache, ctx, skipCache = false) {
 
     const sunTimes = getSunTimes(new Date(date + 'T12:00:00'), lat, lon);
     const primaryPeriod = dayPeriod || nightPeriod;
-    const condition = mapNWSCondition(primaryPeriod?.shortForecast);
+    // Use icon URL for more reliable condition mapping
+    const condition = mapNWSIconToCondition(primaryPeriod?.icon, primaryPeriod?.shortForecast);
 
     // NWS provides precip chance but not amounts in standard forecast
     // Extract detail text for accumulation info
@@ -408,7 +586,7 @@ async function fetchWeatherNWS(lat, lon, cache, ctx, skipCache = false) {
         speed: windSpeedKmh,
         direction: observation.windDirection
       },
-      condition: mapNWSCondition(observation.textDescription),
+      condition: mapNWSConditionFromText(observation.textDescription),
       observedAt: observation.observedAt
     };
   } else {
@@ -422,7 +600,7 @@ async function fetchWeatherNWS(lat, lon, cache, ctx, skipCache = false) {
         speed: firstPeriod ? parseWindSpeed(firstPeriod.windSpeed) : null,
         direction: firstPeriod ? parseWindDirection(firstPeriod.windDirection) : null
       },
-      condition: mapNWSCondition(firstPeriod?.shortForecast),
+      condition: mapNWSIconToCondition(firstPeriod?.icon, firstPeriod?.shortForecast),
       observedAt: null
     };
   }
@@ -542,8 +720,22 @@ async function fetchWeatherOpenMeteo(lat, lon, cache, ctx, skipCache = false) {
   return result;
 }
 
-// Fetch alerts from NWS
-async function fetchAlerts(lat, lon) {
+const ALERTS_CACHE_TTL = 60; // 60 seconds - alerts need to be relatively fresh
+
+// Fetch alerts from NWS (with short-lived cache)
+async function fetchAlerts(lat, lon, cache, ctx) {
+  const cacheKey = `alerts:${truncateCoord(lat)},${truncateCoord(lon)}`;
+  const cacheUrl = `https://weather.gripe/api/alerts-cache/${cacheKey}`;
+  const cacheRequest = new Request(cacheUrl);
+
+  // Check cache first
+  if (cache) {
+    const cached = await cache.match(cacheRequest);
+    if (cached) {
+      return cached.json();
+    }
+  }
+
   const url = new URL('https://api.weather.gov/alerts');
   url.searchParams.set('point', `${lat},${lon}`);
   url.searchParams.set('status', 'actual');
@@ -580,7 +772,17 @@ async function fetchAlerts(lat, lon) {
         alertsByEvent.set(alert.event, alert);
       }
     }
-    return Array.from(alertsByEvent.values());
+    const result = Array.from(alertsByEvent.values());
+
+    // Cache alerts for 60 seconds
+    if (cache && ctx) {
+      const cacheResponse = new Response(JSON.stringify(result), {
+        headers: { 'Cache-Control': `public, max-age=${ALERTS_CACHE_TTL}` }
+      });
+      ctx.waitUntil(cache.put(cacheRequest, cacheResponse));
+    }
+
+    return result;
   } catch (e) {
     console.error('NWS alerts error:', e);
     return [];
@@ -622,17 +824,40 @@ async function handleLocation(request, env, ctx) {
     ctx.waitUntil(cache.delete(cacheRequest));
   } else {
     const cached = await cache.match(cacheRequest);
-    if (cached) return cached;
+    if (cached) {
+      return cached;
+    }
   }
 
   try {
     // Get location info
     let location;
     let coords;
+    let speculativePointsPromise = null;
+
+    // Check if coordinates are likely in the US (rough bounding box)
+    // Continental US: lat 24-49, lon -125 to -66
+    // Also includes Alaska: lat 51-72, lon -180 to -130
+    // Also includes Hawaii: lat 18-23, lon -161 to -154
+    const isLikelyUS = (latNum, lonNum) => {
+      // Continental US
+      if (latNum >= 24 && latNum <= 49 && lonNum >= -125 && lonNum <= -66) return true;
+      // Alaska
+      if (latNum >= 51 && latNum <= 72 && lonNum >= -180 && lonNum <= -130) return true;
+      // Hawaii
+      if (latNum >= 18 && latNum <= 23 && lonNum >= -161 && lonNum <= -154) return true;
+      return false;
+    };
 
     if (lat && lon) {
       coords = { lat: truncateCoord(lat), lon: truncateCoord(lon) };
-      location = await reverseGeocode(coords.lat, coords.lon);
+
+      // Speculatively start NWS points fetch if likely US (runs in parallel with geocode)
+      if (isLikelyUS(coords.lat, coords.lon)) {
+        speculativePointsPromise = fetchNWSPoints(coords.lat, coords.lon, cache, ctx, skipCache).catch(() => null);
+      }
+
+      location = await reverseGeocode(coords.lat, coords.lon, cache, ctx);
     } else {
       location = await forwardGeocode(query);
       coords = { lat: truncateCoord(location.latitude), lon: truncateCoord(location.longitude) };
@@ -648,14 +873,16 @@ async function handleLocation(request, env, ctx) {
 
     if (isUS) {
       // Start alerts fetch immediately - it's independent of weather/points
-      const alertsPromise = fetchAlerts(coords.lat, coords.lon);
+      const alertsPromise = fetchAlerts(coords.lat, coords.lon, cache, ctx);
 
       // Try NWS first for US locations
       try {
-        // Get NWS points data first (we need gridId for nwsOffice)
-        const points = await fetchNWSPoints(coords.lat, coords.lon, cache, ctx, skipCache);
+        // Use speculative points if available, otherwise fetch
+        const points = (speculativePointsPromise && await speculativePointsPromise) ||
+                       await fetchNWSPoints(coords.lat, coords.lon, cache, ctx, skipCache);
         nwsOffice = points.gridId;
-        weather = await fetchWeatherNWS(coords.lat, coords.lon, cache, ctx, skipCache);
+        // Pass pre-fetched points to avoid redundant API call
+        weather = await fetchWeatherNWS(coords.lat, coords.lon, cache, ctx, skipCache, points);
       } catch (e) {
         console.error('NWS failed, falling back to Open-Meteo:', e);
         weather = await fetchWeatherOpenMeteo(coords.lat, coords.lon, cache, ctx, skipCache);
@@ -728,7 +955,7 @@ async function handleGeocode(request, env, ctx) {
   }
   const data = await apiResponse.json();
 
-  response = jsonResponse(data, 200, GEOCODE_CACHE_TTL);
+  const response = jsonResponse(data, 200, GEOCODE_CACHE_TTL);
   ctx.waitUntil(cache.put(request, response.clone()));
   return response;
 }
@@ -789,7 +1016,7 @@ async function handleUnsplash(request, env, ctx) {
     };
   }
 
-  response = jsonResponse(result, 200, UNSPLASH_CACHE_TTL);
+  const response = jsonResponse(result, 200, UNSPLASH_CACHE_TTL);
   ctx.waitUntil(cache.put(request, response.clone()));
   return response;
 }
