@@ -1273,8 +1273,9 @@ const WeatherCards = {
     footer.className = 'flex wa-gap-xs';
 
     // Check if file sharing is supported (not just basic share)
+    // Firefox lacks canShare() but supports share() with files, so fall back to checking share exists
     const testFile = new File([''], 'test.png', { type: 'image/png' });
-    const hasShareAPI = navigator.canShare?.({ files: [testFile] });
+    const hasShareAPI = navigator.canShare?.({ files: [testFile] }) ?? !!navigator.share;
 
     if (hasShareAPI) {
       const shareBtn = document.createElement('wa-button');
