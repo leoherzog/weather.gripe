@@ -1,0 +1,127 @@
+/* Layout utilities */
+.flex { display: flex; }
+.flex-1 { flex: 1 1 0%; }
+.justify-between { justify-content: space-between; }
+
+/* Masonry layout for weather cards */
+.masonry-gap { gap: var(--wa-space-l); }
+.columns-1 { columns: 1; }
+@media (min-width: 768px) { .columns-2 { columns: 2; } }
+@media (min-width: 1024px) { .columns-3 { columns: 3; } }
+
+/* Positioning */
+.sticky { position: sticky; }
+.top-0 { top: 0; }
+.z-50 { z-index: 50; }
+.relative { position: relative; }
+
+/* Spacing */
+.mx-auto { margin-left: auto; margin-right: auto; }
+.mb-6 { margin-bottom: var(--wa-space-l); }
+.px-4 { padding-left: var(--wa-space-m); padding-right: var(--wa-space-m); }
+
+/* Width/Height */
+.max-w-6xl { max-width: 72rem; }
+.min-h-screen { min-height: 100vh; }
+.h-9 { height: 2.25rem; }
+
+/* Text utilities */
+.block { display: block; }
+.text-center { text-align: center; }
+
+/* Temperature-based color system */
+:root {
+  --color-primary: lab(86.93% -1.92 87.14);
+  --color-primary-light: lab(91.45% -3.5 78.56);
+  --color-primary-dark: lab(74.62% -0.42 72.35);
+  --gradient-temp-low: lab(86.93% -1.92 87.14);
+  --gradient-temp-high: lab(86.93% -1.92 87.14);
+  --gradient-text: lab(0% 0 0);
+  --button-gradient: linear-gradient(in lab 135deg, var(--gradient-temp-low), var(--gradient-temp-high));
+  /* Map to Web Awesome brand tokens */
+  --wa-color-brand-fill-normal: var(--color-primary);
+  --wa-color-brand-fill-quiet: var(--color-primary-light);
+  --wa-color-brand-fill-loud: var(--color-primary-dark);
+}
+
+/* Temperature gradient button */
+.temp-gradient-btn::part(base) {
+  background: var(--button-gradient);
+  color: var(--gradient-text);
+  border-color: transparent;
+}
+
+/* Skeleton aspect ratios */
+.skeleton-current { aspect-ratio: 1200 / 800; }
+.skeleton-day { aspect-ratio: 1200 / 600; }
+.skeleton-forecast { aspect-ratio: 1200 / 700; }
+
+/* Weather card container */
+.weather-card {
+  margin-bottom: var(--wa-space-l);
+  break-inside: avoid;
+}
+
+/* Hide empty body slot in cards that only use media + footer */
+.weather-card:not(:has(.photo-attribution))::part(body) {
+  display: none;
+}
+
+/* Search results dropdown */
+.search-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  margin-top: var(--wa-space-2xs);
+  max-height: 18rem;
+  overflow-y: auto;
+  background: var(--wa-color-surface-raised);
+  border: 1px solid var(--wa-color-neutral-border-normal);
+  border-radius: var(--wa-radius-m);
+  box-shadow: var(--wa-shadow-large);
+}
+
+/* Search result items */
+.search-result-item {
+  padding: var(--wa-space-s) var(--wa-space-m);
+  cursor: pointer;
+  border-bottom: 1px solid var(--wa-color-neutral-border-quiet);
+}
+
+.search-result-item:last-child {
+  border-bottom: none;
+}
+
+.search-result-item:hover {
+  background: var(--wa-color-surface-overlay);
+}
+
+/* Photo attribution - reduce body padding when present */
+.weather-card:has(.photo-attribution)::part(body) {
+  padding-block: var(--wa-space-2xs);
+}
+
+.photo-attribution {
+  font-size: var(--wa-font-size-xs);
+  color: var(--wa-color-text-quiet);
+}
+
+.photo-attribution a {
+  color: var(--wa-color-text-quiet);
+}
+
+.photo-attribution a:hover {
+  text-decoration: underline;
+}
+
+/* Footer links */
+.footer-link {
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+.footer-link:hover {
+  text-decoration: underline;
+}

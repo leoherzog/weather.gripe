@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>weather.gripe - Shareable Weather Cards</title>
+  <script>
+    (function() {
+      let theme;
+      try { theme = localStorage.getItem('theme'); } catch(e) {}
+      if (theme === 'dark' || (!theme && matchMedia('(prefers-color-scheme: dark)').matches)) {
+        document.documentElement.classList.add('wa-dark');
+      }
+    })();
+  </script>
+</head>
+<body class="min-h-screen">
+  <header class="sticky top-0 z-50" style="background: var(--wa-color-surface-raised); border-bottom: 1px solid var(--wa-color-neutral-border-normal);">
+    <nav class="max-w-6xl mx-auto px-4 flex wa-align-items-center justify-between" style="padding-top: var(--wa-space-s); padding-bottom: var(--wa-space-s);">
+      <strong style="font-size: var(--wa-font-size-l); font-weight: var(--wa-font-weight-bold);">weather.gripe</strong>
+      <div class="flex wa-align-items-center wa-gap-m">
+        <!-- Unit Toggle -->
+        <wa-button-group>
+          <wa-button id="units-metric" size="small" appearance="outlined">Metric</wa-button>
+          <wa-button id="units-imperial" size="small" class="temp-gradient-btn">Imperial</wa-button>
+        </wa-button-group>
+        <script>
+          (function() {
+            const metric = document.getElementById('units-metric');
+            const imperial = document.getElementById('units-imperial');
+            let stored;
+            try { stored = localStorage.getItem('weatherUnits'); } catch(e) {}
+            let current = stored || window.__defaultUnits || 'imperial';
+
+            const update = function() {
+              if (current === 'metric') {
+                metric.classList.add('temp-gradient-btn');
+                metric.setAttribute('appearance', 'filled');
+                imperial.classList.remove('temp-gradient-btn');
+                imperial.setAttribute('appearance', 'outlined');
+              } else {
+                imperial.classList.add('temp-gradient-btn');
+                imperial.setAttribute('appearance', 'filled');
+                metric.classList.remove('temp-gradient-btn');
+                metric.setAttribute('appearance', 'outlined');
+              }
+            };
+
+            const set = function(system) {
+              current = system;
+              try { localStorage.setItem('weatherUnits', system); } catch(e) {}
+              if (typeof Units !== 'undefined') Units.current = system;
+              update();
+            };
+
+            update();
+            metric.addEventListener('click', function() { set('metric'); });
+            imperial.addEventListener('click', function() { set('imperial'); });
+          })();
+        </script>
+        <!-- Dark Mode Toggle -->
+        <wa-button id="dark-mode-toggle" appearance="plain" size="small">
+          <wa-icon name="moon"></wa-icon>
+        </wa-button>
+        <script>
+          (function() {
+            const btn = document.getElementById('dark-mode-toggle');
+            const icon = btn.querySelector('wa-icon');
+            const update = function() {
+              const isDark = document.documentElement.classList.contains('wa-dark');
+              icon.setAttribute('name', isDark ? 'sun' : 'moon');
+            };
+            update();
+            btn.addEventListener('click', function() {
+              const isDark = document.documentElement.classList.toggle('wa-dark');
+              try { localStorage.setItem('theme', isDark ? 'dark' : 'light'); } catch(e) {}
+              update();
+            });
+          })();
+        </script>
+      </div>
+    </nav>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-4" style="padding-top: var(--wa-space-xl); padding-bottom: var(--wa-space-xl);">
+    <!-- Search Section -->
+    <section id="search-section" class="relative mb-6">
+      <form role="search" id="search-form">
+        <wa-input id="search-input" type="search" placeholder="Search location..." autocomplete="off" size="large" pill>
+          <wa-icon slot="prefix" name="magnifying-glass"></wa-icon>
+          <wa-icon id="search-icon-end" slot="end" name="magnifying-glass"></wa-icon>
+          <wa-button id="location-reset-btn" slot="end" appearance="plain" size="small" hidden title="Return to detected location">
+            <wa-icon name="location-crosshairs"></wa-icon>
+          </wa-button>
+        </wa-input>
+      </form>
+      <div id="search-results" class="search-dropdown" hidden></div>
+    </section>
+
+    <!-- Current Location Display -->
+    <section id="location-display" class="mb-6" hidden>
+      <h2 id="location-name" style="font-size: var(--wa-font-size-2xl); font-weight: var(--wa-font-weight-bold);"></h2>
+    </section>
+
+    <!-- Error State -->
+    <section id="error-state" hidden>
+      <wa-callout variant="danger">
+        <wa-icon slot="icon" name="triangle-exclamation"></wa-icon>
+        <strong>Error</strong>
+        <p id="error-message"></p>
+        <wa-button id="error-retry" variant="danger" size="small" style="margin-top: var(--wa-space-s);">Try Again</wa-button>
+      </wa-callout>
+    </section>
+
+    <!-- Weather Cards Masonry -->
+    <section id="weather-cards" class="columns-1 columns-2 columns-3 masonry-gap">
+      <!-- Skeleton cards using wa-skeleton -->
+      <wa-card class="weather-card" data-card-type="skeleton-current">
+        <wa-skeleton slot="media" effect="sheen" class="skeleton-current"></wa-skeleton>
+        <div slot="footer" class="flex wa-gap-xs">
+          <wa-skeleton effect="sheen" class="flex-1 h-9"></wa-skeleton>
+          <wa-skeleton effect="sheen" class="flex-1 h-9"></wa-skeleton>
+        </div>
+      </wa-card>
+      <wa-card class="weather-card" data-card-type="skeleton-day">
+        <wa-skeleton slot="media" effect="sheen" class="skeleton-day"></wa-skeleton>
+        <div slot="footer" class="flex wa-gap-xs">
+          <wa-skeleton effect="sheen" class="flex-1 h-9"></wa-skeleton>
+          <wa-skeleton effect="sheen" class="flex-1 h-9"></wa-skeleton>
+        </div>
+      </wa-card>
+      <wa-card class="weather-card" data-card-type="skeleton-forecast">
+        <wa-skeleton slot="media" effect="sheen" class="skeleton-forecast"></wa-skeleton>
+        <div slot="footer" class="flex wa-gap-xs">
+          <wa-skeleton effect="sheen" class="flex-1 h-9"></wa-skeleton>
+          <wa-skeleton effect="sheen" class="flex-1 h-9"></wa-skeleton>
+        </div>
+      </wa-card>
+    </section>
+  </main>
+
+  <footer id="site-footer" style="border-top: 1px solid var(--wa-color-neutral-border-normal); margin-top: var(--wa-space-3xl); padding: var(--wa-space-l) 0;" hidden>
+    <small class="block max-w-6xl mx-auto px-4 text-center" style="font-size: var(--wa-font-size-s); color: var(--wa-color-text-quiet);">
+      Weather via <span id="data-source"></span> |
+      Photos from <a href="https://unsplash.com/" target="_blank" class="footer-link">Unsplash</a> |
+      <wa-icon name="heart" style="color: var(--color-primary);"></wa-icon>
+      <a href="https://herzog.tech" target="_blank" class="footer-link">herzog.tech</a>
+    </small>
+  </footer>
+
+  <script type="module" src="/main.js"></script>
+</body>
+</html>
