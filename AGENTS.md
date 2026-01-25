@@ -5,16 +5,10 @@ This file provides guidance to Claude Code, OpenAI Codex, Google Gemini, etc whe
 ## Build and Development Commands
 
 ```bash
-# Start local development server (watches CSS + Wrangler dev mode)
+# Start local development server (Wrangler dev mode)
 npm run dev
 
-# Build Tailwind CSS (required after adding new utility classes)
-npm run build:css
-
-# Watch Tailwind CSS for changes (runs automatically with npm run dev)
-npm run watch:css
-
-# Deploy to Cloudflare Workers (builds CSS first)
+# Deploy to Cloudflare Workers
 npm run deploy
 ```
 
@@ -36,6 +30,12 @@ This is a Cloudflare Workers application that serves a weather website with shar
 - `/api/unsplash/download` - Triggers Unsplash download tracking (API compliance)
 - `/api/wxstory` - Fetches NWS Weather Story images for a forecast office (5min cache)
 - `/api/cf-location` - Returns Cloudflare edge-detected geolocation
+- `/api/radar` - Returns radar and basemap URLs for a location (US only)
+  - Accepts `lat`+`lon` coordinates
+  - Returns `{ coverage, region, timestamp, radarUrl, basemapUrl, overlayUrl, bbox, center }`
+  - Returns `{ coverage: false }` for non-US locations
+- `/api/radar/tile` - Proxies NOAA radar tiles (2min cache, handles CORS)
+- `/api/basemap/tile` - Proxies Mundialis basemap/overlay tiles (24hr cache, handles CORS)
 - All other routes served via Cloudflare static assets from `public/`
 
 Coordinates are truncated to 3 decimal places (~111m precision) for cache efficiency.
@@ -52,6 +52,29 @@ Coordinates are truncated to 3 decimal places (~111m precision) for cache effici
 - Used for all non-US locations
 - WMO weather codes mapped to unified condition system
 - No API key required
+
+### Radar Data Sources (US Only)
+
+**NOAA MRMS Radar (opengeo.ncep.noaa.gov):**
+- Multi-Radar Multi-Sensor system combining ~180 WSR-88D NEXRAD radars
+- Layer format: `{region}:{region}_bref_qcd` (Base Reflectivity, Quality Controlled)
+- Regions: `conus`, `alaska`, `hawaii`, `carib`, `guam`
+- WMS 1.1.1 format, PNG with transparency
+- Updates every ~2 minutes
+
+**Mundialis OSM WMS (ows.mundialis.de):**
+- `Dark` layer - Dark-themed OpenStreetMap basemap
+- `OSM-Overlay-WMS` layer - Labels and roads overlay (transparent)
+- No API key required
+
+**Radar Card Canvas Layers (bottom to top):**
+1. Mundialis Dark basemap
+2. NOAA radar at 90% opacity
+3. Mundialis OSM-Overlay-WMS (labels/roads)
+4. Location marker (red pin at center)
+5. Header bar (city name + timestamp)
+6. dBZ legend (color scale 5-70+)
+7. Watermark ("NOAA via weather.gripe")
 
 ### Unified Condition Code System
 
@@ -94,6 +117,9 @@ Multi-layer caching using Cloudflare Cache API:
 | Geocoding results | 24hr | Request URL |
 | Unsplash images | 24hr | Request URL |
 | Weather story | 5min | `wxstory:{office}` |
+| Radar timestamp | 1min | `radar-timestamp:{region}` |
+| Radar tiles | 2min | Full proxy URL |
+| Basemap tiles | 24hr | Full proxy URL |
 
 **Performance Optimizations:**
 - Speculative NWS points fetch for likely-US coordinates (parallel with geocode)
@@ -104,10 +130,10 @@ Multi-layer caching using Cloudflare Cache API:
 ### Frontend (Static Assets in `public/`)
 
 - **`app.js`** - Main application state and UI orchestration (search, geolocation, location persistence)
-- **`weather-cards.js`** - Canvas-based weather card renderers (`WeatherCards` object) with share/download functionality. Extracts FontAwesome SVG paths at runtime for canvas drawing.
+- **`weather-cards.js`** - Canvas-based weather card renderers (`WeatherCards` object) with share/download functionality. Extracts FontAwesome SVG paths at runtime for canvas drawing. Includes detailed text forecast cards for NWS data and radar card with composited map layers.
 - **`temperature-colors.js`** - Dynamic color system based on windy.com temperature scale (`TemperatureColors` object). See Temperature Color System below.
 - **`units.js`** - Unit conversion utilities (`Units` object). API returns metric (Celsius, km/h); all conversions to imperial happen client-side. Handles `-0` edge case in temperature formatting.
-- **`style.css`** - Compiled Tailwind CSS output (do not edit directly)
+- **`style.css`** - Custom layout utilities and temperature theming CSS. Uses Web Awesome design tokens (`--wa-*` custom properties).
 
 ### Default Units Injection
 
@@ -117,9 +143,11 @@ The Worker injects default units into HTML responses based on Cloudflare's detec
 
 Injected as `<script>window.__defaultUnits="imperial";</script>` in `<head>`. User preference saved to `localStorage.weatherUnits` overrides this.
 
-### Styles (`src/styles/`)
+### UI Framework (Web Awesome)
 
-- **`input.css`** - Tailwind v4 source file with custom component styles. Uses class-based dark mode (`dark` class on `<html>`).
+The frontend uses [Web Awesome](https://webawesome.com), a web component library that includes Font Awesome Pro icons. Components use `wa-` prefixed custom elements (e.g., `wa-button`, `wa-card`, `wa-input`).
+
+**Dark Mode:** Uses `wa-dark` class on `<html>` element. Toggle persists to `localStorage.theme`.
 
 ### Temperature Color System
 
@@ -140,8 +168,9 @@ The app's primary color dynamically changes based on current temperature using t
 - `--button-gradient` - Linear gradient for buttons (±5°F range)
 - `--gradient-text` - AAA-accessible text color for gradient backgrounds
 
-**Tailwind Utilities** (defined in `input.css`):
-- `bg-primary`, `bg-primary-gradient`, `text-primary`, `text-gradient-text`, `border-primary`, `ring-primary`
+**Web Awesome Integration:**
+- Temperature colors map to Web Awesome brand tokens (`--wa-color-brand-fill-normal`, etc.)
+- `.temp-gradient-btn` class applies gradient to button `::part(base)`
 
 **Accessibility:**
 - `getContrastingText(bgColor, targetRatio = 7)` - Returns white or dark text meeting WCAG AAA
@@ -153,14 +182,16 @@ The app's primary color dynamically changes based on current temperature using t
 - `suncalc` - Sunrise/sunset calculations
 
 **Frontend (CDN):**
+- Web Awesome Kit - UI components and Font Awesome Pro icons
 - Chroma.js v3 - Color manipulation (ES module via jsdelivr)
-- FontAwesome Kit - Weather icons (via CDN)
 
 **External APIs:**
 - **NWS (weather.gov)** - US weather data, alerts, observations (no key required)
 - **Open-Meteo** - International weather, geocoding (no key required)
 - **Nominatim (OpenStreetMap)** - Reverse geocoding (no key required, requires User-Agent)
 - **Unsplash** - Location background photos (requires `UNSPLASH_ACCESS_KEY`)
+- **NOAA MRMS (opengeo.ncep.noaa.gov)** - US radar imagery via WMS (no key required)
+- **Mundialis (ows.mundialis.de)** - OSM-based dark basemap and overlay via WMS (no key required)
 
 ### Configuration
 
@@ -199,7 +230,19 @@ The app's primary color dynamically changes based on current temperature using t
         "condition": { "code": "snow", "text": "Snow", "icon": "snowflake", "probability": 60 },
         "precipitation": { "probability": 60, "amount": null, "snow": null, "rain": null },
         "sunrise": "2024-01-15T07:15:00-05:00",
-        "sunset": "2024-01-15T16:55:00-05:00"
+        "sunset": "2024-01-15T16:55:00-05:00",
+        "dayForecast": {
+          "name": "Today",
+          "detailedForecast": "Snow likely. Cloudy, with a high near 28...",
+          "shortForecast": "Snow Likely",
+          "condition": { "code": "snow", "text": "Snow", "icon": "snowflake" }
+        },
+        "nightForecast": {
+          "name": "Tonight",
+          "detailedForecast": "Snow likely before midnight. Mostly cloudy...",
+          "shortForecast": "Snow Likely then Mostly Cloudy",
+          "condition": { "code": "snow", "text": "Snow", "icon": "snowflake" }
+        }
       }
     ],
     "timezone": "America/New_York"
@@ -220,3 +263,5 @@ The app's primary color dynamically changes based on current temperature using t
 ```
 
 **Units:** All temperatures in Celsius, wind speeds in km/h, precipitation in inches. Client converts to imperial as needed.
+
+**NWS-only fields:** `dayForecast` and `nightForecast` objects are only present for US locations using NWS data. These contain the detailed text forecasts used by the "Today/Tonight/Tomorrow" text summary cards.

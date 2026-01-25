@@ -8,6 +8,38 @@ const NWS_POINTS_CACHE_TTL = 24 * 60 * 60; // 24 hours
 const UNSPLASH_CACHE_TTL = 24 * 60 * 60; // 24 hours
 const LOCATION_CACHE_TTL = 5 * 60; // 5 minutes (limited by alerts)
 const WXSTORY_CACHE_TTL = 5 * 60; // 5 minutes
+const RADAR_TIMESTAMP_CACHE_TTL = 60; // 1 minute
+const RADAR_TILE_CACHE_TTL = 120; // 2 minutes
+const BASEMAP_TILE_CACHE_TTL = 86400; // 24 hours
+
+// NOAA radar region configurations
+const NOAA_RADAR_CONFIG = {
+  conus: {
+    name: 'Continental US',
+    bounds: { minLat: 21, maxLat: 50, minLon: -130, maxLon: -60 },
+    layer: 'conus_bref_qcd'
+  },
+  alaska: {
+    name: 'Alaska',
+    bounds: { minLat: 51, maxLat: 72, minLon: -180, maxLon: -129 },
+    layer: 'alaska_bref_qcd'
+  },
+  hawaii: {
+    name: 'Hawaii',
+    bounds: { minLat: 18, maxLat: 23, minLon: -161, maxLon: -154 },
+    layer: 'hawaii_bref_qcd'
+  },
+  carib: {
+    name: 'Caribbean',
+    bounds: { minLat: 16, maxLat: 20, minLon: -68, maxLon: -63 },
+    layer: 'carib_bref_qcd'
+  },
+  guam: {
+    name: 'Guam',
+    bounds: { minLat: 12, maxLat: 15, minLon: 144, maxLon: 146 },
+    layer: 'guam_bref_qcd'
+  }
+};
 
 const NOMINATIM_HEADERS = {
   'User-Agent': 'weather.gripe/1.0 (https://weather.gripe)',
@@ -652,6 +684,40 @@ function parseWindDirection(dirStr) {
   return directions[dirStr.toUpperCase()] ?? null;
 }
 
+// Helper: Determine NOAA radar region from coordinates
+function getRadarRegion(lat, lon) {
+  for (const [region, config] of Object.entries(NOAA_RADAR_CONFIG)) {
+    const { bounds } = config;
+    if (lat >= bounds.minLat && lat <= bounds.maxLat &&
+        lon >= bounds.minLon && lon <= bounds.maxLon) {
+      return region;
+    }
+  }
+  return null;
+}
+
+// Helper: Convert lat/lon to Web Mercator coordinates
+function latLonToWebMercator(lat, lon) {
+  const x = lon * 20037508.34 / 180;
+  const y = Math.log(Math.tan((90 + lat) * Math.PI / 360)) / (Math.PI / 180);
+  return { x, y: y * 20037508.34 / 180 };
+}
+
+// Helper: Calculate BBOX for radar tile request
+function calculateRadarBbox(lat, lon, zoom = 7) {
+  const { x, y } = latLonToWebMercator(lat, lon);
+  // Approximate meters per pixel at this zoom level
+  // At zoom 7, we want roughly 50-100 mile radius
+  const halfWidth = 300000; // ~186 miles total width
+  const halfHeight = 200000; // ~124 miles total height (card aspect ratio)
+  return {
+    minX: x - halfWidth,
+    minY: y - halfHeight,
+    maxX: x + halfWidth,
+    maxY: y + halfHeight
+  };
+}
+
 // Fetch weather data from Open-Meteo and transform to unified schema
 const OPENMETEO_CACHE_TTL = 5 * 60; // 5 minutes
 
@@ -1184,6 +1250,243 @@ async function handleWxStory(request, env, ctx) {
   }
 }
 
+// Handle radar API - returns radar and basemap URLs for a location
+async function handleRadar(request, env, ctx) {
+  const url = new URL(request.url);
+  const lat = parseFloat(url.searchParams.get('lat'));
+  const lon = parseFloat(url.searchParams.get('lon'));
+
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+    return jsonResponse({ error: 'Invalid lat/lon parameters' }, 400);
+  }
+
+  // Determine radar region
+  const region = getRadarRegion(lat, lon);
+  if (!region) {
+    return jsonResponse({
+      coverage: false,
+      error: 'Location outside NOAA radar coverage'
+    });
+  }
+
+  const config = NOAA_RADAR_CONFIG[region];
+  const cache = caches.default;
+
+  // Check for cached timestamp
+  const timestampCacheKey = `radar-timestamp:${region}`;
+  const timestampCacheUrl = `https://weather.gripe/api/radar-cache/${timestampCacheKey}`;
+  const timestampCacheRequest = new Request(timestampCacheUrl);
+
+  let timestamp = null;
+  const cached = await cache.match(timestampCacheRequest);
+  if (cached) {
+    const data = await cached.json();
+    timestamp = data.timestamp;
+  } else {
+    // Fetch GetCapabilities to get latest timestamp
+    try {
+      const capabilitiesUrl = `https://opengeo.ncep.noaa.gov/geoserver/${region}/wms?service=WMS&version=1.1.1&request=GetCapabilities`;
+      const capResponse = await fetch(capabilitiesUrl, {
+        headers: { 'User-Agent': 'weather.gripe (https://weather.gripe)' }
+      });
+      if (capResponse.ok) {
+        const capText = await capResponse.text();
+        // Extract timestamp from capabilities (look for time dimension in the specific layer)
+        const layerRegex = new RegExp(`<Name>${region}:${config.layer}</Name>[\\s\\S]*?<Dimension[^>]*name="time"[^>]*>([^<]+)</Dimension>`, 'i');
+        const timeMatch = capText.match(layerRegex);
+        if (timeMatch) {
+          const times = timeMatch[1].split(',');
+          timestamp = times[times.length - 1].trim();
+        }
+      }
+    } catch (e) {
+      console.error('Failed to fetch radar capabilities:', e);
+    }
+
+    // Cache timestamp for 1 minute
+    if (timestamp) {
+      const timestampResponse = new Response(JSON.stringify({ timestamp }), {
+        headers: { 'Cache-Control': `public, max-age=${RADAR_TIMESTAMP_CACHE_TTL}` }
+      });
+      ctx.waitUntil(cache.put(timestampCacheRequest, timestampResponse));
+    }
+  }
+
+  // Calculate BBOX for this location
+  const bbox = calculateRadarBbox(lat, lon);
+  const bboxStr = `${bbox.minX},${bbox.minY},${bbox.maxX},${bbox.maxY}`;
+
+  // Build radar WMS URL (use /geoserver/wms endpoint with region:layer format)
+  const radarParams = new URLSearchParams({
+    service: 'WMS',
+    version: '1.1.1',
+    request: 'GetMap',
+    layers: `${region}:${config.layer}`,
+    styles: '',
+    format: 'image/png',
+    transparent: 'true',
+    width: '1200',
+    height: '800',
+    srs: 'EPSG:3857',
+    bbox: bboxStr
+  });
+  if (timestamp) {
+    radarParams.set('time', timestamp);
+  }
+  const radarUrl = `https://opengeo.ncep.noaa.gov/geoserver/wms?${radarParams.toString()}`;
+
+  // Build basemap URL (Mundialis OSM Dark WMS)
+  const basemapParams = new URLSearchParams({
+    SERVICE: 'WMS',
+    VERSION: '1.1.1',
+    REQUEST: 'GetMap',
+    FORMAT: 'image/png',
+    TRANSPARENT: 'true',
+    STYLES: '',
+    LAYERS: 'Dark',
+    WIDTH: '1200',
+    HEIGHT: '800',
+    SRS: 'EPSG:3857',
+    BBOX: bboxStr
+  });
+  const basemapUrl = `https://ows.mundialis.de/services/service?${basemapParams.toString()}`;
+
+  // Build overlay URL (Mundialis OSM labels/roads overlay)
+  const overlayParams = new URLSearchParams({
+    SERVICE: 'WMS',
+    VERSION: '1.1.1',
+    REQUEST: 'GetMap',
+    FORMAT: 'image/png',
+    TRANSPARENT: 'true',
+    STYLES: '',
+    LAYERS: 'OSM-Overlay-WMS',
+    WIDTH: '1200',
+    HEIGHT: '800',
+    SRS: 'EPSG:3857',
+    BBOX: bboxStr
+  });
+  const overlayUrl = `https://ows.mundialis.de/services/service?${overlayParams.toString()}`;
+
+  return jsonResponse({
+    coverage: true,
+    region,
+    timestamp,
+    radarUrl,
+    basemapUrl,
+    overlayUrl,
+    bbox: bboxStr,
+    center: { lat, lon }
+  });
+}
+
+// Handle radar tile proxy - proxies NOAA radar tiles to handle CORS
+async function handleRadarTile(request, env, ctx) {
+  const url = new URL(request.url);
+  const tileUrl = url.searchParams.get('url');
+
+  if (!tileUrl) {
+    return jsonResponse({ error: 'Missing url parameter' }, 400);
+  }
+
+  // Validate URL is from NOAA geoserver
+  if (!tileUrl.startsWith('https://opengeo.ncep.noaa.gov/geoserver/')) {
+    return jsonResponse({ error: 'Invalid radar tile URL' }, 400);
+  }
+
+  const cache = caches.default;
+  const cacheRequest = new Request(tileUrl);
+
+  // Check cache
+  const cached = await cache.match(cacheRequest);
+  if (cached) {
+    return new Response(cached.body, {
+      headers: {
+        'Content-Type': 'image/png',
+        'Cache-Control': `public, max-age=${RADAR_TILE_CACHE_TTL}`,
+        'Access-Control-Allow-Origin': '*'
+      }
+    });
+  }
+
+  try {
+    const response = await fetch(tileUrl, {
+      headers: { 'User-Agent': 'weather.gripe (https://weather.gripe)' }
+    });
+
+    if (!response.ok) {
+      return jsonResponse({ error: 'Failed to fetch radar tile' }, 502);
+    }
+
+    const proxyResponse = new Response(response.body, {
+      headers: {
+        'Content-Type': response.headers.get('Content-Type') || 'image/png',
+        'Cache-Control': `public, max-age=${RADAR_TILE_CACHE_TTL}`,
+        'Access-Control-Allow-Origin': '*'
+      }
+    });
+
+    ctx.waitUntil(cache.put(cacheRequest, proxyResponse.clone()));
+    return proxyResponse;
+  } catch (e) {
+    console.error('Radar tile fetch error:', e);
+    return jsonResponse({ error: 'Failed to fetch radar tile' }, 500);
+  }
+}
+
+// Handle basemap tile proxy - proxies CARTO basemap tiles to handle CORS
+async function handleBasemapTile(request, env, ctx) {
+  const url = new URL(request.url);
+  const tileUrl = url.searchParams.get('url');
+
+  if (!tileUrl) {
+    return jsonResponse({ error: 'Missing url parameter' }, 400);
+  }
+
+  // Validate URL is from allowed basemap providers
+  if (!tileUrl.startsWith('https://ows.mundialis.de/')) {
+    return jsonResponse({ error: 'Invalid basemap tile URL' }, 400);
+  }
+
+  const cache = caches.default;
+  const cacheRequest = new Request(tileUrl);
+
+  // Check cache
+  const cached = await cache.match(cacheRequest);
+  if (cached) {
+    return new Response(cached.body, {
+      headers: {
+        'Content-Type': 'image/png',
+        'Cache-Control': `public, max-age=${BASEMAP_TILE_CACHE_TTL}`,
+        'Access-Control-Allow-Origin': '*'
+      }
+    });
+  }
+
+  try {
+    const response = await fetch(tileUrl, {
+      headers: { 'User-Agent': 'weather.gripe (https://weather.gripe)' }
+    });
+
+    if (!response.ok) {
+      return jsonResponse({ error: 'Failed to fetch basemap tile' }, 502);
+    }
+
+    const proxyResponse = new Response(response.body, {
+      headers: {
+        'Content-Type': response.headers.get('Content-Type') || 'image/png',
+        'Cache-Control': `public, max-age=${BASEMAP_TILE_CACHE_TTL}`,
+        'Access-Control-Allow-Origin': '*'
+      }
+    });
+
+    ctx.waitUntil(cache.put(cacheRequest, proxyResponse.clone()));
+    return proxyResponse;
+  } catch (e) {
+    console.error('Basemap tile fetch error:', e);
+    return jsonResponse({ error: 'Failed to fetch basemap tile' }, 500);
+  }
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -1207,6 +1510,15 @@ export default {
     }
     if (path === '/api/cf-location') {
       return handleCfLocation(request);
+    }
+    if (path === '/api/radar') {
+      return handleRadar(request, env, ctx);
+    }
+    if (path === '/api/radar/tile') {
+      return handleRadarTile(request, env, ctx);
+    }
+    if (path === '/api/basemap/tile') {
+      return handleBasemapTile(request, env, ctx);
     }
 
     // For all other routes, let the static assets handler take over
