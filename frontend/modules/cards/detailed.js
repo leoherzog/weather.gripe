@@ -9,9 +9,7 @@ const detailedLayout = {
   title: { font: 'bold 60px system-ui, sans-serif' },
   text: { font: '44px system-ui, sans-serif', lineHeight: 56 },
   gap: 36,
-  maxLines: 8,
-  minHeight: 600,
-  maxHeight: 1000
+  minHeight: 400
 };
 
 // Create Detailed Forecast Card (Today/Tonight/Tomorrow with text forecast)
@@ -31,20 +29,13 @@ export async function renderDetailedForecast(canvas, forecastData, backgroundUrl
   canvas.width = width;
   canvas.height = 100;
   ctx.font = L.text.font;
-  let textLines = wrapText(ctx, forecastData.detailedForecast, maxWidth);
+  const textLines = wrapText(ctx, forecastData.detailedForecast, maxWidth);
 
-  // Truncate at maxLines with ellipsis if too long
-  if (textLines.length > L.maxLines) {
-    textLines = textLines.slice(0, L.maxLines);
-    textLines[L.maxLines - 1] = textLines[L.maxLines - 1].replace(/\s*$/, '...');
-  }
-
-  // Calculate total height
+  // Calculate total height dynamically based on content
   let height = L.padding.top + L.header.height + L.gap;
   height += textLines.length * L.text.lineHeight;
   height += L.padding.bottom;
   height = Math.max(height, L.minHeight);
-  height = Math.min(height, L.maxHeight);
   canvas.height = height;
 
   // Draw background
