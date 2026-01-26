@@ -1,0 +1,160 @@
+// Day forecast card renderer (Today/Tonight/Tomorrow)
+
+import { CARD_WIDTH, drawWatermark, drawWeatherIcon } from './core.js';
+import { Units } from '../utils/units.js';
+
+// Create Today/Tonight/Tomorrow Card
+// timezone: IANA timezone string for displaying location's local time
+export async function renderDayForecast(canvas, weatherData, timezone = null) {
+  const ctx = canvas.getContext('2d');
+  const width = CARD_WIDTH;
+  const height = 600;
+  canvas.width = width;
+  canvas.height = height;
+
+  // Background gradient
+  const gradient = ctx.createLinearGradient(0, 0, width, 0);
+  gradient.addColorStop(0, '#2d4a6f');
+  gradient.addColorStop(0.5, '#1e3a5f');
+  gradient.addColorStop(1, '#0d1b2a');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, width, height);
+
+  const daily = weatherData?.daily;
+  if (!daily || daily.length < 2) {
+    console.error('Insufficient daily data for day forecast');
+    return canvas;
+  }
+  const colWidth = width / 3;
+
+  // Check if we should show night mode (Tonight, Tomorrow, Tomorrow Night)
+  // This happens when: it's after sunset OR today's high is missing (NWS at night)
+  const now = new Date();
+  const todaySunset = daily[0]?.sunset ? new Date(daily[0].sunset) : null;
+  const isAfterSunset = todaySunset && now > todaySunset;
+  const isMissingTodayHigh = daily[0]?.high == null;
+  const isNightMode = isAfterSunset || isMissingTodayHigh;
+
+  // Helper to check if condition is clear/partly cloudy for night icons
+  const isClearOrPartly = (condition) => {
+    const code = condition?.code || '';
+    return code === 'clear' || code === 'mostly-clear' || code === 'partly-cloudy';
+  };
+
+  // Three columns: adjust based on time of day
+  const columns = isNightMode ? [
+    {
+      label: 'Tonight',
+      low: daily[0]?.low,
+      condition: daily[0]?.condition,
+      precipitation: daily[0]?.precipitation,
+      showHigh: false,
+      showLow: true,
+      isNight: true
+    },
+    {
+      label: 'Tomorrow',
+      high: daily[1]?.high,
+      low: daily[1]?.low,
+      condition: daily[1]?.condition,
+      precipitation: daily[1]?.precipitation,
+      showHigh: true,
+      showLow: true
+    },
+    {
+      label: 'Tomorrow Night',
+      low: daily[1]?.low,
+      condition: daily[1]?.condition,
+      precipitation: daily[1]?.precipitation,
+      showHigh: false,
+      showLow: true,
+      isNight: true
+    }
+  ] : [
+    {
+      label: 'Today',
+      high: daily[0]?.high,
+      low: daily[0]?.low,
+      condition: daily[0]?.condition,
+      precipitation: daily[0]?.precipitation,
+      showHigh: true,
+      showLow: true
+    },
+    {
+      label: 'Tonight',
+      low: daily[0]?.low,
+      condition: daily[0]?.condition,
+      precipitation: daily[0]?.precipitation,
+      showHigh: false,
+      showLow: true,
+      isNight: true
+    },
+    {
+      label: 'Tomorrow',
+      high: daily[1]?.high,
+      low: daily[1]?.low,
+      condition: daily[1]?.condition,
+      precipitation: daily[1]?.precipitation,
+      showHigh: true,
+      showLow: true
+    }
+  ];
+
+  columns.forEach((col, i) => {
+    const x = i * colWidth + colWidth / 2;
+
+    // Label
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+    ctx.font = '40px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.fillText(col.label, x, 40);
+
+    // Weather icon (use moon/cloud-moon for clear/partly cloudy night conditions)
+    const conditionCode = col.condition?.code || '';
+    let icon;
+    if (col.isNight && isClearOrPartly(col.condition)) {
+      icon = (conditionCode === 'clear' || conditionCode === 'mostly-clear') ? 'fa-moon' : 'fa-cloud-moon';
+    } else {
+      icon = `fa-${col.condition?.icon || 'cloud-sun'}`;
+    }
+    drawWeatherIcon(ctx, icon, x, 180, 100);
+
+    // Temperatures
+    ctx.fillStyle = 'white';
+    ctx.font = 'bold 56px system-ui, sans-serif';
+
+    if (col.showHigh && col.showLow) {
+      ctx.fillText(`${Units.formatTempValue(col.high)}° / ${Units.formatTempValue(col.low)}°`, x, 320);
+      ctx.font = '28px system-ui, sans-serif';
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+      ctx.fillText('High / Low', x, 390);
+    } else if (col.showLow) {
+      ctx.fillText(`${Units.formatTempValue(col.low)}°`, x, 320);
+      ctx.font = '28px system-ui, sans-serif';
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+      ctx.fillText('Low', x, 390);
+    }
+
+    // Condition text (use short description directly, no detail suffix)
+    ctx.font = '28px system-ui, sans-serif';
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+    ctx.fillText(col.condition?.text || 'Unknown', x, 440);
+  });
+
+  // Divider lines
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+  ctx.lineWidth = 2;
+  for (let i = 1; i < 3; i++) {
+    ctx.beginPath();
+    ctx.moveTo(i * colWidth, 60);
+    ctx.lineTo(i * colWidth, height - 80);
+    ctx.stroke();
+  }
+
+  // Watermark - determine data source from observedAt presence
+  const dataSource = weatherData?.current?.observedAt ? 'NWS' : 'Open-Meteo';
+  drawWatermark(ctx, width, height, dataSource, timezone);
+
+  return canvas;
+}

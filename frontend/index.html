@@ -38,40 +38,6 @@
           <wa-button id="units-metric" size="small" appearance="outlined" aria-label="Switch to metric units (Celsius, km/h)">Metric</wa-button>
           <wa-button id="units-imperial" size="small" class="temp-gradient-btn" aria-label="Switch to imperial units (Fahrenheit, mph)">Imperial</wa-button>
         </wa-button-group>
-        <script>
-          (function() {
-            const metric = document.getElementById('units-metric');
-            const imperial = document.getElementById('units-imperial');
-            let stored;
-            try { stored = localStorage.getItem('weatherUnits'); } catch(e) {}
-            let current = stored || window.__defaultUnits || 'imperial';
-
-            const update = function() {
-              if (current === 'metric') {
-                metric.classList.add('temp-gradient-btn');
-                metric.setAttribute('appearance', 'filled');
-                imperial.classList.remove('temp-gradient-btn');
-                imperial.setAttribute('appearance', 'outlined');
-              } else {
-                imperial.classList.add('temp-gradient-btn');
-                imperial.setAttribute('appearance', 'filled');
-                metric.classList.remove('temp-gradient-btn');
-                metric.setAttribute('appearance', 'outlined');
-              }
-            };
-
-            const set = function(system) {
-              current = system;
-              try { localStorage.setItem('weatherUnits', system); } catch(e) {}
-              if (typeof Units !== 'undefined') Units.current = system;
-              update();
-            };
-
-            update();
-            metric.addEventListener('click', function() { set('metric'); });
-            imperial.addEventListener('click', function() { set('imperial'); });
-          })();
-        </script>
         <!-- Dark Mode Toggle -->
         <wa-tooltip id="dark-mode-tooltip" for="dark-mode-toggle">Switch to dark mode</wa-tooltip>
         <wa-button id="dark-mode-toggle" appearance="plain" size="small" aria-label="Switch to dark mode">

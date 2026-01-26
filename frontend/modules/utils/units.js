@@ -1,7 +1,7 @@
 // Unit conversion utilities for weather.gripe
 // Temperature and wind are fetched in metric (Celsius, km/h); precipitation in inches
 
-const Units = {
+export const Units = {
   // Current unit system: 'metric' or 'imperial' (default set by Worker based on country)
   current: window.__defaultUnits || 'imperial',
 
@@ -82,8 +82,5 @@ const Units = {
   }
 };
 
-// Load preference on script load
+// Load preference on module load
 Units.loadPreference();
-
-// Export to global scope for other modules
-window.Units = Units;

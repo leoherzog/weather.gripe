@@ -1,12 +1,22 @@
 // Temperature-based color system using Chroma.js
 // Based on windy.com temperature scale
 
-import chroma from 'chroma-js';
+let chroma = null;
 
-const TemperatureColors = {
+// Dynamically load chroma-js
+async function ensureChroma() {
+  if (!chroma) {
+    const mod = await import('chroma-js');
+    chroma = mod.default;
+  }
+  return chroma;
+}
+
+export const TemperatureColors = {
   scale: null,
   currentColor: null,
   transitionTimer: null,
+  chroma: null, // Store reference to loaded chroma
 
   // Windy.com color scale data (Kelvin to RGBA)
   // Converted to Fahrenheit for easier use
@@ -27,12 +37,13 @@ const TemperatureColors = {
   ],
 
   // Initialize the color scale
-  init() {
+  async init() {
+    this.chroma = await ensureChroma();
     const temps = this.scaleData.map(d => d.temp);
-    const colors = this.scaleData.map(d => chroma(d.color));
+    const colors = this.scaleData.map(d => this.chroma(d.color));
 
     // Create scale with lab interpolation
-    this.scale = chroma.scale(colors).domain(temps).mode('lab');
+    this.scale = this.chroma.scale(colors).domain(temps).mode('lab');
 
     // Set initial color to gold
     this.setColor('gold');
@@ -40,18 +51,20 @@ const TemperatureColors = {
 
   // Get color for a temperature (in Fahrenheit)
   getColor(tempF) {
-    if (!this.scale) this.init();
+    if (!this.scale) return this.chroma?.('gold') || null;
     return this.scale(tempF);
   },
 
   // Get hex color for a temperature
   getHex(tempF) {
-    return this.getColor(tempF).hex();
+    const color = this.getColor(tempF);
+    return color ? color.hex() : '#ffd700';
   },
 
   // Set the primary color (can be a color name, hex, or chroma color)
   setColor(color) {
-    const c = chroma(color);
+    if (!this.chroma) return;
+    const c = this.chroma(color);
     this.currentColor = c;
     this.updateCSSVariables(c);
   },
@@ -91,6 +104,7 @@ const TemperatureColors = {
   // Generate gradient for buttons based on temperature range
   // Uses lab() colors for perceptually uniform gradients
   setButtonGradient(tempF) {
+    if (!this.chroma) return;
     const root = document.documentElement;
     const tempLow = tempF - 5;
     const tempHigh = tempF + 5;
@@ -114,9 +128,9 @@ const TemperatureColors = {
 
   // Animate transition from current color to temperature color
   transitionToTemperature(tempF, duration = 1500) {
-    if (!this.scale) this.init();
+    if (!this.scale || !this.chroma) return;
 
-    const startColor = this.currentColor || chroma('gold');
+    const startColor = this.currentColor || this.chroma('gold');
     const endColor = this.getColor(tempF);
     const startTime = performance.now();
 
@@ -133,7 +147,7 @@ const TemperatureColors = {
       const eased = 1 - Math.pow(1 - progress, 3);
 
       // Interpolate between colors in lab space
-      const interpolated = chroma.mix(startColor, endColor, eased, 'lab');
+      const interpolated = this.chroma.mix(startColor, endColor, eased, 'lab');
       this.setColor(interpolated);
 
       if (progress < 1) {
@@ -151,12 +165,13 @@ const TemperatureColors = {
   // Get contrasting text color (white or black) for a background
   // Returns the color that meets the target contrast ratio, preferring white
   getContrastingText(bgColor, targetRatio = 7) {
-    const bg = chroma(bgColor);
-    const white = chroma('white');
-    const black = chroma('#1a1a1a');
+    if (!this.chroma) return { color: { css: () => 'white' }, contrast: 21 };
+    const bg = this.chroma(bgColor);
+    const white = this.chroma('white');
+    const black = this.chroma('#1a1a1a');
 
-    const whiteContrast = chroma.contrast(bg, white);
-    const blackContrast = chroma.contrast(bg, black);
+    const whiteContrast = this.chroma.contrast(bg, white);
+    const blackContrast = this.chroma.contrast(bg, black);
 
     // Return whichever meets AAA, preferring white for aesthetics
     if (whiteContrast >= targetRatio) {
@@ -173,7 +188,8 @@ const TemperatureColors = {
 
   // Check if a color combination meets WCAG AAA
   meetsAAA(bgColor, textColor, isLargeText = false) {
-    const ratio = chroma.contrast(bgColor, textColor);
+    if (!this.chroma) return { passes: true, ratio: 21, required: 7 };
+    const ratio = this.chroma.contrast(bgColor, textColor);
     const required = isLargeText ? 4.5 : 7;
     return { passes: ratio >= required, ratio, required };
   },
@@ -194,9 +210,3 @@ const TemperatureColors = {
     }
   }
 };
-
-// Initialize on load with gold color
-TemperatureColors.init();
-
-// Export to window for use by other scripts
-window.TemperatureColors = TemperatureColors;

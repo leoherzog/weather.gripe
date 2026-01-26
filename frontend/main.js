@@ -1,21 +1,26 @@
-// Web Awesome Pro - styles and components
-import '@awesome.me/webawesome-pro/dist/styles/webawesome.css';
-import '@awesome.me/webawesome-pro/dist/components/button/button.js';
-import '@awesome.me/webawesome-pro/dist/components/button-group/button-group.js';
-import '@awesome.me/webawesome-pro/dist/components/input/input.js';
-import '@awesome.me/webawesome-pro/dist/components/icon/icon.js';
-import '@awesome.me/webawesome-pro/dist/components/card/card.js';
-import '@awesome.me/webawesome-pro/dist/components/skeleton/skeleton.js';
-import '@awesome.me/webawesome-pro/dist/components/callout/callout.js';
-import '@awesome.me/webawesome-pro/dist/components/tooltip/tooltip.js';
+// Main entry point for weather.gripe
 
-// Configure Font Awesome Pro kit for icons
-import { setKitCode } from '@awesome.me/webawesome-pro/dist/webawesome.js';
-setKitCode('d6f0104b24');
+// Web Awesome Pro components (side-effect import)
+import './modules/ui/webawesome.js';
 
-// App modules
+// App styles
 import './style.css';
-import './temperature-colors.js';
-import './units.js';
-import './weather-cards.js';
-import './app.js';
+
+// Initialize temperature colors early (async load of chroma-js)
+import { TemperatureColors } from './modules/utils/temperature-colors.js';
+
+// Unit toggle and app
+import { initUnitToggle } from './modules/ui/unit-toggle.js';
+import { App } from './modules/app/index.js';
+
+// Initialize app when DOM is ready
+document.addEventListener('DOMContentLoaded', async () => {
+  // Initialize temperature colors (loads chroma-js lazily)
+  await TemperatureColors.init();
+
+  // Initialize unit toggle UI
+  initUnitToggle();
+
+  // Initialize main app
+  await App.init();
+});
