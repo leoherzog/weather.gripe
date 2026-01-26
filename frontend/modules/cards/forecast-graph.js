@@ -100,7 +100,7 @@ export async function renderForecastGraph(canvas, weatherData, locationName = '5
     ctx.font = 'bold 28px system-ui, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
-    ctx.fillText(`${Units.formatTempValue(p.temp)}°`, p.x, p.y - 20);
+    ctx.fillText(Units.formatTemp(p.temp), p.x, p.y - 20);
 
     // Low point
     const lp = lowPoints[i];
@@ -112,7 +112,7 @@ export async function renderForecastGraph(canvas, weatherData, locationName = '5
     // Low temp label
     ctx.fillStyle = '#3b82f6';
     ctx.textBaseline = 'top';
-    ctx.fillText(`${Units.formatTempValue(lp.temp)}°`, lp.x, lp.y + 20);
+    ctx.fillText(Units.formatTemp(lp.temp), lp.x, lp.y + 20);
 
     // Day label and icon - compare actual date to today in location's timezone
     const todayOpts = timezone ? { timeZone: timezone } : {};

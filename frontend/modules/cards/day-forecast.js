@@ -125,12 +125,12 @@ export async function renderDayForecast(canvas, weatherData, timezone = null) {
     ctx.font = 'bold 56px system-ui, sans-serif';
 
     if (col.showHigh && col.showLow) {
-      ctx.fillText(`${Units.formatTempValue(col.high)}° / ${Units.formatTempValue(col.low)}°`, x, 320);
+      ctx.fillText(`${Units.formatTemp(col.high)} / ${Units.formatTemp(col.low)}`, x, 320);
       ctx.font = '28px system-ui, sans-serif';
       ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
       ctx.fillText('High / Low', x, 390);
     } else if (col.showLow) {
-      ctx.fillText(`${Units.formatTempValue(col.low)}°`, x, 320);
+      ctx.fillText(Units.formatTemp(col.low), x, 320);
       ctx.font = '28px system-ui, sans-serif';
       ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
       ctx.fillText('Low', x, 390);

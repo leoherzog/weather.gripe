@@ -651,9 +651,28 @@ async function fetchWeatherNWS(lat, lon, cache, ctx, skipCache = false, existing
     };
   }
 
+  // 6. Fetch hourly forecast
+  let hourly = [];
+  try {
+    const hourlyRes = await fetch(points.forecastHourly, { headers: NWS_HEADERS });
+    if (hourlyRes.ok) {
+      const hourlyData = await hourlyRes.json();
+      const hourlyPeriods = hourlyData.properties?.periods || [];
+      hourly = hourlyPeriods.slice(0, 24).map(period => ({
+        time: period.startTime,
+        temperature: fahrenheitToCelsius(period.temperature),
+        condition: mapNWSIconToCondition(period.icon, period.shortForecast),
+        precipProbability: period.probabilityOfPrecipitation?.value || 0
+      }));
+    }
+  } catch (e) {
+    console.error('NWS hourly fetch error:', e);
+  }
+
   return {
     current,
     daily,
+    hourly,
     timezone: points.timeZone,
     source: 'nws'
   };
@@ -743,6 +762,7 @@ async function fetchWeatherOpenMeteo(lat, lon, cache, ctx, skipCache = false) {
   url.searchParams.set('longitude', lon.toString());
   url.searchParams.set('current', 'temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,wind_direction_10m');
   url.searchParams.set('daily', 'weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,precipitation_probability_max,precipitation_sum,snowfall_sum,rain_sum');
+  url.searchParams.set('hourly', 'temperature_2m,weather_code,precipitation_probability');
   url.searchParams.set('timezone', 'auto');
   url.searchParams.set('forecast_days', '7');
   url.searchParams.set('precipitation_unit', 'inch');
@@ -786,6 +806,12 @@ async function fetchWeatherOpenMeteo(lat, lon, cache, ctx, skipCache = false) {
       sunrise: data.daily.sunrise[i],
       sunset: data.daily.sunset[i]
     })),
+    hourly: data.hourly?.time?.slice(0, 24).map((time, i) => ({
+      time,
+      temperature: data.hourly.temperature_2m[i],
+      condition: WMO_CONDITIONS[data.hourly.weather_code[i]] || WMO_CONDITIONS[2],
+      precipProbability: data.hourly.precipitation_probability[i] || 0
+    })) || [],
     timezone: data.timezone,
     source: 'open-meteo'
   };

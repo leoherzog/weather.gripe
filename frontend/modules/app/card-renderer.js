@@ -181,6 +181,15 @@ export function createCardRenderer(app) {
         return { order: 4, card: WeatherCards.createCardContainer(canvas, 'day') };
       })());
 
+      // Hourly forecast card (order: 4.5, independent)
+      if (weather.hourly && weather.hourly.length > 0) {
+        cardPromises.push((async () => {
+          const canvas = document.createElement('canvas');
+          await WeatherCards.renderHourlyForecast(canvas, weather, timezone);
+          return { order: 4.5, card: WeatherCards.createCardContainer(canvas, 'hourly') };
+        })());
+      }
+
       // Radar card (order: 5, depends on radar data)
       if (isNWS && radarPromise) {
         cardPromises.push((async () => {

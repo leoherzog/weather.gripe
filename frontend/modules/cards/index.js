@@ -6,6 +6,7 @@ import { getConditionQuery, getConditionText } from './condition-utils.js';
 import { renderCurrentConditions } from './current.js';
 import { renderDayForecast } from './day-forecast.js';
 import { renderForecastGraph } from './forecast-graph.js';
+import { renderHourlyForecast } from './hourly-forecast.js';
 import { renderAlert } from './alert.js';
 import { renderDetailedForecast } from './detailed.js';
 import { createRadarCard, renderRadarUnavailable, renderRadarError } from './radar.js';
@@ -30,6 +31,7 @@ export const WeatherCards = {
   renderCurrentConditions,
   renderDayForecast,
   renderForecastGraph,
+  renderHourlyForecast,
   renderAlert,
   renderDetailedForecast,
   createRadarCard,
@@ -51,6 +53,7 @@ export {
   renderCurrentConditions,
   renderDayForecast,
   renderForecastGraph,
+  renderHourlyForecast,
   renderAlert,
   renderDetailedForecast,
   createRadarCard,
