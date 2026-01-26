@@ -1043,9 +1043,12 @@ async function handleGeocode(request, env, ctx) {
 }
 
 // Handle Unsplash API proxy (hides API key)
+// Supports cascading fallback: location+condition -> region+condition -> condition only
 async function handleUnsplash(request, env, ctx) {
   const url = new URL(request.url);
   const query = url.searchParams.get('query');
+  const location = url.searchParams.get('location');
+  const region = url.searchParams.get('region');
   const skipCache = shouldSkipCache(request);
 
   if (!query) {
@@ -1067,35 +1070,48 @@ async function handleUnsplash(request, env, ctx) {
     }
   }
 
-  // Fetch from Unsplash
-  const unsplashUrl = new URL('https://api.unsplash.com/search/photos');
-  unsplashUrl.searchParams.set('query', query);
-  unsplashUrl.searchParams.set('per_page', '1');
-  unsplashUrl.searchParams.set('orientation', 'landscape');
-
-  const apiResponse = await fetch(unsplashUrl.toString(), {
-    headers: {
-      'Authorization': `Client-ID ${env.UNSPLASH_ACCESS_KEY}`
-    }
-  });
-  if (!apiResponse.ok) {
-    return jsonResponse({ error: 'Upstream API error' }, 502);
+  // Build query variants for cascading fallback
+  const queries = [];
+  if (location && region) {
+    queries.push(`${location} ${region} ${query}`); // e.g., "Seattle Washington rain weather"
   }
-  const data = await apiResponse.json();
+  if (region) {
+    queries.push(`${region} ${query}`); // e.g., "Washington rain weather"
+  }
+  queries.push(query); // Base condition-only query as final fallback
 
-  // Extract just the image URL and attribution
+  // Try each query in order until we find results
   let result = { error: 'No images found' };
-  if (data.results && data.results.length > 0) {
-    const photo = data.results[0];
-    result = {
-      url: photo.urls.regular,
-      thumb: photo.urls.thumb,
-      photographer: photo.user.name,
-      username: photo.user.username,
-      photographerUrl: photo.user.links.html,
-      unsplashUrl: photo.links.html,
-      downloadLocation: photo.links.download_location
-    };
+  for (const searchQuery of queries) {
+    const unsplashUrl = new URL('https://api.unsplash.com/search/photos');
+    unsplashUrl.searchParams.set('query', searchQuery);
+    unsplashUrl.searchParams.set('per_page', '1');
+    unsplashUrl.searchParams.set('orientation', 'landscape');
+
+    const apiResponse = await fetch(unsplashUrl.toString(), {
+      headers: {
+        'Authorization': `Client-ID ${env.UNSPLASH_ACCESS_KEY}`
+      }
+    });
+
+    if (!apiResponse.ok) {
+      continue; // Try next query variant
+    }
+
+    const data = await apiResponse.json();
+    if (data.results && data.results.length > 0) {
+      const photo = data.results[0];
+      result = {
+        url: photo.urls.regular,
+        thumb: photo.urls.thumb,
+        photographer: photo.user.name,
+        username: photo.user.username,
+        photographerUrl: photo.user.links.html,
+        unsplashUrl: photo.links.html,
+        downloadLocation: photo.links.download_location
+      };
+      break; // Found a result, stop searching
+    }
   }
 
   const response = jsonResponse(result, 200, UNSPLASH_CACHE_TTL);

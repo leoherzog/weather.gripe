@@ -60,10 +60,15 @@ export function createWeatherLoader(app) {
       }
     },
 
-    // Fetch Unsplash background image
-    async fetchBackground(query) {
+    // Fetch Unsplash background image with optional location fallback
+    // options: { location, region } for cascading search
+    async fetchBackground(query, options = {}) {
       try {
-        const response = await fetch(`/api/unsplash?query=${encodeURIComponent(query)}`);
+        const params = new URLSearchParams({ query });
+        if (options.location) params.set('location', options.location);
+        if (options.region) params.set('region', options.region);
+
+        const response = await fetch(`/api/unsplash?${params.toString()}`);
         if (!response.ok) return null;
         const data = await response.json();
         return data.error ? null : data;

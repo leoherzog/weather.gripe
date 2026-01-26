@@ -222,12 +222,14 @@ export async function createRadarCard(radarData, locationName, timezone = null) 
       });
     });
 
-    // Draw overlay elements
+    // Draw overlay elements once map is fully loaded and positioned
     const ctx = overlay.getContext('2d');
-    drawLocationMarker(ctx, width / 2, height / 2, 32);
-    drawRadarHeader(ctx, width, radarData, locationName, timezone);
-    drawRadarLegend(ctx, width, height);
-    drawWatermark(ctx, width, height, 'NOAA', timezone);
+    map.once('idle', () => {
+      drawLocationMarker(ctx, width / 2, height / 2, 32);
+      drawRadarHeader(ctx, width, radarData, locationName, timezone);
+      // drawRadarLegend(ctx, width, height);
+      drawWatermark(ctx, width, height, 'NOAA', timezone);
+    });
   };
 
   // Use requestAnimationFrame to ensure DOM is ready

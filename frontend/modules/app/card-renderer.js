@@ -12,6 +12,12 @@ export function createCardRenderer(app) {
       // Extract just the city name (before comma) for card labels
       const cityName = locationName?.split(',')[0]?.trim() || null;
 
+      // Extract region (state/province) from location name for Unsplash fallback
+      // locationName format: "City, State, Country" or "City, Country"
+      const locationParts = locationName?.split(',').map(p => p.trim()) || [];
+      const regionName = locationParts.length > 1 ? locationParts[1] : null;
+      const bgLocationOpts = { location: cityName, region: regionName };
+
       // Get timezone from weather data for displaying location's local time
       const timezone = weather?.timezone || null;
 
@@ -26,8 +32,9 @@ export function createCardRenderer(app) {
       const isNightMode = isAfterSunset || isMissingTodayHigh;
 
       // Get background image based on current conditions and temperature (start fetch early)
+      // Uses cascading fallback: location+condition -> region+condition -> condition only
       const conditionQuery = WeatherCards.getConditionQuery(weather.current.condition, weather.current.temperature);
-      const backgroundPromise = app.weatherLoader.fetchBackground(conditionQuery);
+      const backgroundPromise = app.weatherLoader.fetchBackground(conditionQuery, bgLocationOpts);
 
       // Start radar fetch early for US locations (parallel with background)
       const radarPromise = isNWS ? app.weatherLoader.fetchRadar(app.currentLocation?.lat, app.currentLocation?.lon) : null;
@@ -41,20 +48,20 @@ export function createCardRenderer(app) {
           const tonightForecast = daily[0]?.nightForecast;
           const tomorrowForecast = daily[1]?.dayForecast;
           if (tonightForecast?.condition) {
-            detailedBg1Promise = app.weatherLoader.fetchBackground(WeatherCards.getConditionQuery(tonightForecast.condition, daily[0]?.low));
+            detailedBg1Promise = app.weatherLoader.fetchBackground(WeatherCards.getConditionQuery(tonightForecast.condition, daily[0]?.low), bgLocationOpts);
           }
           if (tomorrowForecast?.condition) {
-            detailedBg2Promise = app.weatherLoader.fetchBackground(WeatherCards.getConditionQuery(tomorrowForecast.condition, daily[1]?.high));
+            detailedBg2Promise = app.weatherLoader.fetchBackground(WeatherCards.getConditionQuery(tomorrowForecast.condition, daily[1]?.high), bgLocationOpts);
           }
         } else {
           // Today + Tonight
           const todayForecast = daily[0]?.dayForecast;
           const tonightForecast = daily[0]?.nightForecast;
           if (todayForecast?.condition) {
-            detailedBg1Promise = app.weatherLoader.fetchBackground(WeatherCards.getConditionQuery(todayForecast.condition, daily[0]?.high));
+            detailedBg1Promise = app.weatherLoader.fetchBackground(WeatherCards.getConditionQuery(todayForecast.condition, daily[0]?.high), bgLocationOpts);
           }
           if (tonightForecast?.condition) {
-            detailedBg2Promise = app.weatherLoader.fetchBackground(WeatherCards.getConditionQuery(tonightForecast.condition, daily[0]?.low));
+            detailedBg2Promise = app.weatherLoader.fetchBackground(WeatherCards.getConditionQuery(tonightForecast.condition, daily[0]?.low), bgLocationOpts);
           }
         }
       }
