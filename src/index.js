@@ -8,6 +8,7 @@ const NWS_POINTS_CACHE_TTL = 24 * 60 * 60; // 24 hours
 const UNSPLASH_CACHE_TTL = 24 * 60 * 60; // 24 hours
 const LOCATION_CACHE_TTL = 5 * 60; // 5 minutes (limited by alerts)
 const WXSTORY_CACHE_TTL = 5 * 60; // 5 minutes
+const WXSTORY_IMAGE_CACHE_TTL = 30 * 60; // 30 minutes
 const RADAR_TIMESTAMP_CACHE_TTL = 60; // 1 minute
 const RADAR_TILE_CACHE_TTL = 120; // 2 minutes
 const BASEMAP_TILE_CACHE_TTL = 86400; // 24 hours
@@ -1236,10 +1237,11 @@ async function handleWxStory(request, env, ctx) {
       .transform(storyResponse);
     await transformed.text(); // consume to populate collector.images
 
-    // Clean up double slashes in URLs
-    const images = collector.images.map(x =>
-      x.replaceAll('//', '/').replace(':/', '://')
-    );
+    // Clean up double slashes in URLs and convert to proxy URLs
+    const images = collector.images.map(x => {
+      const cleanUrl = x.replaceAll('//', '/').replace(':/', '://');
+      return `/api/wxstory/image?url=${encodeURIComponent(cleanUrl)}`;
+    });
 
     const response = jsonResponse({ office: office.toUpperCase(), images }, 200, WXSTORY_CACHE_TTL);
     ctx.waitUntil(cache.put(cacheRequest, response.clone()));
@@ -1247,6 +1249,61 @@ async function handleWxStory(request, env, ctx) {
   } catch (e) {
     console.error('Weather story fetch error:', e);
     return jsonResponse({ error: 'Failed to fetch weather story', details: e.message }, 500);
+  }
+}
+
+// Handle weather story image proxy - caches and serves wxstory images
+async function handleWxStoryImage(request, env, ctx) {
+  const url = new URL(request.url);
+  const imageUrl = url.searchParams.get('url');
+
+  if (!imageUrl) {
+    return jsonResponse({ error: 'Missing url parameter' }, 400);
+  }
+
+  // Validate URL is from weather.gov and contains wxstory
+  if (!imageUrl.startsWith('https://www.weather.gov/') || !imageUrl.toLowerCase().includes('wxstory')) {
+    return jsonResponse({ error: 'Invalid wxstory image URL' }, 400);
+  }
+
+  const cache = caches.default;
+  const cacheRequest = new Request(imageUrl);
+
+  // Check cache
+  const cached = await cache.match(cacheRequest);
+  if (cached) {
+    return new Response(cached.body, {
+      headers: {
+        'Content-Type': cached.headers.get('Content-Type') || 'image/png',
+        'Cache-Control': `public, max-age=${WXSTORY_IMAGE_CACHE_TTL}`,
+        'Access-Control-Allow-Origin': '*'
+      }
+    });
+  }
+
+  try {
+    const response = await fetch(imageUrl, {
+      headers: { 'User-Agent': 'weather.gripe (https://weather.gripe)' }
+    });
+
+    if (!response.ok) {
+      return jsonResponse({ error: 'Failed to fetch wxstory image' }, 502);
+    }
+
+    const contentType = response.headers.get('Content-Type') || 'image/png';
+    const proxyResponse = new Response(response.body, {
+      headers: {
+        'Content-Type': contentType,
+        'Cache-Control': `public, max-age=${WXSTORY_IMAGE_CACHE_TTL}`,
+        'Access-Control-Allow-Origin': '*'
+      }
+    });
+
+    ctx.waitUntil(cache.put(cacheRequest, proxyResponse.clone()));
+    return proxyResponse;
+  } catch (e) {
+    console.error('WxStory image fetch error:', e);
+    return jsonResponse({ error: 'Failed to fetch wxstory image' }, 500);
   }
 }
 
@@ -1480,6 +1537,9 @@ export default {
     }
     if (path === '/api/wxstory') {
       return handleWxStory(request, env, ctx);
+    }
+    if (path === '/api/wxstory/image') {
+      return handleWxStoryImage(request, env, ctx);
     }
     if (path === '/api/cf-location') {
       return handleCfLocation(request);

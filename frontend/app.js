@@ -287,16 +287,19 @@ const App = {
         return;
       }
 
-      this.elements.searchResults.innerHTML = results.map(loc => `
-        <div class="search-result-item" data-lat="${loc.latitude}" data-lon="${loc.longitude}" data-name="${escapeHtml(loc.name)}">
+      this.elements.searchResults.innerHTML = results.map(loc => {
+        const fullName = [loc.name, loc.admin1, loc.country].filter(Boolean).map(escapeHtml).join(', ');
+        return `
+        <div class="search-result-item" role="option" tabindex="0" data-lat="${loc.latitude}" data-lon="${loc.longitude}" data-name="${escapeHtml(loc.name)}" aria-label="${fullName}">
           <strong>${escapeHtml(loc.name)}</strong>
           <small style="display: block; color: var(--wa-color-text-quiet);">${[loc.admin1, loc.country].filter(Boolean).map(escapeHtml).join(', ')}</small>
         </div>
-      `).join('');
+      `;
+      }).join('');
 
-      // Add click handlers
+      // Add click and keyboard handlers
       this.elements.searchResults.querySelectorAll('[data-lat]').forEach(item => {
-        item.addEventListener('click', () => {
+        const selectLocation = () => {
           const lat = parseFloat(item.dataset.lat);
           const lon = parseFloat(item.dataset.lon);
           const name = item.dataset.name;
@@ -306,6 +309,13 @@ const App = {
           this.isManualLocation = true;
           this.updateLocationModeUI();
           this.loadWeather(lat, lon, name);
+        };
+        item.addEventListener('click', selectLocation);
+        item.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            selectLocation();
+          }
         });
       });
 
@@ -440,7 +450,9 @@ const App = {
     const photographerLink = document.createElement('a');
     photographerLink.href = `${background.photographerUrl}?utm_source=weather.gripe&utm_medium=referral`;
     photographerLink.target = '_blank';
+    photographerLink.rel = 'noopener noreferrer';
     photographerLink.textContent = background.photographer;
+    photographerLink.setAttribute('aria-label', `${background.photographer} on Unsplash (opens in new tab)`);
     attribution.appendChild(photographerLink);
 
     attribution.appendChild(document.createTextNode(' on '));
@@ -448,7 +460,9 @@ const App = {
     const unsplashLink = document.createElement('a');
     unsplashLink.href = `${background.unsplashUrl}?utm_source=weather.gripe&utm_medium=referral`;
     unsplashLink.target = '_blank';
+    unsplashLink.rel = 'noopener noreferrer';
     unsplashLink.textContent = 'Unsplash';
+    unsplashLink.setAttribute('aria-label', 'Unsplash (opens in new tab)');
     attribution.appendChild(unsplashLink);
 
     // Insert before footer (goes into body slot)
@@ -686,9 +700,9 @@ const App = {
       const url = lat && lon
         ? `https://forecast.weather.gov/MapClick.php?lat=${lat}&lon=${lon}`
         : 'https://www.weather.gov/';
-      this.elements.dataSource.innerHTML = `<a href="${url}" target="_blank" class="footer-link">NWS</a>`;
+      this.elements.dataSource.innerHTML = `<a href="${url}" target="_blank" rel="noopener noreferrer" class="footer-link" aria-label="National Weather Service (opens in new tab)">NWS</a>`;
     } else {
-      this.elements.dataSource.innerHTML = '<a href="https://open-meteo.com/" target="_blank" class="footer-link">Open-Meteo</a>';
+      this.elements.dataSource.innerHTML = '<a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer" class="footer-link" aria-label="Open-Meteo weather API (opens in new tab)">Open-Meteo</a>';
     }
     if (this.elements.siteFooter) {
       this.elements.siteFooter.hidden = false;

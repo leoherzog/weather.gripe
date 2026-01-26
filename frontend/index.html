@@ -3,7 +3,19 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>weather.gripe - Shareable Weather Cards</title>
+  <title>Shareable Weather Cards</title>
+  <meta name="description" content="Create and share beautiful weather cards for any location. Get current conditions, forecasts, and radar maps in a shareable format.">
+  <meta name="keywords" content="weather, forecast, shareable, weather cards, current conditions, radar, temperature, weather app">
+  <meta name="author" content="herzog.tech">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="https://weather.gripe/">
+  <meta property="og:title" content="weather.gripe — Shareable Weather Cards">
+  <meta property="og:description" content="Create and share beautiful weather cards for any location. Get current conditions, forecasts, and radar maps.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://weather.gripe/">
+  <meta property="og:site_name" content="weather.gripe">
+  <meta property="og:locale" content="en_US">
+
   <script>
     (function() {
       let theme;
@@ -20,9 +32,11 @@
       <strong style="font-size: var(--wa-font-size-l); font-weight: var(--wa-font-weight-bold);">weather.gripe</strong>
       <div class="flex wa-align-items-center wa-gap-m">
         <!-- Unit Toggle -->
-        <wa-button-group>
-          <wa-button id="units-metric" size="small" appearance="outlined">Metric</wa-button>
-          <wa-button id="units-imperial" size="small" class="temp-gradient-btn">Imperial</wa-button>
+        <wa-tooltip for="units-metric">Celsius, km/h</wa-tooltip>
+        <wa-tooltip for="units-imperial">Fahrenheit, mph</wa-tooltip>
+        <wa-button-group aria-label="Temperature unit selection">
+          <wa-button id="units-metric" size="small" appearance="outlined" aria-label="Switch to metric units (Celsius, km/h)">Metric</wa-button>
+          <wa-button id="units-imperial" size="small" class="temp-gradient-btn" aria-label="Switch to imperial units (Fahrenheit, mph)">Imperial</wa-button>
         </wa-button-group>
         <script>
           (function() {
@@ -59,16 +73,21 @@
           })();
         </script>
         <!-- Dark Mode Toggle -->
-        <wa-button id="dark-mode-toggle" appearance="plain" size="small">
-          <wa-icon name="moon"></wa-icon>
+        <wa-tooltip id="dark-mode-tooltip" for="dark-mode-toggle">Switch to dark mode</wa-tooltip>
+        <wa-button id="dark-mode-toggle" appearance="plain" size="small" aria-label="Switch to dark mode">
+          <wa-icon name="moon" aria-hidden="true"></wa-icon>
         </wa-button>
         <script>
           (function() {
             const btn = document.getElementById('dark-mode-toggle');
             const icon = btn.querySelector('wa-icon');
+            const tooltip = document.getElementById('dark-mode-tooltip');
             const update = function() {
               const isDark = document.documentElement.classList.contains('wa-dark');
               icon.setAttribute('name', isDark ? 'sun' : 'moon');
+              const label = isDark ? 'Switch to light mode' : 'Switch to dark mode';
+              btn.setAttribute('aria-label', label);
+              if (tooltip) tooltip.textContent = label;
             };
             update();
             btn.addEventListener('click', function() {
@@ -86,15 +105,16 @@
     <!-- Search Section -->
     <section id="search-section" class="relative mb-6">
       <form role="search" id="search-form">
-        <wa-input id="search-input" type="search" placeholder="Search location..." autocomplete="off" size="large" pill>
-          <wa-icon slot="prefix" name="magnifying-glass"></wa-icon>
-          <wa-icon id="search-icon-end" slot="end" name="magnifying-glass"></wa-icon>
-          <wa-button id="location-reset-btn" slot="end" appearance="plain" size="small" hidden title="Return to detected location">
-            <wa-icon name="location-crosshairs"></wa-icon>
+        <wa-input id="search-input" type="search" placeholder="Search location..." autocomplete="off" size="large" pill aria-label="Search for a location">
+          <wa-icon slot="prefix" name="magnifying-glass" aria-hidden="true"></wa-icon>
+          <wa-icon id="search-icon-end" slot="end" name="magnifying-glass" aria-hidden="true"></wa-icon>
+          <wa-tooltip for="location-reset-btn">Return to detected location</wa-tooltip>
+          <wa-button id="location-reset-btn" slot="end" appearance="plain" size="small" hidden aria-label="Return to detected location">
+            <wa-icon name="location-crosshairs" aria-hidden="true"></wa-icon>
           </wa-button>
         </wa-input>
       </form>
-      <div id="search-results" class="search-dropdown" hidden></div>
+      <div id="search-results" class="search-dropdown" role="listbox" aria-label="Search results" hidden></div>
     </section>
 
     <!-- Current Location Display -->
@@ -105,10 +125,10 @@
     <!-- Error State -->
     <section id="error-state" hidden>
       <wa-callout variant="danger">
-        <wa-icon slot="icon" name="triangle-exclamation"></wa-icon>
+        <wa-icon slot="icon" name="triangle-exclamation" aria-hidden="true"></wa-icon>
         <strong>Error</strong>
         <p id="error-message"></p>
-        <wa-button id="error-retry" variant="danger" size="small" style="margin-top: var(--wa-space-s);">Try Again</wa-button>
+        <wa-button id="error-retry" variant="danger" size="small" style="margin-top: var(--wa-space-s);" aria-label="Retry loading weather data">Try Again</wa-button>
       </wa-callout>
     </section>
 
@@ -142,9 +162,9 @@
   <footer id="site-footer" style="border-top: 1px solid var(--wa-color-neutral-border-normal); margin-top: var(--wa-space-3xl); padding: var(--wa-space-l) 0;" hidden>
     <small class="block max-w-6xl mx-auto px-4 text-center" style="font-size: var(--wa-font-size-s); color: var(--wa-color-text-quiet);">
       Weather via <span id="data-source"></span> |
-      Photos from <a href="https://unsplash.com/" target="_blank" class="footer-link">Unsplash</a> |
-      <wa-icon name="heart" style="color: var(--color-primary);"></wa-icon>
-      <a href="https://herzog.tech" target="_blank" class="footer-link">herzog.tech</a>
+      Photos from <a href="https://unsplash.com/" target="_blank" rel="noopener noreferrer" class="footer-link" aria-label="Unsplash (opens in new tab)">Unsplash</a> |
+      <wa-icon name="heart" aria-label="Made with love by" style="color: var(--color-primary);"></wa-icon>
+      <a href="https://herzog.tech" target="_blank" rel="noopener noreferrer" class="footer-link" aria-label="herzog.tech (opens in new tab)">herzog.tech</a>
     </small>
   </footer>
 
