@@ -4,6 +4,10 @@
 export const CARD_WIDTH = 1200;
 export const CARD_HEIGHT = 800;
 
+// Temperature colors
+export const COLOR_TEMP_HIGH = '#f97316';
+export const COLOR_TEMP_LOW = '#3b82f6';
+
 // All icons that may be needed for canvas rendering
 export const iconsNeeded = [
   'sun', 'moon', 'cloud', 'cloud-sun', 'cloud-moon', 'smog',

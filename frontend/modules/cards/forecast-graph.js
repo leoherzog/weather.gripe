@@ -1,6 +1,6 @@
 // Forecast graph card renderer (5-day forecast with line graph)
 
-import { CARD_WIDTH, drawWatermark, drawWeatherIcon } from './core.js';
+import { CARD_WIDTH, COLOR_TEMP_HIGH, COLOR_TEMP_LOW, drawWatermark, drawWeatherIcon } from './core.js';
 import { Units } from '../utils/units.js';
 
 // Create 5-Day Forecast Card with line graph
@@ -75,7 +75,7 @@ export async function renderForecastGraph(canvas, weatherData, locationName = '5
   ctx.beginPath();
   ctx.moveTo(highPoints[0].x, highPoints[0].y);
   highPoints.forEach(p => ctx.lineTo(p.x, p.y));
-  ctx.strokeStyle = '#f97316';
+  ctx.strokeStyle = COLOR_TEMP_HIGH;
   ctx.lineWidth = 6;
   ctx.stroke();
 
@@ -83,7 +83,7 @@ export async function renderForecastGraph(canvas, weatherData, locationName = '5
   ctx.beginPath();
   ctx.moveTo(lowPoints[0].x, lowPoints[0].y);
   lowPoints.forEach(p => ctx.lineTo(p.x, p.y));
-  ctx.strokeStyle = '#3b82f6';
+  ctx.strokeStyle = COLOR_TEMP_LOW;
   ctx.lineWidth = 6;
   ctx.stroke();
 
@@ -92,11 +92,11 @@ export async function renderForecastGraph(canvas, weatherData, locationName = '5
     // High point
     ctx.beginPath();
     ctx.arc(p.x, p.y, 10, 0, Math.PI * 2);
-    ctx.fillStyle = '#f97316';
+    ctx.fillStyle = COLOR_TEMP_HIGH;
     ctx.fill();
 
     // High temp label
-    ctx.fillStyle = '#f97316';
+    ctx.fillStyle = COLOR_TEMP_HIGH;
     ctx.font = 'bold 28px system-ui, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
@@ -106,11 +106,11 @@ export async function renderForecastGraph(canvas, weatherData, locationName = '5
     const lp = lowPoints[i];
     ctx.beginPath();
     ctx.arc(lp.x, lp.y, 10, 0, Math.PI * 2);
-    ctx.fillStyle = '#3b82f6';
+    ctx.fillStyle = COLOR_TEMP_LOW;
     ctx.fill();
 
     // Low temp label
-    ctx.fillStyle = '#3b82f6';
+    ctx.fillStyle = COLOR_TEMP_LOW;
     ctx.textBaseline = 'top';
     ctx.fillText(Units.formatTemp(lp.temp), lp.x, lp.y + 20);
 

@@ -739,7 +739,7 @@ function calculateRadarBbox(lat, lon, zoom = 7) {
 }
 
 // Fetch weather data from Open-Meteo and transform to unified schema
-const OPENMETEO_CACHE_TTL = 5 * 60; // 5 minutes
+const OPENMETEO_CACHE_TTL = 15 * 60; // 15 minutes
 
 async function fetchWeatherOpenMeteo(lat, lon, cache, ctx, skipCache = false) {
   const cacheKey = `openmeteo:${truncateCoord(lat)},${truncateCoord(lon)}`;
@@ -767,14 +767,30 @@ async function fetchWeatherOpenMeteo(lat, lon, cache, ctx, skipCache = false) {
   url.searchParams.set('forecast_days', '7');
   url.searchParams.set('precipitation_unit', 'inch');
 
-  const response = await fetch(url.toString());
-  if (!response.ok) {
-    const body = await response.text().catch(() => '');
-    console.error(`Open-Meteo API error: ${response.status} ${response.statusText}`, body);
-    throw new Error(`Weather fetch failed: ${response.status}`);
-  }
+  // Fetch with exponential backoff retry for rate limits and server errors
+  const maxRetries = 3;
+  const baseDelay = 500; // ms
 
-  const data = await response.json();
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const response = await fetch(url.toString());
+
+    if (response.ok) {
+      var data = await response.json();
+      break;
+    }
+
+    const isRetryable = response.status === 429 || response.status >= 500;
+    if (!isRetryable || attempt === maxRetries) {
+      const body = await response.text().catch(() => '');
+      console.error(`Open-Meteo API error: ${response.status} ${response.statusText}`, body);
+      throw new Error(`Weather fetch failed: ${response.status}`);
+    }
+
+    // Exponential backoff: 500ms, 1000ms, 2000ms
+    const delay = baseDelay * Math.pow(2, attempt);
+    console.log(`Open-Meteo rate limited (${response.status}), retrying in ${delay}ms (attempt ${attempt + 1}/${maxRetries})`);
+    await new Promise(resolve => setTimeout(resolve, delay));
+  }
 
   // Transform to unified schema
   const result = {
@@ -816,7 +832,7 @@ async function fetchWeatherOpenMeteo(lat, lon, cache, ctx, skipCache = false) {
     source: 'open-meteo'
   };
 
-  // Cache for 5 minutes
+  // Cache for 15 minutes
   const cacheResponse = new Response(JSON.stringify(result), {
     headers: {
       'Cache-Control': `public, max-age=${OPENMETEO_CACHE_TTL}`,

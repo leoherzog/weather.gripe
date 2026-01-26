@@ -1,6 +1,6 @@
 // Day forecast card renderer (Today/Tonight/Tomorrow)
 
-import { CARD_WIDTH, drawWatermark, drawWeatherIcon } from './core.js';
+import { CARD_WIDTH, COLOR_TEMP_HIGH, COLOR_TEMP_LOW, drawWatermark, drawWeatherIcon } from './core.js';
 import { Units } from '../utils/units.js';
 
 // Create Today/Tonight/Tomorrow Card
@@ -124,17 +124,39 @@ export async function renderDayForecast(canvas, weatherData, timezone = null) {
     ctx.fillStyle = 'white';
     ctx.font = 'bold 56px system-ui, sans-serif';
 
+    ctx.textAlign = 'left';
+    const arrowWidth = ctx.measureText('↑ ').width;
+
     if (col.showHigh && col.showLow) {
-      ctx.fillText(`${Units.formatTemp(col.high)} / ${Units.formatTemp(col.low)}`, x, 320);
-      ctx.font = '28px system-ui, sans-serif';
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
-      ctx.fillText('High / Low', x, 390);
+      // High temp with red arrow
+      const highTemp = Units.formatTemp(col.high);
+      const highWidth = ctx.measureText('↑ ' + highTemp).width;
+      const highStart = x - highWidth / 2;
+      ctx.fillStyle = COLOR_TEMP_HIGH;
+      ctx.fillText('↑ ', highStart, 300);
+      ctx.fillStyle = 'white';
+      ctx.fillText(highTemp, highStart + arrowWidth, 300);
+
+      // Low temp with blue arrow
+      const lowTemp = Units.formatTemp(col.low);
+      const lowWidth = ctx.measureText('↓ ' + lowTemp).width;
+      const lowStart = x - lowWidth / 2;
+      ctx.fillStyle = COLOR_TEMP_LOW;
+      ctx.fillText('↓ ', lowStart, 370);
+      ctx.fillStyle = 'white';
+      ctx.fillText(lowTemp, lowStart + arrowWidth, 370);
     } else if (col.showLow) {
-      ctx.fillText(Units.formatTemp(col.low), x, 320);
-      ctx.font = '28px system-ui, sans-serif';
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
-      ctx.fillText('Low', x, 390);
+      // Low temp only with blue arrow
+      const lowTemp = Units.formatTemp(col.low);
+      const lowWidth = ctx.measureText('↓ ' + lowTemp).width;
+      const lowStart = x - lowWidth / 2;
+      ctx.fillStyle = COLOR_TEMP_LOW;
+      ctx.fillText('↓ ', lowStart, 335);
+      ctx.fillStyle = 'white';
+      ctx.fillText(lowTemp, lowStart + arrowWidth, 335);
     }
+
+    ctx.textAlign = 'center';
 
     // Condition text (use short description directly, no detail suffix)
     ctx.font = '28px system-ui, sans-serif';
