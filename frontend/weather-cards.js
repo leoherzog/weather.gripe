@@ -1,4 +1,6 @@
 // Canvas-based weather card renderers for weather.gripe
+import maplibregl from 'maplibre-gl';
+import 'maplibre-gl/dist/maplibre-gl.css';
 
 const WeatherCards = {
   // Card dimensions
@@ -1089,72 +1091,201 @@ const WeatherCards = {
     ctx.fillText('70+', legendX + legendWidth, legendY + legendHeight + 4);
   },
 
-  // Render radar card
-  // timezone: IANA timezone string for displaying location's local time
-  async renderRadar(canvas, radarData, locationName, timezone = null) {
-    const ctx = canvas.getContext('2d');
+  // Convert Web Mercator (EPSG:3857) coordinates to lat/lon
+  webMercatorToLatLon(x, y) {
+    const lon = (x / 20037508.34) * 180;
+    let lat = (y / 20037508.34) * 180;
+    lat = (180 / Math.PI) * (2 * Math.atan(Math.exp(lat * Math.PI / 180)) - Math.PI / 2);
+    return { lat, lon };
+  },
+
+  // Build NOAA radar WMS tile URL with bbox placeholder for MapLibre
+  // Uses the /geoserver/{region}/{layer}/ows endpoint per NOAA documentation
+  buildRadarTileUrl(radarData) {
+    const layer = `${radarData.region}_bref_qcd`;
+    const params = new URLSearchParams({
+      service: 'WMS',
+      version: '1.1.1',
+      request: 'GetMap',
+      layers: layer,
+      styles: '',
+      format: 'image/png',
+      transparent: 'true',
+      width: '256',
+      height: '256',
+      srs: 'EPSG:3857',
+      bbox: '{bbox-epsg-3857}'
+    });
+    if (radarData.timestamp) {
+      params.set('time', radarData.timestamp);
+    }
+    return `https://opengeo.ncep.noaa.gov/geoserver/${radarData.region}/${layer}/ows?${params.toString()}`;
+  },
+
+  // Create radar card with embedded MapLibre map
+  // Returns a wa-card element (not a canvas)
+  createRadarCard(radarData, locationName, timezone = null) {
     const width = this.CARD_WIDTH;
     const height = this.CARD_HEIGHT;
-    canvas.width = width;
-    canvas.height = height;
 
-    // Check if radar data indicates no coverage
+    // Check if radar data indicates no coverage - fall back to canvas
     if (!radarData || radarData.coverage === false) {
-      return this.renderRadarUnavailable(canvas, locationName, timezone);
+      const canvas = document.createElement('canvas');
+      this.renderRadarUnavailable(canvas, locationName, timezone);
+      return this.createCardContainer(canvas, 'radar');
     }
 
-    try {
-      // Load basemap, radar, and overlay tiles in parallel via proxy
-      const imagePromises = [
-        this.loadImage(`/api/basemap/tile?url=${encodeURIComponent(radarData.basemapUrl)}`),
-        this.loadImage(`/api/radar/tile?url=${encodeURIComponent(radarData.radarUrl)}`)
-      ];
-      if (radarData.overlayUrl) {
-        imagePromises.push(this.loadImage(`/api/basemap/tile?url=${encodeURIComponent(radarData.overlayUrl)}`));
-      }
-      const [basemapImg, radarImg, overlayImg] = await Promise.all(imagePromises);
+    // Parse bbox to get bounds
+    const [minX, minY, maxX, maxY] = radarData.bbox.split(',').map(Number);
+    const sw = this.webMercatorToLatLon(minX, minY);
+    const ne = this.webMercatorToLatLon(maxX, maxY);
 
-      // Draw basemap
-      ctx.drawImage(basemapImg, 0, 0, width, height);
+    // Create card container
+    const card = document.createElement('wa-card');
+    card.className = 'weather-card';
+    card.dataset.cardType = 'radar';
 
-      // Draw radar at 60% opacity (pre-process to reduce pixel opacity)
-      const radarCanvas = document.createElement('canvas');
-      radarCanvas.width = width;
-      radarCanvas.height = height;
-      const radarCtx = radarCanvas.getContext('2d');
-      radarCtx.drawImage(radarImg, 0, 0, width, height);
+    // Create map wrapper with proper aspect ratio
+    const mapWrapper = document.createElement('div');
+    mapWrapper.setAttribute('slot', 'media');
+    mapWrapper.style.cssText = `position:relative;width:100%;aspect-ratio:${width}/${height};`;
 
-      // Reduce opacity of all pixels by drawing semi-transparent overlay with destination-in
-      radarCtx.globalCompositeOperation = 'destination-in';
-      radarCtx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-      radarCtx.fillRect(0, 0, width, height);
+    // Create map container
+    const mapContainer = document.createElement('div');
+    mapContainer.style.cssText = 'position:absolute;inset:0;';
+    mapWrapper.appendChild(mapContainer);
 
-      // Draw the opacity-reduced radar onto main canvas
-      ctx.drawImage(radarCanvas, 0, 0);
+    // Create overlay canvas for header/legend/marker/watermark
+    const overlay = document.createElement('canvas');
+    overlay.width = width;
+    overlay.height = height;
+    overlay.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;pointer-events:none;';
+    mapWrapper.appendChild(overlay);
 
-      // Draw overlay (labels/roads) on top of radar
-      if (overlayImg) {
-        ctx.drawImage(overlayImg, 0, 0, width, height);
-      }
+    card.appendChild(mapWrapper);
 
-      // Draw location marker at center
+    // Initialize map after element is in DOM
+    let map = null;
+    const initMap = () => {
+      map = new maplibregl.Map({
+        container: mapContainer,
+        style: 'https://tiles.openfreemap.org/styles/fiord',
+        bounds: [[sw.lon, sw.lat], [ne.lon, ne.lat]],
+        preserveDrawingBuffer: true,
+        interactive: false,
+        attributionControl: false,
+        fitBoundsOptions: { padding: 0 }
+      });
+
+      // Ignore missing sprite images
+      map.on('styleimagemissing', () => {});
+
+      map.on('load', () => {
+        // Build radar WMS tile URL - bbox must be a top-level param for MapLibre substitution
+        const layer = `${radarData.region}_bref_qcd`;
+        const baseParams = new URLSearchParams({
+          region: radarData.region,
+          layer: layer,
+          time: radarData.timestamp || ''
+        });
+        const proxiedRadarUrl = `/api/radar/tile?${baseParams.toString()}&bbox={bbox-epsg-3857}`;
+
+        // Add NOAA radar WMS layer
+        map.addSource('noaa-radar', {
+          type: 'raster',
+          tiles: [proxiedRadarUrl],
+          tileSize: 256
+        });
+
+        map.addLayer({
+          id: 'radar-layer',
+          type: 'raster',
+          source: 'noaa-radar',
+          paint: { 'raster-opacity': 0.9 }
+        });
+
+        // Debug: log any tile errors
+        map.on('error', (e) => {
+          console.error('Map error:', e.error?.message || e);
+        });
+
+        // Add highways overlay on top of radar (OpenFreeMap uses OpenMapTiles schema)
+        map.addLayer({
+          id: 'highways-overlay',
+          type: 'line',
+          source: 'openmaptiles',
+          'source-layer': 'transportation',
+          filter: ['in', ['get', 'class'], ['literal', ['motorway', 'trunk', 'primary']]],
+          paint: {
+            'line-color': '#ffffff',
+            'line-width': ['interpolate', ['linear'], ['zoom'], 5, 0.5, 10, 2],
+            'line-opacity': 0.5
+          }
+        });
+      });
+
+      // Draw overlay elements
+      const ctx = overlay.getContext('2d');
       this.drawLocationMarker(ctx, width / 2, height / 2, 32);
-
-      // Draw header
       this.drawRadarHeader(ctx, width, radarData, locationName, timezone);
-
-      // Draw legend
       this.drawRadarLegend(ctx, width, height);
-
-      // Draw watermark
       this.drawWatermark(ctx, width, height, 'NOAA', timezone);
+    };
 
-    } catch (e) {
-      console.error('Radar render error:', e);
-      return this.renderRadarError(canvas, 'Failed to load radar imagery', timezone);
-    }
+    // Use requestAnimationFrame to ensure DOM is ready
+    requestAnimationFrame(() => {
+      if (mapContainer.isConnected) {
+        initMap();
+      } else {
+        // Wait for element to be connected
+        const observer = new MutationObserver(() => {
+          if (mapContainer.isConnected) {
+            observer.disconnect();
+            initMap();
+          }
+        });
+        observer.observe(document.body, { childList: true, subtree: true });
+      }
+    });
 
-    return canvas;
+    // Export function for share/download - combines map + overlay
+    const exportToCanvas = async () => {
+      const exportCanvas = document.createElement('canvas');
+      exportCanvas.width = width;
+      exportCanvas.height = height;
+      const ctx = exportCanvas.getContext('2d');
+
+      if (map) {
+        // Draw map
+        const mapCanvas = map.getCanvas();
+        ctx.drawImage(mapCanvas, 0, 0, width, height);
+      }
+      // Draw overlay on top
+      ctx.drawImage(overlay, 0, 0);
+      return exportCanvas;
+    };
+
+    // Add share/download actions
+    card.appendChild(this.createCardActions(
+      async () => {
+        const canvas = await exportToCanvas();
+        this.shareCard(canvas, 'radar');
+      },
+      async () => {
+        const canvas = await exportToCanvas();
+        this.downloadCard(canvas, 'radar');
+      }
+    ));
+
+    // Store cleanup function
+    card._cleanup = () => {
+      if (map) {
+        map.remove();
+        map = null;
+      }
+    };
+
+    return card;
   },
 
   // Render "radar unavailable" card for non-US locations

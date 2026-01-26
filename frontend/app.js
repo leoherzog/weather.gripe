@@ -228,13 +228,13 @@ const App = {
       }
       const data = await response.json();
 
-      // Combine name + region for display
-      const displayName = [data.location.name, data.location.region].filter(Boolean).join(', ');
+      // Use city name from API for display
+      const cityName = data.location.name;
 
       this.currentLocation = {
         lat: data.location.latitude,
         lon: data.location.longitude,
-        name: displayName,
+        name: cityName,
         nwsOffice: data.location.nwsOffice
       };
       this.currentWeather = data.weather;
@@ -256,8 +256,10 @@ const App = {
       this.isManualLocation = true;
       this.updateLocationModeUI();
 
-      // Update location display
-      this.elements.locationName.textContent = displayName;
+      // Update location display with current conditions
+      const temp = Units.formatTemp(data.weather.current.temperature);
+      const condition = data.weather.current.condition?.text || 'Unknown';
+      this.elements.locationName.textContent = `${temp} and ${condition} in ${cityName} right now`;
       this.elements.locationDisplay.hidden = false;
 
       // Wait for wxstory and render
@@ -265,7 +267,7 @@ const App = {
       this.currentWxStory = wxStory;
 
       // Render weather cards
-      await this.renderAllCards(data.weather, data.alerts, wxStory, displayName);
+      await this.renderAllCards(data.weather, data.alerts, wxStory, cityName);
       this.hideLoading();
     } catch (e) {
       console.error('Search error:', e);
@@ -376,12 +378,12 @@ const App = {
       if (!response.ok) throw new Error('Failed to load weather');
       const data = await response.json();
 
-      // Use provided name or combine name + region from API
-      const locationName = name || [data.location.name, data.location.region].filter(Boolean).join(', ');
+      // Use city name from API for display
+      const cityName = data.location.name;
       this.currentLocation = {
         lat: data.location.latitude,
         lon: data.location.longitude,
-        name: locationName,
+        name: cityName,
         nwsOffice: data.location.nwsOffice
       };
       this.currentWeather = data.weather;
@@ -400,8 +402,10 @@ const App = {
         localStorage.setItem('lastLocation', JSON.stringify(this.currentLocation));
       }
 
-      // Update location display
-      this.elements.locationName.textContent = locationName;
+      // Update location display with current conditions
+      const temp = Units.formatTemp(data.weather.current.temperature);
+      const condition = data.weather.current.condition?.text || 'Unknown';
+      this.elements.locationName.textContent = `${temp} and ${condition} in ${cityName} right now`;
       this.elements.locationDisplay.hidden = false;
 
       // Wait for wxstory and render
@@ -409,7 +413,7 @@ const App = {
       this.currentWxStory = wxStory;
 
       // Render weather cards
-      await this.renderAllCards(data.weather, data.alerts, wxStory, locationName);
+      await this.renderAllCards(data.weather, data.alerts, wxStory, cityName);
 
       this.hideLoading();
     } catch (e) {
@@ -630,9 +634,8 @@ const App = {
     if (isNWS && radarPromise) {
       cardPromises.push((async () => {
         const radarData = await radarPromise;
-        const canvas = document.createElement('canvas');
-        await WeatherCards.renderRadar(canvas, radarData, cityName, timezone);
-        return { order: 5, card: WeatherCards.createCardContainer(canvas, 'radar') };
+        const card = WeatherCards.createRadarCard(radarData, cityName, timezone);
+        return { order: 5, card };
       })());
     }
 
@@ -657,6 +660,8 @@ const App = {
     const results = (await Promise.all(cardPromises)).filter(r => r !== null);
     results.sort((a, b) => a.order - b.order);
 
+    // Clean up any existing MapLibre maps before clearing
+    this.cleanupRadarCards();
     this.elements.weatherCards.innerHTML = '';
     results.forEach(r => this.elements.weatherCards.appendChild(r.card));
 
@@ -747,7 +752,8 @@ const App = {
       return;
     }
 
-    // Clear real cards and show skeletons
+    // Clean up any MapLibre maps and show skeletons
+    this.cleanupRadarCards();
     this.elements.weatherCards.innerHTML = `
       <wa-card class="weather-card" data-card-type="skeleton-current">
         <wa-skeleton slot="media" effect="sheen" class="skeleton-current"></wa-skeleton>
@@ -783,7 +789,18 @@ const App = {
   showError(message) {
     this.elements.errorState.hidden = false;
     this.elements.errorMessage.textContent = message;
+    this.cleanupRadarCards();
     this.elements.weatherCards.innerHTML = '';
+  },
+
+  // Clean up MapLibre maps in radar cards before removing them
+  cleanupRadarCards() {
+    const radarCards = this.elements.weatherCards.querySelectorAll('[data-card-type="radar"]');
+    radarCards.forEach(card => {
+      if (card._cleanup) {
+        card._cleanup();
+      }
+    });
   }
 };
 

@@ -30,12 +30,13 @@ This is a Cloudflare Workers application that serves a weather website with shar
 - `/api/unsplash/download` - Triggers Unsplash download tracking (API compliance)
 - `/api/wxstory` - Fetches NWS Weather Story images for a forecast office (5min cache)
 - `/api/cf-location` - Returns Cloudflare edge-detected geolocation
-- `/api/radar` - Returns radar and basemap URLs for a location (US only)
+- `/api/radar` - Returns radar metadata for a location (US only)
   - Accepts `lat`+`lon` coordinates
-  - Returns `{ coverage, region, timestamp, radarUrl, basemapUrl, overlayUrl, bbox, center }`
+  - Returns `{ coverage, region, timestamp, bbox, center }`
   - Returns `{ coverage: false }` for non-US locations
-- `/api/radar/tile` - Proxies NOAA radar tiles (2min cache, handles CORS)
-- `/api/basemap/tile` - Proxies Mundialis basemap/overlay tiles (24hr cache, handles CORS)
+- `/api/radar/tile` - Proxies NOAA radar WMS tiles (2min cache, handles CORS)
+  - Accepts `region`, `layer`, `time`, `bbox` parameters
+  - Constructs NOAA WMS URL server-side (allows MapLibre `{bbox-epsg-3857}` substitution)
 - All other routes served via Cloudflare static assets from `public/`
 
 Coordinates are truncated to 3 decimal places (~111m precision) for cache efficiency.
@@ -57,24 +58,30 @@ Coordinates are truncated to 3 decimal places (~111m precision) for cache effici
 
 **NOAA MRMS Radar (opengeo.ncep.noaa.gov):**
 - Multi-Radar Multi-Sensor system combining ~180 WSR-88D NEXRAD radars
-- Layer format: `{region}:{region}_bref_qcd` (Base Reflectivity, Quality Controlled)
+- Layer format: `{region}_bref_qcd` (Base Reflectivity, Quality Controlled)
+- Endpoint: `/geoserver/{region}/{layer}/ows` (WMS 1.1.1)
 - Regions: `conus`, `alaska`, `hawaii`, `carib`, `guam`
-- WMS 1.1.1 format, PNG with transparency
+- PNG with transparency, 256x256 tiles
 - Updates every ~2 minutes
 
-**Mundialis OSM WMS (ows.mundialis.de):**
-- `Dark` layer - Dark-themed OpenStreetMap basemap
-- `OSM-Overlay-WMS` layer - Labels and roads overlay (transparent)
+**OpenFreeMap Vector Tiles (tiles.openfreemap.org):**
+- Dark/Fiord style basemap via MapLibre GL JS
+- OpenMapTiles schema for vector data
 - No API key required
 
-**Radar Card Canvas Layers (bottom to top):**
-1. Mundialis Dark basemap
-2. NOAA radar at 90% opacity
-3. Mundialis OSM-Overlay-WMS (labels/roads)
-4. Location marker (red pin at center)
-5. Header bar (city name + timestamp)
-6. dBZ legend (color scale 5-70+)
-7. Watermark ("NOAA via weather.gripe")
+**Radar Card Architecture:**
+The radar card embeds a live MapLibre GL JS map (not canvas compositing):
+
+1. **MapLibre Map Container** - Renders OpenFreeMap dark/fiord style
+2. **NOAA Radar Layer** - WMS raster tiles at 90% opacity via `/api/radar/tile` proxy
+3. **Highways Overlay** - Filtered from OpenMapTiles `transportation` layer (motorway/trunk/primary)
+4. **Canvas Overlay** (transparent, pointer-events:none):
+   - Location marker (red pin at center)
+   - Header bar (city name + timestamp)
+   - dBZ legend (color scale 5-70+)
+   - Watermark ("NOAA via weather.gripe")
+
+**MapLibre Cleanup:** The app calls `card._cleanup()` before removing radar cards to properly dispose of WebGL resources.
 
 ### Unified Condition Code System
 
@@ -118,8 +125,7 @@ Multi-layer caching using Cloudflare Cache API:
 | Unsplash images | 24hr | Request URL |
 | Weather story | 5min | `wxstory:{office}` |
 | Radar timestamp | 1min | `radar-timestamp:{region}` |
-| Radar tiles | 2min | Full proxy URL |
-| Basemap tiles | 24hr | Full proxy URL |
+| Radar tiles | 2min | Constructed NOAA WMS URL |
 
 **Performance Optimizations:**
 - Speculative NWS points fetch for likely-US coordinates (parallel with geocode)
@@ -130,7 +136,7 @@ Multi-layer caching using Cloudflare Cache API:
 ### Frontend (Static Assets in `public/`)
 
 - **`app.js`** - Main application state and UI orchestration (search, geolocation, location persistence)
-- **`weather-cards.js`** - Canvas-based weather card renderers (`WeatherCards` object) with share/download functionality. Extracts FontAwesome SVG paths at runtime for canvas drawing. Includes detailed text forecast cards for NWS data and radar card with composited map layers.
+- **`weather-cards.js`** - Weather card renderers (`WeatherCards` object) with share/download functionality. Extracts FontAwesome SVG paths at runtime for canvas drawing. Includes detailed text forecast cards for NWS data. Radar card uses embedded MapLibre GL JS map with canvas overlay for UI elements.
 - **`temperature-colors.js`** - Dynamic color system based on windy.com temperature scale (`TemperatureColors` object). See Temperature Color System below.
 - **`units.js`** - Unit conversion utilities (`Units` object). API returns metric (Celsius, km/h); all conversions to imperial happen client-side. Handles `-0` edge case in temperature formatting.
 - **`style.css`** - Custom layout utilities and temperature theming CSS. Uses Web Awesome design tokens (`--wa-*` custom properties).
@@ -181,6 +187,9 @@ The app's primary color dynamically changes based on current temperature using t
 **Backend (npm):**
 - `suncalc` - Sunrise/sunset calculations
 
+**Frontend (npm, bundled via Vite):**
+- `maplibre-gl` - WebGL map rendering for radar card
+
 **Frontend (CDN):**
 - Web Awesome Kit - UI components and Font Awesome Pro icons
 - Chroma.js v3 - Color manipulation (ES module via jsdelivr)
@@ -191,7 +200,7 @@ The app's primary color dynamically changes based on current temperature using t
 - **Nominatim (OpenStreetMap)** - Reverse geocoding (no key required, requires User-Agent)
 - **Unsplash** - Location background photos (requires `UNSPLASH_ACCESS_KEY`)
 - **NOAA MRMS (opengeo.ncep.noaa.gov)** - US radar imagery via WMS (no key required)
-- **Mundialis (ows.mundialis.de)** - OSM-based dark basemap and overlay via WMS (no key required)
+- **OpenFreeMap (tiles.openfreemap.org)** - Vector tile basemap for radar card (no key required)
 
 ### Configuration
 

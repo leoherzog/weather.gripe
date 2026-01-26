@@ -1316,82 +1316,55 @@ async function handleRadar(request, env, ctx) {
   const bbox = calculateRadarBbox(lat, lon);
   const bboxStr = `${bbox.minX},${bbox.minY},${bbox.maxX},${bbox.maxY}`;
 
-  // Build radar WMS URL (use /geoserver/wms endpoint with region:layer format)
-  const radarParams = new URLSearchParams({
-    service: 'WMS',
-    version: '1.1.1',
-    request: 'GetMap',
-    layers: `${region}:${config.layer}`,
-    styles: '',
-    format: 'image/png',
-    transparent: 'true',
-    width: '1200',
-    height: '800',
-    srs: 'EPSG:3857',
-    bbox: bboxStr
-  });
-  if (timestamp) {
-    radarParams.set('time', timestamp);
-  }
-  const radarUrl = `https://opengeo.ncep.noaa.gov/geoserver/wms?${radarParams.toString()}`;
-
-  // Build basemap URL (Mundialis OSM Dark WMS)
-  const basemapParams = new URLSearchParams({
-    SERVICE: 'WMS',
-    VERSION: '1.1.1',
-    REQUEST: 'GetMap',
-    FORMAT: 'image/png',
-    TRANSPARENT: 'true',
-    STYLES: '',
-    LAYERS: 'Dark',
-    WIDTH: '1200',
-    HEIGHT: '800',
-    SRS: 'EPSG:3857',
-    BBOX: bboxStr
-  });
-  const basemapUrl = `https://ows.mundialis.de/services/service?${basemapParams.toString()}`;
-
-  // Build overlay URL (Mundialis OSM labels/roads overlay)
-  const overlayParams = new URLSearchParams({
-    SERVICE: 'WMS',
-    VERSION: '1.1.1',
-    REQUEST: 'GetMap',
-    FORMAT: 'image/png',
-    TRANSPARENT: 'true',
-    STYLES: '',
-    LAYERS: 'OSM-Overlay-WMS',
-    WIDTH: '1200',
-    HEIGHT: '800',
-    SRS: 'EPSG:3857',
-    BBOX: bboxStr
-  });
-  const overlayUrl = `https://ows.mundialis.de/services/service?${overlayParams.toString()}`;
-
+  // Return radar metadata for client-side MapLibre rendering
+  // Client builds WMS URLs dynamically with {bbox-epsg-3857} placeholder
   return jsonResponse({
     coverage: true,
     region,
     timestamp,
-    radarUrl,
-    basemapUrl,
-    overlayUrl,
     bbox: bboxStr,
     center: { lat, lon }
   });
 }
 
 // Handle radar tile proxy - proxies NOAA radar tiles to handle CORS
+// Accepts region, layer, time, bbox params and constructs WMS URL server-side
 async function handleRadarTile(request, env, ctx) {
   const url = new URL(request.url);
-  const tileUrl = url.searchParams.get('url');
 
-  if (!tileUrl) {
-    return jsonResponse({ error: 'Missing url parameter' }, 400);
+  // Get parameters - bbox is substituted by MapLibre at request time
+  const region = url.searchParams.get('region');
+  const layer = url.searchParams.get('layer');
+  const time = url.searchParams.get('time');
+  const bbox = url.searchParams.get('bbox');
+
+  if (!region || !layer || !bbox) {
+    return jsonResponse({ error: 'Missing required parameters (region, layer, bbox)' }, 400);
   }
 
-  // Validate URL is from NOAA geoserver
-  if (!tileUrl.startsWith('https://opengeo.ncep.noaa.gov/geoserver/')) {
-    return jsonResponse({ error: 'Invalid radar tile URL' }, 400);
+  // Validate region is one of our known regions
+  if (!NOAA_RADAR_CONFIG[region]) {
+    return jsonResponse({ error: 'Invalid radar region' }, 400);
   }
+
+  // Build the NOAA WMS URL server-side
+  const wmsParams = new URLSearchParams({
+    service: 'WMS',
+    version: '1.1.1',
+    request: 'GetMap',
+    layers: layer,
+    styles: '',
+    format: 'image/png',
+    transparent: 'true',
+    width: '256',
+    height: '256',
+    srs: 'EPSG:3857',
+    bbox: bbox
+  });
+  if (time) {
+    wmsParams.set('time', time);
+  }
+  const tileUrl = `https://opengeo.ncep.noaa.gov/geoserver/${region}/${layer}/ows?${wmsParams.toString()}`;
 
   const cache = caches.default;
   const cacheRequest = new Request(tileUrl);
