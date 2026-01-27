@@ -1,5 +1,7 @@
 // Share/download utilities for weather cards
 
+import { attachLightboxHandler } from '../ui/lightbox.js';
+
 // Share card using Web Share API
 export async function shareCard(canvas, cardType) {
   try {
@@ -99,5 +101,9 @@ export function createCardContainer(canvas, cardType) {
     () => shareCard(canvas, cardType),
     () => downloadCard(canvas, cardType)
   ));
+
+  // Attach lightbox click handler
+  attachLightboxHandler(container);
+
   return container;
 }

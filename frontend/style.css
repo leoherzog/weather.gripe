@@ -153,3 +153,59 @@ wa-button[appearance="outlined"][variant="brand"]:hover::part(base) {
   height: 100%;
   pointer-events: none;
 }
+
+/* Card lightbox */
+.card-lightbox {
+  --width: fit-content;
+  --spacing: 0;
+  --show-duration: 0ms; /* We handle animation ourselves */
+  --hide-duration: 300ms;
+}
+
+.card-lightbox::part(dialog) {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+.card-lightbox::part(close-button) {
+  display: none;
+}
+
+.card-lightbox::part(body) {
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.card-lightbox::part(overlay) {
+  background: rgba(0, 0, 0, 0.85);
+  transition: opacity 0.3s ease;
+}
+
+.lightbox-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  transform-origin: center center;
+  will-change: transform, opacity;
+  cursor: pointer;
+}
+
+.lightbox-image {
+  display: block;
+  max-width: 90vw;
+  max-height: 90vh;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  border-radius: var(--wa-border-radius-l);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+
+/* Card click cursor */
+.weather-card {
+  cursor: pointer;
+}

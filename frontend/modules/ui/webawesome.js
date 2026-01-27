@@ -11,6 +11,7 @@ import '@awesome.me/webawesome-pro/dist/components/callout/callout.js';
 import '@awesome.me/webawesome-pro/dist/components/tooltip/tooltip.js';
 import '@awesome.me/webawesome-pro/dist/components/combobox/combobox.js';
 import '@awesome.me/webawesome-pro/dist/components/option/option.js';
+import '@awesome.me/webawesome-pro/dist/components/dialog/dialog.js';
 
 // Register Font Awesome icons with Web Awesome (build-time imports)
 import './icons.js';

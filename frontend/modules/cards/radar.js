@@ -3,6 +3,7 @@
 import { CARD_WIDTH, CARD_HEIGHT, drawWatermark, drawFallbackBackground, drawWeatherIcon } from './core.js';
 import { createCardContainer, createCardActions, shareCard, downloadCard } from './share.js';
 import { ensureMapLibre, waitForDOMConnection, exportMapToCanvas } from '../utils/map-utils.js';
+import { attachLightboxHandler } from '../ui/lightbox.js';
 
 // Radar dBZ color scale (reflectivity values and colors)
 const radarColors = [
@@ -226,6 +227,12 @@ export async function createRadarCard(radarData, locationName, timezone = null) 
 
   // Export function for share/download - combines map + overlay
   const exportToCanvas = () => exportMapToCanvas(map, overlay, width, height);
+
+  // Expose export function for lightbox
+  card._exportToCanvas = exportToCanvas;
+
+  // Attach lightbox click handler
+  attachLightboxHandler(card);
 
   // Add share/download actions
   card.appendChild(createCardActions(

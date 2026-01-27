@@ -1,6 +1,7 @@
 // Card rendering for the app
 
 import { WeatherCards } from '../cards/index.js';
+import { attachLightboxHandler } from '../ui/lightbox.js';
 
 // Create card renderer with dependency injection
 export function createCardRenderer(app) {
@@ -345,6 +346,10 @@ export function createCardRenderer(app) {
         () => this.shareWxStoryCard(imageUrl, office, index),
         () => this.downloadWxStoryCard(imageUrl, office, index)
       ));
+
+      // Attach lightbox click handler
+      attachLightboxHandler(container);
+
       return container;
     },
 

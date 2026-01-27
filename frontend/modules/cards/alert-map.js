@@ -5,6 +5,7 @@ import { CARD_WIDTH, drawWatermark, drawWeatherIcon, drawPill, wrapText } from '
 import { createCardActions, shareCard, downloadCard } from './share.js';
 import { severityColors, urgencyColors, alertLayout } from './alert.js';
 import { ensureMapLibre, waitForDOMConnection, exportMapToCanvas } from '../utils/map-utils.js';
+import { attachLightboxHandler } from '../ui/lightbox.js';
 
 // Map layout constants
 const MAP_LAYOUT = {
@@ -375,6 +376,12 @@ export async function createAlertMapCard(alertData, userLocation, timezone = nul
 
   // Export function for share/download
   const exportToCanvas = () => exportMapToCanvas(map, overlay, width, height);
+
+  // Expose export function for lightbox
+  card._exportToCanvas = exportToCanvas;
+
+  // Attach lightbox click handler
+  attachLightboxHandler(card);
 
   // Add share/download actions
   card.appendChild(createCardActions(
