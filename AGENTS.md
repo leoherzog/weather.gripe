@@ -136,7 +136,7 @@ Multi-layer caching using Cloudflare Cache API:
 ### Frontend (Static Assets in `public/`)
 
 - **`app.js`** - Main application state and UI orchestration (search, geolocation, location persistence)
-- **`weather-cards.js`** - Weather card renderers (`WeatherCards` object) with share/download functionality. Extracts FontAwesome SVG paths at runtime for canvas drawing. Includes detailed text forecast cards for NWS data. Radar card uses embedded MapLibre GL JS map with canvas overlay for UI elements.
+- **`weather-cards.js`** - Weather card renderers (`WeatherCards` object) with share/download functionality. Uses Font Awesome icon definitions imported at build time for canvas drawing. Includes detailed text forecast cards for NWS data. Radar card uses embedded MapLibre GL JS map with canvas overlay for UI elements.
 - **`temperature-colors.js`** - Dynamic color system based on windy.com temperature scale (`TemperatureColors` object). See Temperature Color System below.
 - **`units.js`** - Unit conversion utilities (`Units` object). API returns metric (Celsius, km/h); all conversions to imperial happen client-side. Handles `-0` edge case in temperature formatting.
 - **`style.css`** - Custom layout utilities and temperature theming CSS. Uses Web Awesome design tokens (`--wa-*` custom properties).
@@ -151,7 +151,9 @@ Injected as `<script>window.__defaultUnits="imperial";</script>` in `<head>`. Us
 
 ### UI Framework (Web Awesome)
 
-The frontend uses [Web Awesome](https://webawesome.com), a web component library that includes Font Awesome Pro icons. Components use `wa-` prefixed custom elements (e.g., `wa-button`, `wa-card`, `wa-combobox`).
+The frontend uses [Web Awesome](https://webawesome.com), a web component library. Components use `wa-` prefixed custom elements (e.g., `wa-button`, `wa-card`, `wa-combobox`).
+
+**Font Awesome Icons:** Icons are imported at build time from `@fortawesome/pro-solid-svg-icons` (not via Kit CDN). The `frontend/modules/ui/icons.js` module registers icons with Web Awesome via `registerIconLibrary()` and exports `getIconData()` for canvas rendering.
 
 **Dark Mode:** Uses `wa-dark` class on `<html>` element. Toggle persists to `localStorage.theme`.
 
@@ -202,11 +204,10 @@ The app's primary color dynamically changes based on current temperature using t
 - `suncalc` - Sunrise/sunset calculations
 
 **Frontend (npm, bundled via Vite):**
+- `@awesome.me/webawesome-pro` - Web Awesome UI components
+- `@fortawesome/fontawesome-svg-core` + `@fortawesome/pro-solid-svg-icons` - Font Awesome icons (build-time imports, tree-shaken)
 - `maplibre-gl` - WebGL map rendering for radar card
-
-**Frontend (CDN):**
-- Web Awesome Kit - UI components and Font Awesome Pro icons
-- Chroma.js v3 - Color manipulation (ES module via jsdelivr)
+- `chroma-js` - Color manipulation for temperature colors
 
 **External APIs:**
 - **NWS (weather.gov)** - US weather data, alerts, observations (no key required)
@@ -219,7 +220,8 @@ The app's primary color dynamically changes based on current temperature using t
 ### Configuration
 
 - `wrangler.toml` - Worker configuration, points to `src/index.js` as entry point
-- `.dev.vars` - Local environment secrets (UNSPLASH_ACCESS_KEY)
+- `.dev.vars` - Local environment secrets (UNSPLASH_ACCESS_KEY, FONTAWESOME_NPM_TOKEN, WEBAWESOME_NPM_TOKEN)
+- `.npmrc` - Private npm registry configuration for `@fortawesome` and `@awesome.me` scoped packages
 - `package.json` - Build scripts and dependencies
 
 ### API Response Structure

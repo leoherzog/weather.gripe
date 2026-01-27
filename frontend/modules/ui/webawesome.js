@@ -12,6 +12,5 @@ import '@awesome.me/webawesome-pro/dist/components/tooltip/tooltip.js';
 import '@awesome.me/webawesome-pro/dist/components/combobox/combobox.js';
 import '@awesome.me/webawesome-pro/dist/components/option/option.js';
 
-// Configure Font Awesome Pro kit for icons
-import { setKitCode } from '@awesome.me/webawesome-pro/dist/webawesome.js';
-setKitCode('d6f0104b24');
+// Register Font Awesome icons with Web Awesome (build-time imports)
+import './icons.js';

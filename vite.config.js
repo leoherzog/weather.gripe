@@ -10,6 +10,10 @@ export default defineConfig({
         manualChunks: {
           'vendor-maplibre': ['maplibre-gl'],
           'vendor-chroma': ['chroma-js'],
+          'vendor-fontawesome': [
+            '@fortawesome/fontawesome-svg-core',
+            '@fortawesome/pro-solid-svg-icons'
+          ],
           'vendor-webawesome': [
             '@awesome.me/webawesome-pro/dist/webawesome.js',
             '@awesome.me/webawesome-pro/dist/styles/webawesome.css',
