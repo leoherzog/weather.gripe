@@ -13,24 +13,109 @@ function escapeHtml(text) {
 // Create search manager with dependency injection
 export function createSearchManager(app) {
   return {
-    // Handle search form submission
-    async handleSearch() {
-      const query = app.elements.searchInput.value.trim();
-      if (!query) return;
+    // Update combobox options from geocoding results
+    async updateOptions(query) {
+      const combobox = app.elements.searchCombobox;
 
-      this.hideSearchResults();
+      try {
+        const results = await this.geocode(query);
+
+        // Clear existing options
+        combobox.querySelectorAll('wa-option').forEach(opt => opt.remove());
+
+        if (results.length === 0) {
+          return;
+        }
+
+        // Add new options
+        results.forEach((loc) => {
+          const option = document.createElement('wa-option');
+          // Value encodes lat/lon/name for retrieval on selection
+          option.value = JSON.stringify({
+            lat: loc.latitude,
+            lon: loc.longitude,
+            name: loc.name
+          });
+
+          // Build display label
+          const fullName = [loc.name, loc.admin1, loc.country].filter(Boolean).join(', ');
+          option.innerHTML = `
+            <strong>${escapeHtml(loc.name)}</strong>
+            <small style="display: block; color: var(--wa-color-text-quiet);">
+              ${[loc.admin1, loc.country].filter(Boolean).map(escapeHtml).join(', ')}
+            </small>
+          `;
+          option.setAttribute('aria-label', fullName);
+
+          combobox.appendChild(option);
+        });
+
+        // Show the dropdown after adding options
+        await combobox.updateComplete;
+        combobox.open = true;
+      } catch (e) {
+        console.error('Autocomplete error:', e);
+      }
+    },
+
+    // Handle option selection
+    handleSelection() {
+      const combobox = app.elements.searchCombobox;
+      const value = combobox.value;
+
+      if (!value) return;
+
+      try {
+        const { lat, lon, name } = JSON.parse(value);
+
+        // Clear the combobox
+        combobox.value = '';
+        combobox.inputValue = '';
+        combobox.querySelectorAll('wa-option').forEach(opt => opt.remove());
+
+        // Mark as manual location
+        app.isManualLocation = true;
+        app.location.updateLocationModeUI();
+
+        // Load weather for selected location
+        app.loadWeather(lat, lon, name);
+      } catch (e) {
+        console.error('Selection error:', e);
+      }
+    },
+
+    // Clear options
+    clearOptions() {
+      const combobox = app.elements.searchCombobox;
+      combobox.querySelectorAll('wa-option').forEach(opt => opt.remove());
+    },
+
+    // Geocode a location query
+    async geocode(query) {
+      const response = await fetch(`/api/geocode?q=${encodeURIComponent(query)}`);
+      if (!response.ok) throw new Error('Geocoding failed');
+      const data = await response.json();
+      return data.results || [];
+    },
+
+    // Handle direct form submission (for Enter key without selection)
+    async handleSearch() {
+      const combobox = app.elements.searchCombobox;
+      const query = combobox.inputValue || '';
+
+      if (!query.trim()) return;
+
+      this.clearOptions();
       app.showLoading();
 
       try {
-        // Use consolidated endpoint directly for form submission (saves one API call)
-        const response = await fetch(`/api/location?q=${encodeURIComponent(query)}`);
+        const response = await fetch(`/api/location?q=${encodeURIComponent(query.trim())}`);
         if (!response.ok) {
           const err = await response.json().catch(() => ({}));
           throw new Error(err.error || 'Location not found');
         }
         const data = await response.json();
 
-        // Use city name from API for display
         const cityName = data.location.name;
 
         app.currentLocation = {
@@ -42,33 +127,26 @@ export function createSearchManager(app) {
         app.currentWeather = data.weather;
         app.currentAlerts = data.alerts;
 
-        // Update primary color based on current temperature
         if (data.weather?.current?.temperature !== undefined) {
           TemperatureColors.setFromCelsius(data.weather.current.temperature);
         }
 
-        // Fetch weather story (don't await, render cards first)
         const wxStoryPromise = app.weatherLoader.fetchWxStory(data.location.nwsOffice);
 
-        // Save to storage and clear input
         localStorage.setItem('lastLocation', JSON.stringify(app.currentLocation));
-        app.elements.searchInput.value = '';
+        combobox.value = '';
 
-        // Mark as manual location and update UI
         app.isManualLocation = true;
         app.location.updateLocationModeUI();
 
-        // Update location display with current conditions
         const temp = Units.formatTemp(data.weather.current.temperature);
         const condition = data.weather.current.condition?.text || 'Unknown';
         app.elements.locationName.textContent = `${temp} and ${condition} in ${cityName}`;
         app.elements.locationDisplay.hidden = false;
 
-        // Wait for wxstory and render
         const wxStory = await wxStoryPromise;
         app.currentWxStory = wxStory;
 
-        // Render weather cards
         await app.cardRenderer.renderAllCards(data.weather, data.alerts, wxStory, cityName);
         app.hideLoading();
       } catch (e) {
@@ -77,68 +155,6 @@ export function createSearchManager(app) {
           ? 'No locations found for your search.'
           : 'Failed to search for location. Please try again.');
       }
-    },
-
-    // Show search results dropdown
-    async showSearchResults(query) {
-      try {
-        const results = await this.geocode(query);
-
-        if (results.length === 0) {
-          this.hideSearchResults();
-          return;
-        }
-
-        app.elements.searchResults.innerHTML = results.map(loc => {
-          const fullName = [loc.name, loc.admin1, loc.country].filter(Boolean).map(escapeHtml).join(', ');
-          return `
-          <div class="search-result-item" role="option" tabindex="0" data-lat="${loc.latitude}" data-lon="${loc.longitude}" data-name="${escapeHtml(loc.name)}" aria-label="${fullName}">
-            <strong>${escapeHtml(loc.name)}</strong>
-            <small style="display: block; color: var(--wa-color-text-quiet);">${[loc.admin1, loc.country].filter(Boolean).map(escapeHtml).join(', ')}</small>
-          </div>
-        `;
-        }).join('');
-
-        // Add click and keyboard handlers
-        app.elements.searchResults.querySelectorAll('[data-lat]').forEach(item => {
-          const selectLocation = () => {
-            const lat = parseFloat(item.dataset.lat);
-            const lon = parseFloat(item.dataset.lon);
-            const name = item.dataset.name;
-            app.elements.searchInput.value = '';
-            this.hideSearchResults();
-            // Mark as manual location
-            app.isManualLocation = true;
-            app.location.updateLocationModeUI();
-            app.loadWeather(lat, lon, name);
-          };
-          item.addEventListener('click', selectLocation);
-          item.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              selectLocation();
-            }
-          });
-        });
-
-        app.elements.searchResults.hidden = false;
-      } catch (e) {
-        console.error('Autocomplete error:', e);
-      }
-    },
-
-    // Hide search results dropdown
-    hideSearchResults() {
-      app.elements.searchResults.hidden = true;
-      app.elements.searchResults.innerHTML = '';
-    },
-
-    // Geocode a location query
-    async geocode(query) {
-      const response = await fetch(`/api/geocode?q=${encodeURIComponent(query)}`);
-      if (!response.ok) throw new Error('Geocoding failed');
-      const data = await response.json();
-      return data.results || [];
     }
   };
 }

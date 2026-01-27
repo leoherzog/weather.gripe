@@ -70,17 +70,20 @@
   <main class="max-w-6xl mx-auto px-4" style="padding-top: var(--wa-space-xl); padding-bottom: var(--wa-space-xl);">
     <!-- Search Section -->
     <section id="search-section" class="relative mb-6">
-      <form role="search" id="search-form">
-        <wa-input id="search-input" type="search" placeholder="Search location..." autocomplete="off" size="large" pill aria-label="Search for a location">
-          <wa-icon slot="prefix" name="magnifying-glass" aria-hidden="true"></wa-icon>
-          <wa-icon id="search-icon-end" slot="end" name="magnifying-glass" aria-hidden="true"></wa-icon>
-          <wa-tooltip for="location-reset-btn">Return to detected location</wa-tooltip>
-          <wa-button id="location-reset-btn" slot="end" appearance="plain" size="small" hidden aria-label="Return to detected location">
-            <wa-icon name="location-crosshairs" aria-hidden="true"></wa-icon>
-          </wa-button>
-        </wa-input>
-      </form>
-      <div id="search-results" class="search-dropdown" role="listbox" aria-label="Search results" hidden></div>
+      <wa-combobox
+        id="search-combobox"
+        placeholder="Search location..."
+        size="large"
+        pill
+        autocomplete="none"
+        aria-label="Search for a location"
+      >
+        <wa-icon slot="start" name="magnifying-glass" aria-hidden="true"></wa-icon>
+        <wa-tooltip for="location-reset-btn">Return to detected location</wa-tooltip>
+        <wa-button id="location-reset-btn" slot="end" appearance="plain" size="small" hidden aria-label="Return to detected location">
+          <wa-icon name="location-crosshairs" aria-hidden="true"></wa-icon>
+        </wa-button>
+      </wa-combobox>
     </section>
 
     <!-- Current Location Display -->

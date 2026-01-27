@@ -87,7 +87,7 @@ export function createLocationManager(app) {
       localStorage.removeItem('lastLocation');
       app.isManualLocation = false;
       this.updateLocationModeUI();
-      app.elements.searchInput.value = '';
+      app.elements.searchCombobox.value = '';
 
       // Re-run auto-detection
       app.showLoading();
@@ -105,15 +105,9 @@ export function createLocationManager(app) {
       }
     },
 
-    // Update search input end icon based on location mode
+    // Update UI based on location mode (show/hide reset button)
     updateLocationModeUI() {
-      if (app.isManualLocation) {
-        app.elements.searchIconEnd.hidden = true;
-        app.elements.locationResetBtn.hidden = false;
-      } else {
-        app.elements.searchIconEnd.hidden = false;
-        app.elements.locationResetBtn.hidden = true;
-      }
+      app.elements.locationResetBtn.hidden = !app.isManualLocation;
     }
   };
 }

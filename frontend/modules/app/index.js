@@ -45,11 +45,8 @@ export const App = {
   // Cache DOM elements
   cacheElements() {
     this.elements = {
-      searchForm: document.getElementById('search-form'),
-      searchInput: document.getElementById('search-input'),
-      searchIconEnd: document.getElementById('search-icon-end'),
+      searchCombobox: document.getElementById('search-combobox'),
       locationResetBtn: document.getElementById('location-reset-btn'),
-      searchResults: document.getElementById('search-results'),
       locationDisplay: document.getElementById('location-display'),
       locationName: document.getElementById('location-name'),
       errorState: document.getElementById('error-state'),
@@ -65,30 +62,53 @@ export const App = {
 
   // Bind event handlers
   bindEvents() {
-    // Search form
-    this.elements.searchForm.addEventListener('submit', (e) => {
-      e.preventDefault();
-      this.search.handleSearch();
-    });
+    const combobox = this.elements.searchCombobox;
 
-    // Search input (debounced autocomplete)
+    // Set custom filter that always returns true (we filter server-side)
+    combobox.filter = () => true;
+
+    // Debounced keyup handler for autocomplete (wa-combobox doesn't fire 'input' event)
     let searchTimeout;
-    this.elements.searchInput.addEventListener('input', () => {
+    const ignoreKeys = ['ArrowUp', 'ArrowDown', 'Enter', 'Escape', 'Tab', 'Shift', 'Control', 'Alt', 'Meta'];
+    combobox.addEventListener('keyup', (e) => {
+      // Ignore navigation and modifier keys
+      if (ignoreKeys.includes(e.key)) return;
+
       clearTimeout(searchTimeout);
-      const query = this.elements.searchInput.value.trim();
+      const query = combobox.inputValue?.trim() || '';
+
       if (query.length >= 2) {
-        searchTimeout = setTimeout(() => this.search.showSearchResults(query), 300);
+        searchTimeout = setTimeout(() => this.search.updateOptions(query), 300);
       } else {
-        this.search.hideSearchResults();
+        this.search.clearOptions();
       }
     });
 
-    // Hide search results on click outside
-    document.addEventListener('click', (e) => {
-      if (!this.elements.searchResults.contains(e.target) &&
-          e.target !== this.elements.searchInput) {
-        this.search.hideSearchResults();
+    // Handle option selection
+    combobox.addEventListener('change', () => {
+      this.search.handleSelection();
+    });
+
+    // Handle Enter key press without selection (direct search)
+    combobox.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        // Check if an option is highlighted
+        const highlighted = combobox.querySelector('wa-option[aria-selected="true"]');
+        if (!highlighted && combobox.inputValue?.trim()) {
+          e.preventDefault();
+          this.search.handleSearch();
+        }
       }
+    });
+
+    // Clear options when menu closes
+    combobox.addEventListener('wa-hide', () => {
+      // Small delay to allow selection to process first
+      setTimeout(() => {
+        if (!combobox.value) {
+          this.search.clearOptions();
+        }
+      }, 100);
     });
 
     // Error retry button

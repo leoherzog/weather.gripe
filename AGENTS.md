@@ -151,9 +151,23 @@ Injected as `<script>window.__defaultUnits="imperial";</script>` in `<head>`. Us
 
 ### UI Framework (Web Awesome)
 
-The frontend uses [Web Awesome](https://webawesome.com), a web component library that includes Font Awesome Pro icons. Components use `wa-` prefixed custom elements (e.g., `wa-button`, `wa-card`, `wa-input`).
+The frontend uses [Web Awesome](https://webawesome.com), a web component library that includes Font Awesome Pro icons. Components use `wa-` prefixed custom elements (e.g., `wa-button`, `wa-card`, `wa-combobox`).
 
 **Dark Mode:** Uses `wa-dark` class on `<html>` element. Toggle persists to `localStorage.theme`.
+
+**Search Combobox (`wa-combobox`):**
+The location search uses `wa-combobox` with dynamically populated options from the geocoding API. Key implementation notes:
+
+- **Events:** Use standard DOM events, not `wa-` prefixed:
+  - `keyup` for input detection (not `input` or `wa-input`)
+  - `change` for selection (not `wa-change`)
+  - `wa-hide` for dropdown close
+- **Properties:**
+  - `combobox.inputValue` - The typed text (not `value` or `displayValue`)
+  - `combobox.value` - The selected option's value (JSON-encoded lat/lon/name)
+- **Dynamic options:** Create `wa-option` elements and append to combobox, then set `combobox.open = true`
+- **Server-side filtering:** Set `combobox.filter = () => true` to show all options (filtering done by API)
+- **Slots:** Use `slot="start"` for prefix icon (not `slot="prefix"`)
 
 ### Temperature Color System
 

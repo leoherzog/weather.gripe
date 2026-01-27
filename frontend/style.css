@@ -79,35 +79,26 @@ wa-button[appearance="outlined"][variant="brand"]:hover::part(base) {
   display: none;
 }
 
-/* Search results dropdown */
-.search-dropdown {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  z-index: 50;
-  margin-top: var(--wa-space-2xs);
-  max-height: 18rem;
-  overflow-y: auto;
-  background: var(--wa-color-surface-raised);
-  border: 1px solid var(--wa-color-neutral-border-normal);
-  border-radius: var(--wa-radius-m);
-  box-shadow: var(--wa-shadow-large);
+/* Search combobox */
+#search-combobox {
+  width: 100%;
 }
 
-/* Search result items */
-.search-result-item {
-  padding: var(--wa-space-s) var(--wa-space-m);
-  cursor: pointer;
-  border-bottom: 1px solid var(--wa-color-neutral-border-quiet);
+#search-combobox wa-option small {
+  display: block;
+  color: var(--wa-color-text-quiet);
+  font-size: var(--wa-font-size-xs);
 }
 
-.search-result-item:last-child {
-  border-bottom: none;
+/* Highlighted option uses temperature gradient with contrast-calculated text */
+#search-combobox wa-option:state(current) {
+  background: var(--button-gradient);
+  color: var(--gradient-text);
 }
 
-.search-result-item:hover {
-  background: var(--wa-color-surface-overlay);
+#search-combobox wa-option:state(current) small {
+  color: var(--gradient-text);
+  opacity: 0.8;
 }
 
 /* Photo attribution - reduce body padding when present */

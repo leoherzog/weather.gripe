@@ -9,6 +9,8 @@ import '@awesome.me/webawesome-pro/dist/components/card/card.js';
 import '@awesome.me/webawesome-pro/dist/components/skeleton/skeleton.js';
 import '@awesome.me/webawesome-pro/dist/components/callout/callout.js';
 import '@awesome.me/webawesome-pro/dist/components/tooltip/tooltip.js';
+import '@awesome.me/webawesome-pro/dist/components/combobox/combobox.js';
+import '@awesome.me/webawesome-pro/dist/components/option/option.js';
 
 // Configure Font Awesome Pro kit for icons
 import { setKitCode } from '@awesome.me/webawesome-pro/dist/webawesome.js';
