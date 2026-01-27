@@ -10,7 +10,7 @@ import { ensureMapLibre, waitForDOMConnection, exportMapToCanvas } from '../util
 const MAP_LAYOUT = {
   TEXT_WIDTH_RATIO: 0.80,       // Text occupies left 80% of card
   BOUNDS_PADDING: 0.15,         // 15% padding around polygon bounds
-  WEST_SHIFT: 0.45,             // Shift map 45% west to show polygons on right
+  MAP_CENTER_OFFSET: 0.04,      // Offset bounds center 4% of width to the right
   POLYGON_FILL_OPACITY: 0.25,
   POLYGON_STROKE_WIDTH: 2,
   POLYGON_STROKE_OPACITY: 0.6,
@@ -293,24 +293,30 @@ export async function createAlertMapCard(alertData, userLocation, timezone = nul
   // Initialize map after element is in DOM
   let map = null;
   const initMap = () => {
-    // Add padding to bounds and shift westward so map center is in right third
+    // Add padding to bounds
     const lonSpan = bounds.ne.lon - bounds.sw.lon;
     const latSpan = bounds.ne.lat - bounds.sw.lat;
     const lonPad = lonSpan * MAP_LAYOUT.BOUNDS_PADDING;
     const latPad = latSpan * MAP_LAYOUT.BOUNDS_PADDING;
-    const westShift = lonSpan * MAP_LAYOUT.WEST_SHIFT;
+
+    // Calculate pixel offset to position polygon center in the right portion of the card
+    // Positive x offset moves bounds center to the right of map center
+    const offsetX = width * MAP_LAYOUT.MAP_CENTER_OFFSET;
 
     map = new MapLibre.Map({
       container: mapContainer,
       style: 'https://tiles.openfreemap.org/styles/fiord',
       bounds: [
-        [bounds.sw.lon - lonPad - westShift, bounds.sw.lat - latPad],
-        [bounds.ne.lon + lonPad - westShift, bounds.ne.lat + latPad]
+        [bounds.sw.lon - lonPad, bounds.sw.lat - latPad],
+        [bounds.ne.lon + lonPad, bounds.ne.lat + latPad]
       ],
       preserveDrawingBuffer: true,
       interactive: false,
       attributionControl: false,
-      fitBoundsOptions: { padding: MAP_LAYOUT.FIT_BOUNDS_PADDING }
+      fitBoundsOptions: {
+        padding: MAP_LAYOUT.FIT_BOUNDS_PADDING,
+        offset: [offsetX, 0]
+      }
     });
 
     map.on('styleimagemissing', () => {});
