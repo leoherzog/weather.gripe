@@ -48,6 +48,68 @@ const NOMINATIM_HEADERS = {
   'Accept': 'application/json'
 };
 
+// Fallback images when Unsplash API fails (all by @leoherzog)
+const FALLBACK_IMAGES = {
+  rain: 'photo-1617112896650-69a1be08ad10',
+  'clear-warm': 'photo-1519921264316-de3473991b99',
+  'mostly-sunny': 'photo-1519920600744-610bc64b7d57',
+  'overcast-warm': 'photo-1519921428872-dd80407bb5bb',
+  snow: 'photo-1519921336846-ff8bd0df94b4',
+  'mostly-cloudy': 'photo-1519921124984-411e6188efa3',
+  'clear-cold': 'photo-1519921386942-020e6e4a06f7',
+  overcast: 'photo-1519921191976-a438eba0ede8'
+};
+
+// Build a fallback photo object matching Unsplash API format
+function getFallbackPhoto(photoId) {
+  return {
+    url: `https://images.unsplash.com/${photoId}?w=1080&q=80`,
+    thumb: `https://images.unsplash.com/${photoId}?w=200&q=80`,
+    photographer: 'Leo Herzog',
+    username: 'leoherzog',
+    photographerUrl: 'https://unsplash.com/@leoherzog',
+    unsplashUrl: `https://unsplash.com/photos/${photoId.replace('photo-', '')}`,
+    downloadLocation: null // No tracking needed for fallbacks
+  };
+}
+
+// Select appropriate fallback image based on query keywords
+function selectFallbackImage(query) {
+  const q = query.toLowerCase();
+
+  // Check for specific conditions
+  if (q.includes('rain') || q.includes('drizzle') || q.includes('lightning') || q.includes('thunder') || q.includes('storm')) {
+    return getFallbackPhoto(FALLBACK_IMAGES.rain);
+  }
+  if (q.includes('snow') || q.includes('blizzard') || q.includes('snowstorm')) {
+    return getFallbackPhoto(FALLBACK_IMAGES.snow);
+  }
+  if (q.includes('fog') || q.includes('mist')) {
+    return getFallbackPhoto(FALLBACK_IMAGES.overcast);
+  }
+  if (q.includes('overcast') || q.includes('gray')) {
+    if (q.includes('warm') || q.includes('hot')) {
+      return getFallbackPhoto(FALLBACK_IMAGES['overcast-warm']);
+    }
+    return getFallbackPhoto(FALLBACK_IMAGES.overcast);
+  }
+  if (q.includes('cloudy') || q.includes('clouds')) {
+    return getFallbackPhoto(FALLBACK_IMAGES['mostly-cloudy']);
+  }
+  if (q.includes('clear') || q.includes('sunny') || q.includes('blue sky')) {
+    if (q.includes('cold') || q.includes('freezing') || q.includes('icy')) {
+      return getFallbackPhoto(FALLBACK_IMAGES['clear-cold']);
+    }
+    if (q.includes('warm') || q.includes('hot')) {
+      return getFallbackPhoto(FALLBACK_IMAGES['clear-warm']);
+    }
+    return getFallbackPhoto(FALLBACK_IMAGES['mostly-sunny']);
+  }
+
+  // Default fallback
+  return getFallbackPhoto(FALLBACK_IMAGES['mostly-sunny']);
+}
+
 const NWS_HEADERS = {
   'User-Agent': 'weather.gripe (https://weather.gripe)',
   'Accept': 'application/geo+json'
@@ -435,11 +497,15 @@ async function forwardGeocode(query) {
 
   const result = data[0];
   const addr = result.address || {};
-  // Parse display_name to extract city and region
+
+  // Extract city name from address details, preferring city > town > village > county
+  const cityName = addr.city || addr.town || addr.village || addr.municipality || addr.county;
+  // Fallback to first part of display_name if no city found
   const parts = result.display_name.split(', ');
+  const name = cityName || parts[0] || 'Unknown';
 
   return {
-    name: parts[0] || 'Unknown',
+    name,
     region: parts.slice(1).join(', '),
     latitude: parseFloat(result.lat),
     longitude: parseFloat(result.lon),
@@ -1205,12 +1271,17 @@ async function handleGeocode(request, env, ctx) {
     return jsonResponse({ error: 'Missing q parameter' }, 400);
   }
 
+  // Build cache key without the 'cache' parameter
+  const cacheUrl = new URL(request.url);
+  cacheUrl.searchParams.delete('cache');
+  const cacheKey = new Request(cacheUrl.toString());
+
   // Check cache
   const cache = caches.default;
   if (skipCache) {
-    ctx.waitUntil(cache.delete(request));
+    ctx.waitUntil(cache.delete(cacheKey));
   } else {
-    const response = await cache.match(request);
+    const response = await cache.match(cacheKey);
     if (response) {
       return response;
     }
@@ -1219,7 +1290,7 @@ async function handleGeocode(request, env, ctx) {
   // Fetch from Open-Meteo geocoding
   const geocodeUrl = new URL('https://geocoding-api.open-meteo.com/v1/search');
   geocodeUrl.searchParams.set('name', query);
-  geocodeUrl.searchParams.set('count', '10');
+  geocodeUrl.searchParams.set('count', '30');
   geocodeUrl.searchParams.set('language', 'en');
   geocodeUrl.searchParams.set('format', 'json');
 
@@ -1230,7 +1301,7 @@ async function handleGeocode(request, env, ctx) {
   const data = await apiResponse.json();
 
   const response = jsonResponse(data, 200, GEOCODE_CACHE_TTL);
-  ctx.waitUntil(cache.put(request, response.clone()));
+  ctx.waitUntil(cache.put(cacheKey, response.clone()));
   return response;
 }
 
@@ -1251,12 +1322,17 @@ async function handleUnsplash(request, env, ctx) {
     return jsonResponse({ error: 'Unsplash API not configured' }, 503);
   }
 
+  // Build cache key without the 'cache' parameter
+  const cacheUrl = new URL(request.url);
+  cacheUrl.searchParams.delete('cache');
+  const cacheKey = new Request(cacheUrl.toString());
+
   // Check cache
   const cache = caches.default;
   if (skipCache) {
-    ctx.waitUntil(cache.delete(request));
+    ctx.waitUntil(cache.delete(cacheKey));
   } else {
-    const response = await cache.match(request);
+    const response = await cache.match(cacheKey);
     if (response) {
       return response;
     }
@@ -1267,18 +1343,22 @@ async function handleUnsplash(request, env, ctx) {
   if (location && region) {
     queries.push(`${location} ${region} ${query}`); // e.g., "Seattle Washington rain weather"
   }
+  if (location) {
+    queries.push(`${location} ${query}`); // e.g., "Seattle rain weather"
+  }
   if (region) {
     queries.push(`${region} ${query}`); // e.g., "Washington rain weather"
   }
   queries.push(query); // Base condition-only query as final fallback
 
   // Try each query in order until we find results
-  let result = { error: 'No images found' };
+  let result = null;
   for (const searchQuery of queries) {
     const unsplashUrl = new URL('https://api.unsplash.com/search/photos');
     unsplashUrl.searchParams.set('query', searchQuery);
     unsplashUrl.searchParams.set('per_page', '30');
 
+    console.log(`[Unsplash] Trying query: "${searchQuery}"`);
     const apiResponse = await fetch(unsplashUrl.toString(), {
       headers: {
         'Authorization': `Client-ID ${env.UNSPLASH_ACCESS_KEY}`
@@ -1286,10 +1366,12 @@ async function handleUnsplash(request, env, ctx) {
     });
 
     if (!apiResponse.ok) {
+      console.log(`[Unsplash] API error ${apiResponse.status}: ${await apiResponse.text()}`);
       continue; // Try next query variant
     }
 
     const data = await apiResponse.json();
+    console.log(`[Unsplash] Got ${data.results?.length || 0} results for "${searchQuery}"`);
     if (data.results && data.results.length > 0) {
       // Return all photos so frontend can randomize (cache stores all, client picks)
       result = {
@@ -1307,8 +1389,14 @@ async function handleUnsplash(request, env, ctx) {
     }
   }
 
+  // Use fallback image if Unsplash failed or returned no results
+  if (!result) {
+    console.log(`[Unsplash] Using fallback for query: "${query}"`);
+    result = { photos: [selectFallbackImage(query)] };
+  }
+
   const response = jsonResponse(result, 200, UNSPLASH_CACHE_TTL);
-  ctx.waitUntil(cache.put(request, response.clone()));
+  ctx.waitUntil(cache.put(cacheKey, response.clone()));
   return response;
 }
 

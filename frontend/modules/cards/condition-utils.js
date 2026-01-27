@@ -1,23 +1,23 @@
 // Condition code utilities for weather cards
 
-// Condition code to Unsplash query mapping
+// Condition code to Unsplash query mapping (describe the image, not the condition)
 export const conditionQueries = {
-  'clear': 'clear sky sunshine',
-  'mostly-clear': 'clear sky',
-  'partly-cloudy': 'partly cloudy sky',
+  'clear': 'blue sky',
+  'mostly-clear': 'blue sky',
+  'partly-cloudy': 'clouds sky',
   'mostly-cloudy': 'cloudy sky',
-  'overcast': 'overcast cloudy sky',
-  'fog': 'foggy weather',
-  'drizzle': 'light rain drizzle',
-  'rain-light': 'light rain',
-  'rain': 'rain weather',
-  'rain-heavy': 'heavy rain storm',
-  'freezing-rain': 'freezing rain ice',
-  'snow-light': 'light snow winter',
-  'snow': 'snow winter',
-  'snow-heavy': 'heavy snow blizzard',
-  'thunderstorm': 'thunderstorm lightning',
-  'thunderstorm-severe': 'severe thunderstorm'
+  'overcast': 'gray sky',
+  'fog': 'fog mist',
+  'drizzle': 'rain',
+  'rain-light': 'rain',
+  'rain': 'rain',
+  'rain-heavy': 'rain storm',
+  'freezing-rain': 'ice rain',
+  'snow-light': 'snow',
+  'snow': 'snow',
+  'snow-heavy': 'snowstorm',
+  'thunderstorm': 'lightning storm',
+  'thunderstorm-severe': 'lightning storm'
 };
 
 // Conditions that already imply cold (skip temperature modifiers)

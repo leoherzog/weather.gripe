@@ -24,6 +24,7 @@ export function createSearchManager(app) {
         combobox.querySelectorAll('wa-option').forEach(opt => opt.remove());
 
         if (results.length === 0) {
+          combobox.open = false;
           return;
         }
 
@@ -97,9 +98,9 @@ export function createSearchManager(app) {
     },
 
     // Handle direct form submission (for Enter key without selection)
-    async handleSearch() {
+    async handleSearch(searchQuery) {
       const combobox = app.elements.searchCombobox;
-      const query = combobox.inputValue || '';
+      const query = searchQuery || combobox.inputValue || '';
 
       if (!query.trim()) return;
 

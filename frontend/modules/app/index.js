@@ -67,6 +67,9 @@ export const App = {
     // Set custom filter that always returns true (we filter server-side)
     combobox.filter = () => true;
 
+    // Track current search query for Enter key handler
+    let currentQuery = '';
+
     // Debounced keyup handler for autocomplete (wa-combobox doesn't fire 'input' event)
     let searchTimeout;
     const ignoreKeys = ['ArrowUp', 'ArrowDown', 'Enter', 'Escape', 'Tab', 'Shift', 'Control', 'Alt', 'Meta'];
@@ -75,10 +78,10 @@ export const App = {
       if (ignoreKeys.includes(e.key)) return;
 
       clearTimeout(searchTimeout);
-      const query = combobox.inputValue?.trim() || '';
+      currentQuery = combobox.inputValue?.trim() || '';
 
-      if (query.length >= 2) {
-        searchTimeout = setTimeout(() => this.search.updateOptions(query), 300);
+      if (currentQuery.length >= 2) {
+        searchTimeout = setTimeout(() => this.search.updateOptions(currentQuery), 300);
       } else {
         this.search.clearOptions();
       }
@@ -87,19 +90,24 @@ export const App = {
     // Handle option selection
     combobox.addEventListener('change', () => {
       this.search.handleSelection();
+      currentQuery = '';
     });
 
     // Handle Enter key press without selection (direct search)
+    // Use capture phase since wa-combobox may intercept the event in shadow DOM
     combobox.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
         // Check if an option is highlighted
         const highlighted = combobox.querySelector('wa-option[aria-selected="true"]');
-        if (!highlighted && combobox.inputValue?.trim()) {
+        if (!highlighted && currentQuery) {
           e.preventDefault();
-          this.search.handleSearch();
+          e.stopPropagation();
+          clearTimeout(searchTimeout);
+          this.search.handleSearch(currentQuery);
+          currentQuery = '';
         }
       }
-    });
+    }, true);
 
     // Clear options when menu closes
     combobox.addEventListener('wa-hide', () => {
