@@ -126,7 +126,7 @@ export const App = {
     }
 
     // Clean up any MapLibre maps and show skeletons
-    this.cardRenderer?.cleanupRadarCards();
+    this.cardRenderer?.cleanupMapCards();
     this.elements.weatherCards.innerHTML = `
       <wa-card class="weather-card" data-card-type="skeleton-current">
         <wa-skeleton slot="media" effect="sheen" class="skeleton-current"></wa-skeleton>
@@ -162,7 +162,7 @@ export const App = {
   showError(message) {
     this.elements.errorState.hidden = false;
     this.elements.errorMessage.textContent = message;
-    this.cardRenderer?.cleanupRadarCards();
+    this.cardRenderer?.cleanupMapCards();
     this.elements.weatherCards.innerHTML = '';
   }
 };

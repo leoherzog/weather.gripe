@@ -15,6 +15,7 @@ async function ensureChroma() {
 export const TemperatureColors = {
   scale: null,
   currentColor: null,
+  currentTempF: null, // Track current temperature for gradient interpolation
   transitionTimer: null,
   chroma: null, // Store reference to loaded chroma
 
@@ -45,8 +46,11 @@ export const TemperatureColors = {
     // Create scale with lab interpolation
     this.scale = this.chroma.scale(colors).domain(temps).mode('lab');
 
-    // Set initial color to gold
+    // Set initial color to gold (70°F on the temperature scale)
+    // This ensures both primary color and gradient start at the same gold
+    this.currentTempF = 70;
     this.setColor('gold');
+    this.setButtonGradient(70);
   },
 
   // Get color for a temperature (in Fahrenheit)
@@ -62,26 +66,29 @@ export const TemperatureColors = {
   },
 
   // Set the primary color (can be a color name, hex, or chroma color)
-  setColor(color) {
+  // skipTextColor: skip recalculating text color (used during transitions)
+  setColor(color, skipTextColor = false) {
     if (!this.chroma) return;
     const c = this.chroma(color);
     this.currentColor = c;
-    this.updateCSSVariables(c);
+    this.updateCSSVariables(c, skipTextColor);
   },
 
   // Update CSS custom properties for the primary color
   // Uses CSS lab() color function for perceptual uniformity
-  updateCSSVariables(color) {
+  updateCSSVariables(color, skipTextColor = false) {
     const root = document.documentElement;
 
     // Primary color in lab() format
     root.style.setProperty('--color-primary', color.css('lab'));
     root.style.setProperty('--color-primary-rgb', color.rgb().join(', '));
 
-    // Contrasting text color for AAA accessibility
-    const textColor = this.getContrastingText(color);
-    root.style.setProperty('--color-primary-text', textColor.color.css('lab'));
-    root.style.setProperty('--color-primary-contrast', textColor.contrast.toFixed(2));
+    // Contrasting text color for AAA accessibility (skip during transitions)
+    if (!skipTextColor) {
+      const textColor = this.getContrastingText(color);
+      root.style.setProperty('--color-primary-text', textColor.color.css('lab'));
+      root.style.setProperty('--color-primary-contrast', textColor.contrast.toFixed(2));
+    }
 
     // Lighter variant (for hover states)
     const lighter = color.brighten(0.5);
@@ -103,7 +110,8 @@ export const TemperatureColors = {
 
   // Generate gradient for buttons based on temperature range
   // Uses lab() colors for perceptually uniform gradients
-  setButtonGradient(tempF) {
+  // skipTextColor: skip recalculating text color (used during transitions)
+  setButtonGradient(tempF, skipTextColor = false) {
     if (!this.chroma) return;
     const root = document.documentElement;
     const tempLow = tempF - 5;
@@ -114,10 +122,12 @@ export const TemperatureColors = {
     const colorLow = colorLowChroma.css('lab');
     const colorHigh = colorHighChroma.css('lab');
 
-    // Calculate text color that works with both gradient ends (use middle color)
-    const colorMid = this.getColor(tempF);
-    const textColor = this.getContrastingText(colorMid);
-    root.style.setProperty('--gradient-text', textColor.color.css('lab'));
+    // Calculate text color that works with both gradient ends (skip during transitions)
+    if (!skipTextColor) {
+      const colorMid = this.getColor(tempF);
+      const textColor = this.getContrastingText(colorMid);
+      root.style.setProperty('--gradient-text', textColor.color.css('lab'));
+    }
 
     // Set gradient CSS variables with lab colors
     // Use 'in lab' for CSS gradient interpolation in lab space
@@ -127,17 +137,28 @@ export const TemperatureColors = {
   },
 
   // Animate transition from current color to temperature color
-  transitionToTemperature(tempF, duration = 1500) {
+  transitionToTemperature(tempF, duration = 300) {
     if (!this.scale || !this.chroma) return;
 
     const startColor = this.currentColor || this.chroma('gold');
     const endColor = this.getColor(tempF);
+    // Track starting temperature for gradient interpolation (estimate from color, or use 70°F for gold)
+    const startTempF = this.currentTempF ?? 70;
     const startTime = performance.now();
 
     // Cancel any existing transition
     if (this.transitionTimer) {
       cancelAnimationFrame(this.transitionTimer);
     }
+
+    // Pre-calculate and set final text colors immediately to avoid flashing during transition
+    const root = document.documentElement;
+    const primaryTextColor = this.getContrastingText(endColor);
+    root.style.setProperty('--color-primary-text', primaryTextColor.color.css('lab'));
+    root.style.setProperty('--color-primary-contrast', primaryTextColor.contrast.toFixed(2));
+    const gradientMidColor = this.getColor(tempF);
+    const gradientTextColor = this.getContrastingText(gradientMidColor);
+    root.style.setProperty('--gradient-text', gradientTextColor.color.css('lab'));
 
     const animate = (currentTime) => {
       const elapsed = currentTime - startTime;
@@ -146,16 +167,21 @@ export const TemperatureColors = {
       // Ease out cubic
       const eased = 1 - Math.pow(1 - progress, 3);
 
-      // Interpolate between colors in lab space
+      // Interpolate between colors in lab space (skip text color recalculation)
       const interpolated = this.chroma.mix(startColor, endColor, eased, 'lab');
-      this.setColor(interpolated);
+      this.setColor(interpolated, true);
+
+      // Interpolate gradient temperature as well (skip text color recalculation)
+      const interpolatedTempF = startTempF + (tempF - startTempF) * eased;
+      this.setButtonGradient(interpolatedTempF, true);
 
       if (progress < 1) {
         this.transitionTimer = requestAnimationFrame(animate);
       } else {
-        // Ensure we end exactly on the target color
+        // Ensure we end exactly on the target color and gradient
         this.setColor(endColor);
         this.setButtonGradient(tempF);
+        this.currentTempF = tempF;
       }
     };
 
@@ -207,6 +233,7 @@ export const TemperatureColors = {
     } else {
       this.setColor(this.getColor(tempF));
       this.setButtonGradient(tempF);
+      this.currentTempF = tempF;
     }
   }
 };

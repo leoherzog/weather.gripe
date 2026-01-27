@@ -5,6 +5,7 @@ import SunCalc from 'suncalc';
 
 const GEOCODE_CACHE_TTL = 24 * 60 * 60; // 24 hours
 const NWS_POINTS_CACHE_TTL = 24 * 60 * 60; // 24 hours
+const NWS_ZONE_CACHE_TTL = 30 * 24 * 60 * 60; // 30 days (zone boundaries rarely change)
 const UNSPLASH_CACHE_TTL = 24 * 60 * 60; // 24 hours
 const LOCATION_CACHE_TTL = 5 * 60; // 5 minutes (limited by alerts)
 const WXSTORY_CACHE_TTL = 5 * 60; // 5 minutes
@@ -241,6 +242,11 @@ function mapNWSIconToCondition(iconUrl, fallbackText) {
 // Map NWS forecast text to unified condition object (fallback)
 function mapNWSConditionFromText(text) {
   const lower = (text || '').toLowerCase();
+
+  // If no text provided, return generic condition
+  if (!lower) {
+    return { code: 'partly-cloudy', text: 'Partly Cloudy', icon: 'cloud-sun' };
+  }
 
   // Thunderstorms (check first as they may include rain/wind descriptions)
   if (lower.includes('thunder')) {
@@ -499,6 +505,7 @@ async function fetchNWSObservation(stationsUrl) {
     const stationsData = await stationsRes.json();
     const stations = stationsData.features?.slice(0, 3) || []; // Try up to 3 nearest stations
 
+    // First pass: find station with both temperature AND textDescription
     for (const station of stations) {
       const stationId = station.properties?.stationIdentifier;
       if (!stationId) continue;
@@ -510,8 +517,8 @@ async function fetchNWSObservation(stationsUrl) {
         const obsData = await obsRes.json();
         const props = obsData.properties;
 
-        // Check if observation has valid temperature data
-        if (props?.temperature?.value != null && Number.isFinite(props.temperature.value)) {
+        // Check if observation has valid temperature AND textDescription
+        if (props?.temperature?.value != null && Number.isFinite(props.temperature.value) && props.textDescription) {
           return {
             temperature: props.temperature?.value,
             feelsLike: props.windChill?.value ?? props.heatIndex?.value ?? props.temperature?.value,
@@ -519,6 +526,32 @@ async function fetchNWSObservation(stationsUrl) {
             windSpeed: props.windSpeed?.value,
             windDirection: props.windDirection?.value,
             textDescription: props.textDescription,
+            observedAt: props.timestamp
+          };
+        }
+      }
+    }
+
+    // Second pass: accept station with just temperature (fallback)
+    for (const station of stations) {
+      const stationId = station.properties?.stationIdentifier;
+      if (!stationId) continue;
+
+      const obsUrl = `https://api.weather.gov/stations/${stationId}/observations/latest`;
+      const obsRes = await fetch(obsUrl, { headers: NWS_HEADERS });
+
+      if (obsRes.ok) {
+        const obsData = await obsRes.json();
+        const props = obsData.properties;
+
+        if (props?.temperature?.value != null && Number.isFinite(props.temperature.value)) {
+          return {
+            temperature: props.temperature?.value,
+            feelsLike: props.windChill?.value ?? props.heatIndex?.value ?? props.temperature?.value,
+            humidity: props.relativeHumidity?.value,
+            windSpeed: props.windSpeed?.value,
+            windDirection: props.windDirection?.value,
+            textDescription: props.textDescription || null,
             observedAt: props.timestamp
           };
         }
@@ -885,7 +918,9 @@ async function fetchAlerts(lat, lon, cache, ctx) {
       ends: f.properties.ends,
       description: f.properties.description,
       instruction: f.properties.instruction,
-      senderName: f.properties.senderName
+      senderName: f.properties.senderName,
+      geometry: f.geometry || null,
+      affectedZones: f.properties.affectedZones || []
     }));
 
     // Deduplicate by event type, keeping most recent
@@ -911,6 +946,121 @@ async function fetchAlerts(lat, lon, cache, ctx) {
     console.error('NWS alerts error:', e);
     return [];
   }
+}
+
+// Fetch single zone geometry from NWS API with heavy caching
+async function fetchZoneGeometry(zoneUrl, ctx) {
+  // Extract zone ID from URL for cache key
+  const zoneId = zoneUrl.split('/').pop();
+  const cacheKey = `zone-${zoneId}`;
+  const cacheUrl = `https://weather.gripe/api/zone-cache/${cacheKey}`;
+  const cacheRequest = new Request(cacheUrl);
+
+  // Check cache first
+  const cache = caches.default;
+  const cached = await cache.match(cacheRequest);
+  if (cached) {
+    return cached.json();
+  }
+
+  try {
+    const response = await fetch(zoneUrl, { headers: NWS_HEADERS });
+    if (!response.ok) {
+      console.error(`Zone fetch failed: ${zoneUrl} - ${response.status}`);
+      return null;
+    }
+
+    const data = await response.json();
+    const geometry = data.geometry;
+
+    if (!geometry) {
+      return null;
+    }
+
+    // Normalize GeometryCollection to MultiPolygon
+    let normalizedGeometry;
+    if (geometry.type === 'GeometryCollection') {
+      // Combine all polygons from the collection
+      const allCoordinates = [];
+      for (const geom of geometry.geometries) {
+        if (geom.type === 'Polygon') {
+          allCoordinates.push(geom.coordinates);
+        } else if (geom.type === 'MultiPolygon') {
+          allCoordinates.push(...geom.coordinates);
+        }
+      }
+      normalizedGeometry = {
+        type: 'MultiPolygon',
+        coordinates: allCoordinates
+      };
+    } else if (geometry.type === 'Polygon') {
+      normalizedGeometry = {
+        type: 'MultiPolygon',
+        coordinates: [geometry.coordinates]
+      };
+    } else {
+      normalizedGeometry = geometry;
+    }
+
+    // Cache for 30 days
+    if (ctx) {
+      const cacheResponse = new Response(JSON.stringify(normalizedGeometry), {
+        headers: { 'Cache-Control': `public, max-age=${NWS_ZONE_CACHE_TTL}` }
+      });
+      ctx.waitUntil(cache.put(cacheRequest, cacheResponse));
+    }
+
+    return normalizedGeometry;
+  } catch (e) {
+    console.error(`Zone fetch error: ${zoneUrl}`, e);
+    return null;
+  }
+}
+
+// Handle zone geometry API - fetches and combines multiple zones
+async function handleZoneGeometry(request, env, ctx) {
+  const url = new URL(request.url);
+  const zonesParam = url.searchParams.get('zones');
+
+  if (!zonesParam) {
+    return jsonResponse({ error: 'Missing zones parameter' }, 400);
+  }
+
+  // Parse zone URLs (comma-separated)
+  const zoneUrls = zonesParam.split(',').filter(z => z.startsWith('https://api.weather.gov/zones/'));
+
+  if (zoneUrls.length === 0) {
+    return jsonResponse({ error: 'No valid zone URLs provided' }, 400);
+  }
+
+  // Fetch all zone geometries in parallel
+  const geometries = await Promise.all(
+    zoneUrls.map(zoneUrl => fetchZoneGeometry(zoneUrl, ctx))
+  );
+
+  // Filter out failed fetches and combine into single MultiPolygon
+  const validGeometries = geometries.filter(g => g !== null);
+
+  if (validGeometries.length === 0) {
+    return jsonResponse({ error: 'Failed to fetch zone geometries' }, 502);
+  }
+
+  // Combine all coordinates into a single MultiPolygon
+  const allCoordinates = [];
+  for (const geom of validGeometries) {
+    if (geom.type === 'MultiPolygon') {
+      allCoordinates.push(...geom.coordinates);
+    } else if (geom.type === 'Polygon') {
+      allCoordinates.push(geom.coordinates);
+    }
+  }
+
+  const combinedGeometry = {
+    type: 'MultiPolygon',
+    coordinates: allCoordinates
+  };
+
+  return jsonResponse(combinedGeometry, 200, NWS_ZONE_CACHE_TTL);
 }
 
 // Handle consolidated location API
@@ -1127,7 +1277,7 @@ async function handleUnsplash(request, env, ctx) {
   for (const searchQuery of queries) {
     const unsplashUrl = new URL('https://api.unsplash.com/search/photos');
     unsplashUrl.searchParams.set('query', searchQuery);
-    unsplashUrl.searchParams.set('per_page', '1');
+    unsplashUrl.searchParams.set('per_page', '10');
     unsplashUrl.searchParams.set('orientation', 'landscape');
 
     const apiResponse = await fetch(unsplashUrl.toString(), {
@@ -1142,7 +1292,8 @@ async function handleUnsplash(request, env, ctx) {
 
     const data = await apiResponse.json();
     if (data.results && data.results.length > 0) {
-      const photo = data.results[0];
+      const randomIndex = Math.floor(Math.random() * data.results.length);
+      const photo = data.results[randomIndex];
       result = {
         url: photo.urls.regular,
         thumb: photo.urls.thumb,
@@ -1610,6 +1761,9 @@ export default {
     }
     if (path === '/api/basemap/tile') {
       return handleBasemapTile(request, env, ctx);
+    }
+    if (path === '/api/zones') {
+      return handleZoneGeometry(request, env, ctx);
     }
 
     // For all other routes, let the static assets handler take over

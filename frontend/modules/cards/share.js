@@ -57,6 +57,7 @@ export function createCardActions(onShare, onDownload) {
     shareBtn.onclick = onShare;
 
     const downloadBtn = document.createElement('wa-button');
+    downloadBtn.setAttribute('variant', 'brand');
     downloadBtn.setAttribute('appearance', 'outlined');
     downloadBtn.setAttribute('size', 'small');
     downloadBtn.setAttribute('aria-label', 'Download this weather card as an image');

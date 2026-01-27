@@ -20,15 +20,16 @@ export const urgencyColors = {
   unknown: '#6b7280'
 };
 
-// Layout constants for alert cards
-const alertLayout = {
+// Layout constants for alert cards (exported for alert-map.js)
+export const alertLayout = {
   padding: { x: 60, top: 40, bottom: 80 },
   header: { height: 100, iconX: 100, iconSize: 90, textX: 160, gapAfter: 16 },
   pills: { height: 48, gap: 12, gapAfter: 16 },
   time: { height: 50 },
   desc: { lineHeight: 56, font: '44px system-ui, sans-serif' },
   inst: { lineHeight: 54, font: 'italic 40px system-ui, sans-serif' },
-  gap: 20
+  gap: 20,
+  minHeight: 400
 };
 
 // Create Severe Weather Alert Card
@@ -79,7 +80,7 @@ export async function renderAlert(canvas, alertData, timezone = null) {
   if (descLines.length > 0) height += descLines.length * L.desc.lineHeight + L.gap;
   if (instructionLines.length > 0) height += instructionLines.length * L.inst.lineHeight;
   height += L.padding.bottom;
-  height = Math.max(height, 400);
+  height = Math.max(height, L.minHeight);
   canvas.height = height;
 
   // Background gradient

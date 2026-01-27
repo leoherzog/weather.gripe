@@ -70,8 +70,39 @@ export function createCardRenderer(app) {
       const cardPromises = [];
 
       // Alert cards (order: 0.x)
+      // Uses map-based cards for alerts with polygon/zone geometry, falls back to text cards
       alerts.forEach((alert, i) => {
         cardPromises.push((async () => {
+          // Try map-based card if alert has polygon geometry
+          let geometry = alert.geometry;
+
+          // If no direct geometry but has affected zones, fetch zone geometries
+          if (!geometry && alert.affectedZones && alert.affectedZones.length > 0) {
+            try {
+              const zonesParam = alert.affectedZones.join(',');
+              const response = await fetch(`/api/zones?zones=${encodeURIComponent(zonesParam)}`);
+              if (response.ok) {
+                geometry = await response.json();
+              }
+            } catch (e) {
+              console.warn('Failed to fetch zone geometries:', e);
+            }
+          }
+
+          // Try map card with geometry (direct or from zones)
+          if (geometry) {
+            try {
+              const alertWithGeometry = { ...alert, geometry };
+              const mapCard = await WeatherCards.createAlertMapCard(alertWithGeometry, app.currentLocation, timezone);
+              if (mapCard) {
+                return { order: 0 + i * 0.1, card: mapCard };
+              }
+            } catch (e) {
+              console.warn('Alert map card failed, falling back to text card:', e);
+            }
+          }
+
+          // Fall back to text-based card
           const canvas = document.createElement('canvas');
           await WeatherCards.renderAlert(canvas, {
             event: alert.event,
@@ -221,7 +252,7 @@ export function createCardRenderer(app) {
       results.sort((a, b) => a.order - b.order);
 
       // Clean up any existing MapLibre maps before clearing
-      this.cleanupRadarCards();
+      this.cleanupMapCards();
       app.elements.weatherCards.innerHTML = '';
       results.forEach(r => app.elements.weatherCards.appendChild(r.card));
 
@@ -344,10 +375,10 @@ export function createCardRenderer(app) {
       link.click();
     },
 
-    // Clean up MapLibre maps in radar cards before removing them
-    cleanupRadarCards() {
-      const radarCards = app.elements.weatherCards.querySelectorAll('[data-card-type="radar"]');
-      radarCards.forEach(card => {
+    // Clean up MapLibre maps in radar and alert-map cards before removing them
+    cleanupMapCards() {
+      const mapCards = app.elements.weatherCards.querySelectorAll('[data-card-type="radar"], [data-card-type="alert-map"]');
+      mapCards.forEach(card => {
         if (card._cleanup) {
           card._cleanup();
         }

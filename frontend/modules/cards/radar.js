@@ -2,19 +2,7 @@
 
 import { CARD_WIDTH, CARD_HEIGHT, drawWatermark, drawFallbackBackground, drawWeatherIcon } from './core.js';
 import { createCardContainer, createCardActions, shareCard, downloadCard } from './share.js';
-
-// MapLibre is lazy-loaded
-let maplibregl = null;
-
-async function ensureMapLibre() {
-  if (!maplibregl) {
-    const mod = await import('maplibre-gl');
-    maplibregl = mod.default;
-    // Also import CSS
-    await import('maplibre-gl/dist/maplibre-gl.css');
-  }
-  return maplibregl;
-}
+import { ensureMapLibre, waitForDOMConnection, exportMapToCanvas } from '../utils/map-utils.js';
 
 // Radar dBZ color scale (reflectivity values and colors)
 const radarColors = [
@@ -146,18 +134,19 @@ export async function createRadarCard(radarData, locationName, timezone = null) 
   // Create map wrapper with proper aspect ratio
   const mapWrapper = document.createElement('div');
   mapWrapper.setAttribute('slot', 'media');
-  mapWrapper.style.cssText = `position:relative;width:100%;aspect-ratio:${width}/${height};`;
+  mapWrapper.className = 'map-wrapper';
+  mapWrapper.style.aspectRatio = `${width}/${height}`;
 
   // Create map container
   const mapContainer = document.createElement('div');
-  mapContainer.style.cssText = 'position:absolute;inset:0;';
+  mapContainer.className = 'map-container';
   mapWrapper.appendChild(mapContainer);
 
   // Create overlay canvas for header/legend/marker/watermark
   const overlay = document.createElement('canvas');
   overlay.width = width;
   overlay.height = height;
-  overlay.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;pointer-events:none;';
+  overlay.className = 'map-overlay';
   mapWrapper.appendChild(overlay);
 
   card.appendChild(mapWrapper);
@@ -232,38 +221,11 @@ export async function createRadarCard(radarData, locationName, timezone = null) 
     });
   };
 
-  // Use requestAnimationFrame to ensure DOM is ready
-  requestAnimationFrame(() => {
-    if (mapContainer.isConnected) {
-      initMap();
-    } else {
-      // Wait for element to be connected
-      const observer = new MutationObserver(() => {
-        if (mapContainer.isConnected) {
-          observer.disconnect();
-          initMap();
-        }
-      });
-      observer.observe(document.body, { childList: true, subtree: true });
-    }
-  });
+  // Wait for DOM connection before initializing map
+  const cancelDOMWait = waitForDOMConnection(mapContainer, initMap);
 
   // Export function for share/download - combines map + overlay
-  const exportToCanvas = async () => {
-    const exportCanvas = document.createElement('canvas');
-    exportCanvas.width = width;
-    exportCanvas.height = height;
-    const ctx = exportCanvas.getContext('2d');
-
-    if (map) {
-      // Draw map
-      const mapCanvas = map.getCanvas();
-      ctx.drawImage(mapCanvas, 0, 0, width, height);
-    }
-    // Draw overlay on top
-    ctx.drawImage(overlay, 0, 0);
-    return exportCanvas;
-  };
+  const exportToCanvas = () => exportMapToCanvas(map, overlay, width, height);
 
   // Add share/download actions
   card.appendChild(createCardActions(
@@ -279,6 +241,7 @@ export async function createRadarCard(radarData, locationName, timezone = null) 
 
   // Store cleanup function
   card._cleanup = () => {
+    cancelDOMWait();
     if (map) {
       map.remove();
       map = null;

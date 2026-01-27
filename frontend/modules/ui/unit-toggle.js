@@ -17,13 +17,17 @@ export function initUnitToggle() {
     if (current === 'metric') {
       metric.classList.add('temp-gradient-btn');
       metric.setAttribute('appearance', 'filled');
+      metric.removeAttribute('variant');
       imperial.classList.remove('temp-gradient-btn');
       imperial.setAttribute('appearance', 'outlined');
+      imperial.setAttribute('variant', 'brand');
     } else {
       imperial.classList.add('temp-gradient-btn');
       imperial.setAttribute('appearance', 'filled');
+      imperial.removeAttribute('variant');
       metric.classList.remove('temp-gradient-btn');
       metric.setAttribute('appearance', 'outlined');
+      metric.setAttribute('variant', 'brand');
     }
   };
 

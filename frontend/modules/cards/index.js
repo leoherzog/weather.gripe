@@ -8,6 +8,7 @@ import { renderDayForecast } from './day-forecast.js';
 import { renderForecastGraph } from './forecast-graph.js';
 import { renderHourlyForecast } from './hourly-forecast.js';
 import { renderAlert } from './alert.js';
+import { createAlertMapCard } from './alert-map.js';
 import { renderDetailedForecast } from './detailed.js';
 import { createRadarCard, renderRadarUnavailable, renderRadarError } from './radar.js';
 import { shareCard, downloadCard, createCardActions, createCardContainer } from './share.js';
@@ -33,6 +34,7 @@ export const WeatherCards = {
   renderForecastGraph,
   renderHourlyForecast,
   renderAlert,
+  createAlertMapCard,
   renderDetailedForecast,
   createRadarCard,
   renderRadarUnavailable,
@@ -55,6 +57,7 @@ export {
   renderForecastGraph,
   renderHourlyForecast,
   renderAlert,
+  createAlertMapCard,
   renderDetailedForecast,
   createRadarCard,
   renderRadarUnavailable,

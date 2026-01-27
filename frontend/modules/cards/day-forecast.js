@@ -125,35 +125,36 @@ export async function renderDayForecast(canvas, weatherData, timezone = null) {
     ctx.font = 'bold 56px system-ui, sans-serif';
 
     ctx.textAlign = 'left';
-    const arrowWidth = ctx.measureText('↑ ').width;
+    const arrowSize = 36;
+    const arrowGap = 12;
 
     if (col.showHigh && col.showLow) {
-      // High temp with red arrow
+      // High temp with red arrow icon
       const highTemp = Units.formatTemp(col.high);
-      const highWidth = ctx.measureText('↑ ' + highTemp).width;
-      const highStart = x - highWidth / 2;
-      ctx.fillStyle = COLOR_TEMP_HIGH;
-      ctx.fillText('↑ ', highStart, 300);
+      const highTempWidth = ctx.measureText(highTemp).width;
+      const highTotalWidth = arrowSize + arrowGap + highTempWidth;
+      const highStart = x - highTotalWidth / 2;
+      drawWeatherIcon(ctx, 'arrow-up', highStart + arrowSize / 2, 300 + 28, arrowSize, COLOR_TEMP_HIGH);
       ctx.fillStyle = 'white';
-      ctx.fillText(highTemp, highStart + arrowWidth, 300);
+      ctx.fillText(highTemp, highStart + arrowSize + arrowGap, 300);
 
-      // Low temp with blue arrow
+      // Low temp with blue arrow icon
       const lowTemp = Units.formatTemp(col.low);
-      const lowWidth = ctx.measureText('↓ ' + lowTemp).width;
-      const lowStart = x - lowWidth / 2;
-      ctx.fillStyle = COLOR_TEMP_LOW;
-      ctx.fillText('↓ ', lowStart, 370);
+      const lowTempWidth = ctx.measureText(lowTemp).width;
+      const lowTotalWidth = arrowSize + arrowGap + lowTempWidth;
+      const lowStart = x - lowTotalWidth / 2;
+      drawWeatherIcon(ctx, 'arrow-down', lowStart + arrowSize / 2, 370 + 28, arrowSize, COLOR_TEMP_LOW);
       ctx.fillStyle = 'white';
-      ctx.fillText(lowTemp, lowStart + arrowWidth, 370);
+      ctx.fillText(lowTemp, lowStart + arrowSize + arrowGap, 370);
     } else if (col.showLow) {
-      // Low temp only with blue arrow
+      // Low temp only with blue arrow icon
       const lowTemp = Units.formatTemp(col.low);
-      const lowWidth = ctx.measureText('↓ ' + lowTemp).width;
-      const lowStart = x - lowWidth / 2;
-      ctx.fillStyle = COLOR_TEMP_LOW;
-      ctx.fillText('↓ ', lowStart, 335);
+      const lowTempWidth = ctx.measureText(lowTemp).width;
+      const lowTotalWidth = arrowSize + arrowGap + lowTempWidth;
+      const lowStart = x - lowTotalWidth / 2;
+      drawWeatherIcon(ctx, 'arrow-down', lowStart + arrowSize / 2, 335 + 28, arrowSize, COLOR_TEMP_LOW);
       ctx.fillStyle = 'white';
-      ctx.fillText(lowTemp, lowStart + arrowWidth, 335);
+      ctx.fillText(lowTemp, lowStart + arrowSize + arrowGap, 335);
     }
 
     ctx.textAlign = 'center';

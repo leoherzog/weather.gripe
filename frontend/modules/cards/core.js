@@ -13,7 +13,7 @@ export const iconsNeeded = [
   'sun', 'moon', 'cloud', 'cloud-sun', 'cloud-moon', 'smog',
   'cloud-rain', 'cloud-showers-heavy', 'cloud-sun-rain',
   'snowflake', 'cloud-bolt', 'triangle-exclamation', 'eye', 'question',
-  'location-dot'
+  'location-dot', 'arrow-up', 'arrow-down'
 ];
 
 // Cache for extracted icon data
