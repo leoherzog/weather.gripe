@@ -84,6 +84,10 @@ wa-button[appearance="outlined"][variant="brand"]:hover::part(base) {
   width: 100%;
 }
 
+#search-combobox::part(expand-icon) {
+  display: none;
+}
+
 #search-combobox wa-option small {
   display: block;
   color: var(--wa-color-text-quiet);
