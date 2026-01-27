@@ -62,6 +62,7 @@ export function createWeatherLoader(app) {
 
     // Fetch Unsplash background image with optional location fallback
     // options: { location, region } for cascading search
+    // Returns a randomly selected photo from available results
     async fetchBackground(query, options = {}) {
       try {
         const params = new URLSearchParams({ query });
@@ -71,7 +72,14 @@ export function createWeatherLoader(app) {
         const response = await fetch(`/api/unsplash?${params.toString()}`);
         if (!response.ok) return null;
         const data = await response.json();
-        return data.error ? null : data;
+        if (data.error) return null;
+        // New format: array of photos - randomly select one
+        if (data.photos?.length) {
+          return data.photos[Math.floor(Math.random() * data.photos.length)];
+        }
+        // Old format (cached responses): single photo object with url directly
+        if (data.url) return data;
+        return null;
       } catch (e) {
         console.warn('Unsplash fetch failed:', e);
         return null;

@@ -55,34 +55,34 @@ const NWS_HEADERS = {
 
 // WMO weather code to unified condition mapping
 const WMO_CONDITIONS = {
-  0: { code: 'clear', text: 'Clear sky', icon: 'sun' },
-  1: { code: 'mostly-clear', text: 'Mainly clear', icon: 'sun' },
-  2: { code: 'partly-cloudy', text: 'Partly cloudy', icon: 'cloud-sun' },
+  0: { code: 'clear', text: 'Clear Sky', icon: 'sun' },
+  1: { code: 'mostly-clear', text: 'Mainly Clear', icon: 'sun' },
+  2: { code: 'partly-cloudy', text: 'Partly Cloudy', icon: 'cloud-sun' },
   3: { code: 'overcast', text: 'Overcast', icon: 'cloud' },
   45: { code: 'fog', text: 'Fog', icon: 'smog' },
-  48: { code: 'fog', text: 'Depositing rime fog', icon: 'smog' },
-  51: { code: 'drizzle', text: 'Light drizzle', icon: 'cloud-rain' },
-  53: { code: 'drizzle', text: 'Moderate drizzle', icon: 'cloud-rain' },
-  55: { code: 'drizzle', text: 'Dense drizzle', icon: 'cloud-rain' },
-  56: { code: 'freezing-rain', text: 'Freezing drizzle', icon: 'cloud-rain' },
-  57: { code: 'freezing-rain', text: 'Dense freezing drizzle', icon: 'cloud-rain' },
-  61: { code: 'rain-light', text: 'Slight rain', icon: 'cloud-rain' },
-  63: { code: 'rain', text: 'Moderate rain', icon: 'cloud-showers-heavy' },
-  65: { code: 'rain-heavy', text: 'Heavy rain', icon: 'cloud-showers-heavy' },
-  66: { code: 'freezing-rain', text: 'Freezing rain', icon: 'cloud-rain' },
-  67: { code: 'freezing-rain', text: 'Heavy freezing rain', icon: 'cloud-showers-heavy' },
-  71: { code: 'snow-light', text: 'Slight snow', icon: 'snowflake' },
-  73: { code: 'snow', text: 'Moderate snow', icon: 'snowflake' },
-  75: { code: 'snow-heavy', text: 'Heavy snow', icon: 'snowflake' },
-  77: { code: 'snow-light', text: 'Snow grains', icon: 'snowflake' },
-  80: { code: 'rain-light', text: 'Slight showers', icon: 'cloud-sun-rain' },
-  81: { code: 'rain', text: 'Moderate showers', icon: 'cloud-showers-heavy' },
-  82: { code: 'rain-heavy', text: 'Violent showers', icon: 'cloud-showers-heavy' },
-  85: { code: 'snow-light', text: 'Slight snow showers', icon: 'snowflake' },
-  86: { code: 'snow-heavy', text: 'Heavy snow showers', icon: 'snowflake' },
+  48: { code: 'fog', text: 'Depositing Rime Fog', icon: 'smog' },
+  51: { code: 'drizzle', text: 'Light Drizzle', icon: 'cloud-rain' },
+  53: { code: 'drizzle', text: 'Moderate Drizzle', icon: 'cloud-rain' },
+  55: { code: 'drizzle', text: 'Dense Drizzle', icon: 'cloud-rain' },
+  56: { code: 'freezing-rain', text: 'Freezing Drizzle', icon: 'cloud-rain' },
+  57: { code: 'freezing-rain', text: 'Dense Freezing Drizzle', icon: 'cloud-rain' },
+  61: { code: 'rain-light', text: 'Light Rain', icon: 'cloud-rain' },
+  63: { code: 'rain', text: 'Moderate Rain', icon: 'cloud-showers-heavy' },
+  65: { code: 'rain-heavy', text: 'Heavy Rain', icon: 'cloud-showers-heavy' },
+  66: { code: 'freezing-rain', text: 'Freezing Rain', icon: 'cloud-rain' },
+  67: { code: 'freezing-rain', text: 'Heavy Freezing Rain', icon: 'cloud-showers-heavy' },
+  71: { code: 'snow-light', text: 'Light Snow', icon: 'snowflake' },
+  73: { code: 'snow', text: 'Moderate Snow', icon: 'snowflake' },
+  75: { code: 'snow-heavy', text: 'Heavy Snow', icon: 'snowflake' },
+  77: { code: 'snow-light', text: 'Snow Grains', icon: 'snowflake' },
+  80: { code: 'rain-light', text: 'Light Showers', icon: 'cloud-sun-rain' },
+  81: { code: 'rain', text: 'Moderate Showers', icon: 'cloud-showers-heavy' },
+  82: { code: 'rain-heavy', text: 'Heavy Showers', icon: 'cloud-showers-heavy' },
+  85: { code: 'snow-light', text: 'Light Snow Showers', icon: 'snowflake' },
+  86: { code: 'snow-heavy', text: 'Heavy Snow Showers', icon: 'snowflake' },
   95: { code: 'thunderstorm', text: 'Thunderstorm', icon: 'cloud-bolt' },
-  96: { code: 'thunderstorm', text: 'Thunderstorm with hail', icon: 'cloud-bolt' },
-  99: { code: 'thunderstorm-severe', text: 'Thunderstorm with heavy hail', icon: 'cloud-bolt' }
+  96: { code: 'thunderstorm', text: 'Thunderstorm With Hail', icon: 'cloud-bolt' },
+  99: { code: 'thunderstorm-severe', text: 'Thunderstorm With Heavy Hail', icon: 'cloud-bolt' }
 };
 
 // NWS icon code to unified condition mapping
@@ -1277,8 +1277,7 @@ async function handleUnsplash(request, env, ctx) {
   for (const searchQuery of queries) {
     const unsplashUrl = new URL('https://api.unsplash.com/search/photos');
     unsplashUrl.searchParams.set('query', searchQuery);
-    unsplashUrl.searchParams.set('per_page', '10');
-    unsplashUrl.searchParams.set('orientation', 'landscape');
+    unsplashUrl.searchParams.set('per_page', '30');
 
     const apiResponse = await fetch(unsplashUrl.toString(), {
       headers: {
@@ -1292,16 +1291,17 @@ async function handleUnsplash(request, env, ctx) {
 
     const data = await apiResponse.json();
     if (data.results && data.results.length > 0) {
-      const randomIndex = Math.floor(Math.random() * data.results.length);
-      const photo = data.results[randomIndex];
+      // Return all photos so frontend can randomize (cache stores all, client picks)
       result = {
-        url: photo.urls.regular,
-        thumb: photo.urls.thumb,
-        photographer: photo.user.name,
-        username: photo.user.username,
-        photographerUrl: photo.user.links.html,
-        unsplashUrl: photo.links.html,
-        downloadLocation: photo.links.download_location
+        photos: data.results.map(photo => ({
+          url: photo.urls.regular,
+          thumb: photo.urls.thumb,
+          photographer: photo.user.name,
+          username: photo.user.username,
+          photographerUrl: photo.user.links.html,
+          unsplashUrl: photo.links.html,
+          downloadLocation: photo.links.download_location
+        }))
       };
       break; // Found a result, stop searching
     }

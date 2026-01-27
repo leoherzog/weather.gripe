@@ -41,9 +41,7 @@ export function createSearchManager(app) {
           const fullName = [loc.name, loc.admin1, loc.country].filter(Boolean).join(', ');
           option.innerHTML = `
             <strong>${escapeHtml(loc.name)}</strong>
-            <small style="display: block; color: var(--wa-color-text-quiet);">
-              ${[loc.admin1, loc.country].filter(Boolean).map(escapeHtml).join(', ')}
-            </small>
+            <small>${[loc.admin1, loc.country].filter(Boolean).map(escapeHtml).join(', ')}</small>
           `;
           option.setAttribute('aria-label', fullName);
 

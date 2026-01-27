@@ -41,6 +41,19 @@ export const Units = {
     return `${kmh.toFixed(decimals)} km/h`;
   },
 
+  // Describe wind speed in plain language
+  // Returns null if wind data is unavailable
+  describeWind(kmh) {
+    if (kmh == null || !Number.isFinite(kmh)) return null;
+    // Thresholds in km/h
+    if (kmh < 5) return 'Still Winds';
+    if (kmh < 20) return 'Light Breeze';
+    if (kmh < 40) return 'Breezy';
+    if (kmh < 60) return 'Windy';
+    if (kmh < 90) return 'Very Windy';
+    return 'High Winds';
+  },
+
   // Format humidity (no conversion needed)
   formatHumidity(percent) {
     if (percent == null || !Number.isFinite(percent)) return '--';
