@@ -1,20 +1,20 @@
-// PWA Install Prompt - shows after first successful share
+// PWA Install Prompt - shows after first user engagement (share or download)
 // Uses @khmyznikov/pwa-install web component
 
 import '@khmyznikov/pwa-install';
 
 // State management helpers (localStorage with error handling for private browsing)
-function hasSharedBefore() {
+function hasEngagedBefore() {
   try {
-    return localStorage.getItem('hasSharedCard') === 'true';
+    return localStorage.getItem('hasEngaged') === 'true';
   } catch {
     return false;
   }
 }
 
-function markShared() {
+function markEngaged() {
   try {
-    localStorage.setItem('hasSharedCard', 'true');
+    localStorage.setItem('hasEngaged', 'true');
   } catch {}
 }
 
@@ -38,13 +38,13 @@ function getInstallElement() {
 }
 
 /**
- * Call this after a successful share to potentially show the install prompt.
- * Only shows on first share, and only if user hasn't dismissed before.
+ * Call this after user engagement (share or download) to potentially show the install prompt.
+ * Only shows on first engagement, and only if user hasn't dismissed before.
  */
-export function notifyShareSuccess() {
-  // Only trigger on first share
-  if (hasSharedBefore()) return;
-  markShared();
+export function notifyEngagement() {
+  // Only trigger on first engagement
+  if (hasEngagedBefore()) return;
+  markEngaged();
 
   const pwaInstall = getInstallElement();
   if (!pwaInstall) return;

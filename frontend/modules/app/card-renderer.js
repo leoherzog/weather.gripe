@@ -2,7 +2,7 @@
 
 import { WeatherCards } from '../cards/index.js';
 import { attachLightboxHandler } from '../ui/lightbox.js';
-import { notifyShareSuccess } from '../ui/pwa-install.js';
+import { notifyEngagement } from '../ui/pwa-install.js';
 
 // Create card renderer with dependency injection
 export function createCardRenderer(app) {
@@ -397,7 +397,7 @@ export function createCardRenderer(app) {
           title: `NWS ${office} Weather Story`,
           files: [file]
         });
-        notifyShareSuccess();
+        notifyEngagement();
       } catch (e) {
         if (e.name !== 'AbortError') {
           console.error('Share failed:', e);
@@ -412,6 +412,7 @@ export function createCardRenderer(app) {
       link.download = `wxstory-${office}-${index}.png`;
       link.href = imageUrl;
       link.click();
+      notifyEngagement(); // Triggers PWA install prompt after first engagement
     },
 
     // Clean up MapLibre maps in radar and alert-map cards before removing them
