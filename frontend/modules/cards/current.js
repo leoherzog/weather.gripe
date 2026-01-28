@@ -21,7 +21,7 @@ export async function renderCurrentConditions(canvas, weatherData, backgroundUrl
       const x = (width - img.width * scale) / 2;
       const y = (height - img.height * scale) / 2;
       ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
-      drawOverlay(ctx, width, height, 0.4);
+      drawOverlay(ctx, width, height, 0.5);
     } catch (e) {
       drawFallbackBackground(ctx, width, height);
     }

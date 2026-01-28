@@ -46,7 +46,7 @@ export async function renderDetailedForecast(canvas, forecastData, backgroundUrl
       const x = (width - img.width * scale) / 2;
       const y = (height - img.height * scale) / 2;
       ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
-      drawOverlay(ctx, width, height, 0.55); // Slightly darker for text readability
+      drawOverlay(ctx, width, height, 0.65); // Darker for text readability
     } catch (e) {
       drawFallbackBackground(ctx, width, height);
     }

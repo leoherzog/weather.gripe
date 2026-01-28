@@ -163,6 +163,7 @@ export async function createRadarCard(radarData, locationName, timezone = null) 
   const [minX, minY, maxX, maxY] = radarData.bbox.split(',').map(Number);
   const sw = webMercatorToLatLon(minX, minY);
   const ne = webMercatorToLatLon(maxX, maxY);
+  const mapBounds = [[sw.lon, sw.lat], [ne.lon, ne.lat]];
 
   // Create card container
   const card = document.createElement('wa-card');
@@ -191,11 +192,18 @@ export async function createRadarCard(radarData, locationName, timezone = null) 
 
   // Initialize map after element is in DOM
   let map = null;
+  let resizeObserver = null;
   const initMap = () => {
+    const syncMapToBounds = () => {
+      if (!map) return;
+      map.resize();
+      map.fitBounds(mapBounds, { padding: 0, duration: 0 });
+    };
+
     map = new MapLibre.Map({
       container: mapContainer,
       style: 'https://tiles.openfreemap.org/styles/fiord',
-      bounds: [[sw.lon, sw.lat], [ne.lon, ne.lat]],
+      bounds: mapBounds,
       preserveDrawingBuffer: true,
       interactive: false,
       attributionControl: false,
@@ -206,6 +214,13 @@ export async function createRadarCard(radarData, locationName, timezone = null) 
     map.on('styleimagemissing', () => {});
 
     map.on('load', () => {
+      // Ensure map size/center are correct after slot layout settles
+      requestAnimationFrame(syncMapToBounds);
+      if (typeof ResizeObserver !== 'undefined') {
+        resizeObserver = new ResizeObserver(() => syncMapToBounds());
+        resizeObserver.observe(mapContainer);
+      }
+
       // Build radar WMS tile URL - bbox must be a top-level param for MapLibre substitution
       const layer = `${radarData.region}_bref_qcd`;
       const baseParams = new URLSearchParams({
@@ -247,15 +262,15 @@ export async function createRadarCard(radarData, locationName, timezone = null) 
           'line-opacity': 0.5
         }
       });
-    });
 
-    // Draw overlay elements once map is fully loaded and positioned
-    const ctx = overlay.getContext('2d');
-    map.once('idle', () => {
-      drawLocationMarker(ctx, width / 2, height / 2, MARKER_LARGE_SIZE);
-      drawRadarHeader(ctx, width, radarData, locationName, timezone);
-      // drawRadarLegend(ctx, width, height);
-      drawWatermark(ctx, width, height, 'NOAA', timezone);
+      // Draw overlay elements once map is fully loaded and positioned
+      const ctx = overlay.getContext('2d');
+      map.once('idle', () => {
+        drawLocationMarker(ctx, width / 2, height / 2, MARKER_LARGE_SIZE);
+        drawRadarHeader(ctx, width, radarData, locationName, timezone);
+        // drawRadarLegend(ctx, width, height);
+        drawWatermark(ctx, width, height, 'NOAA', timezone);
+      });
     });
   };
 
@@ -286,6 +301,10 @@ export async function createRadarCard(radarData, locationName, timezone = null) 
   // Store cleanup function
   card._cleanup = () => {
     cancelDOMWait();
+    if (resizeObserver) {
+      resizeObserver.disconnect();
+      resizeObserver = null;
+    }
     if (map) {
       map.remove();
       map = null;

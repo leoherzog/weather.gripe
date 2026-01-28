@@ -1357,6 +1357,7 @@ async function handleUnsplash(request, env, ctx) {
     const unsplashUrl = new URL('https://api.unsplash.com/search/photos');
     unsplashUrl.searchParams.set('query', searchQuery);
     unsplashUrl.searchParams.set('per_page', '30');
+    unsplashUrl.searchParams.set('orientation', 'landscape');
 
     console.log(`[Unsplash] Trying query: "${searchQuery}"`);
     const apiResponse = await fetch(unsplashUrl.toString(), {

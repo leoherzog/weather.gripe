@@ -105,6 +105,7 @@ export function createSearchManager(app) {
       if (!query.trim()) return;
 
       this.clearOptions();
+      combobox.open = false;
       app.showLoading();
 
       try {

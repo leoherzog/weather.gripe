@@ -1,6 +1,6 @@
 // Hourly forecast card renderer (24-hour forecast with temperature line graph)
 
-import { CARD_WIDTH, drawWatermark, drawWeatherIcon } from './core.js';
+import { CARD_WIDTH, drawWatermark, drawWeatherIcon, loadImage, drawOverlay, drawFallbackBackground } from './core.js';
 import { Units } from '../utils/units.js';
 
 // Night icon mappings for clear/partly-cloudy conditions
@@ -62,19 +62,28 @@ function getHourlyIcon(condition, time, daily, timezone) {
 
 // Create Hourly Forecast Card with temperature line graph
 // timezone: IANA timezone string for displaying location's local time
-export async function renderHourlyForecast(canvas, weatherData, cityName = '', timezone = null) {
+export async function renderHourlyForecast(canvas, weatherData, cityName = '', backgroundUrl = null, unsplashUsername = null, timezone = null) {
   const ctx = canvas.getContext('2d');
   const width = CARD_WIDTH;
   const height = 500;
   canvas.width = width;
   canvas.height = height;
 
-  // Background
-  const gradient = ctx.createLinearGradient(0, 0, 0, height);
-  gradient.addColorStop(0, '#1a2f4a');
-  gradient.addColorStop(1, '#0d1b2a');
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, width, height);
+  // Draw background
+  if (backgroundUrl) {
+    try {
+      const img = await loadImage(backgroundUrl);
+      const scale = Math.max(width / img.width, height / img.height);
+      const x = (width - img.width * scale) / 2;
+      const y = (height - img.height * scale) / 2;
+      ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
+      drawOverlay(ctx, width, height, 0.65);
+    } catch (e) {
+      drawFallbackBackground(ctx, width, height);
+    }
+  } else {
+    drawFallbackBackground(ctx, width, height);
+  }
 
   const hourly = weatherData?.hourly;
   const daily = weatherData?.daily || [];
@@ -177,7 +186,10 @@ export async function renderHourlyForecast(canvas, weatherData, cityName = '', t
 
   // Watermark
   const dataSource = weatherData?.current?.observedAt ? 'NWS' : 'Open-Meteo';
-  drawWatermark(ctx, width, height, dataSource, timezone);
+  const attribution = unsplashUsername
+    ? `${dataSource} and @${unsplashUsername} on Unsplash`
+    : dataSource;
+  drawWatermark(ctx, width, height, attribution, timezone);
 
   return canvas;
 }
