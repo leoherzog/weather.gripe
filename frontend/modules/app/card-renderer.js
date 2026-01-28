@@ -5,9 +5,14 @@ import { attachLightboxHandler } from '../ui/lightbox.js';
 
 // Create card renderer with dependency injection
 export function createCardRenderer(app) {
+  // Track current render to cancel stale renders when location changes rapidly
+  let currentRenderVersion = 0;
+
   return {
     // Render all weather cards
     async renderAllCards(weather, alerts = [], wxStory = null, locationName = null) {
+      // Increment render version - any in-flight renders with older versions will be discarded
+      const thisRenderVersion = ++currentRenderVersion;
       const daily = weather?.daily || [];
 
       // Extract just the city name (before comma) for card labels
@@ -251,6 +256,15 @@ export function createCardRenderer(app) {
       // Wait for all cards, filter nulls, sort by order, append to DOM
       const results = (await Promise.all(cardPromises)).filter(r => r !== null);
       results.sort((a, b) => a.order - b.order);
+
+      // Check if this render is still current (a newer location update may have started)
+      if (thisRenderVersion !== currentRenderVersion) {
+        // This render is stale - clean up any MapLibre maps we created and discard
+        results.forEach(r => {
+          if (r.card._cleanup) r.card._cleanup();
+        });
+        return;
+      }
 
       // Clean up any existing MapLibre maps before clearing
       this.cleanupMapCards();

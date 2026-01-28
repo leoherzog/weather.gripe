@@ -1,9 +1,14 @@
 // Alert map card renderer with lazy-loaded MapLibre
 // Renders alert content over a faded map background showing affected zones/polygons
 
-import { CARD_WIDTH, drawWatermark, drawWeatherIcon, drawPill, wrapText } from './core.js';
+import { CARD_WIDTH } from './core.js';
 import { createCardActions, shareCard, downloadCard } from './share.js';
-import { severityColors, urgencyColors, alertLayout } from './alert.js';
+import {
+  severityColors,
+  alertLayout,
+  calculateAlertLayout,
+  drawAlertContent
+} from './alert-renderer.js';
 import { ensureMapLibre, waitForDOMConnection, exportMapToCanvas } from '../utils/map-utils.js';
 import { attachLightboxHandler } from '../ui/lightbox.js';
 
@@ -67,168 +72,6 @@ function calculatePolygonBounds(geometry) {
   };
 }
 
-// Calculate card height based on content (same logic as alert.js)
-// textWidthRatio: fraction of card width for text (e.g., 0.75 for 75%)
-function calculateCardHeight(ctx, alertData, width, textWidthRatio = 1.0) {
-  const L = alertLayout;
-  const maxWidth = (width * textWidthRatio) - L.padding.x * 2;
-
-  const now = new Date();
-  const onsetDate = alertData.onset ? new Date(alertData.onset) : null;
-  const endsDate = alertData.ends ? new Date(alertData.ends) : null;
-  const isActiveNow = onsetDate && now >= onsetDate;
-  const severity = (alertData.severity || 'unknown').toLowerCase();
-
-  const showSeverityPill = severity !== 'unknown';
-  const showUrgencyPill = !isActiveNow;
-  const hasPills = showSeverityPill || showUrgencyPill;
-  const hasTime = (isActiveNow && endsDate) || (!isActiveNow && onsetDate);
-
-  let descLines = [];
-  if (alertData.description) {
-    ctx.font = L.desc.font;
-    descLines = wrapText(ctx, alertData.description, maxWidth);
-  }
-
-  let instructionLines = [];
-  if (alertData.instruction) {
-    ctx.font = L.inst.font;
-    instructionLines = wrapText(ctx, alertData.instruction, maxWidth);
-  }
-
-  let height = L.padding.top + L.header.height;
-  if (hasPills || hasTime) height += L.header.gapAfter;
-  if (hasPills) height += L.pills.height;
-  if (hasPills && hasTime) height += L.pills.gapAfter;
-  if (hasTime) height += L.time.height;
-  height += L.gap;
-  if (descLines.length > 0) height += descLines.length * L.desc.lineHeight + L.gap;
-  if (instructionLines.length > 0) height += instructionLines.length * L.inst.lineHeight;
-  height += L.padding.bottom;
-
-  return {
-    height: Math.max(height, L.minHeight),
-    descLines,
-    instructionLines,
-    hasPills,
-    hasTime,
-    showSeverityPill,
-    showUrgencyPill,
-    isActiveNow
-  };
-}
-
-// Draw full alert content on canvas (replicates alert.js rendering)
-// textWidthRatio: fraction of card width for text (e.g., 0.75 for 75%)
-function drawAlertContent(ctx, width, height, alertData, layout, timezone, textWidthRatio = 1.0) {
-  const L = alertLayout;
-  const textWidth = width * textWidthRatio;
-  const severity = (alertData.severity || 'unknown').toLowerCase();
-  const colors = severityColors[severity] || severityColors.unknown;
-
-  const now = new Date();
-  const onsetDate = alertData.onset ? new Date(alertData.onset) : null;
-  const endsDate = alertData.ends ? new Date(alertData.ends) : null;
-
-  let y = L.padding.top;
-
-  // Header (icon + event name)
-  const headerCenterY = y + L.header.height / 2;
-  const eventLower = (alertData.event || '').toLowerCase();
-  const isWatch = eventLower.includes('watch');
-  const icon = isWatch ? 'fa-eye' : 'fa-triangle-exclamation';
-  drawWeatherIcon(ctx, icon, L.header.iconX, headerCenterY, L.header.iconSize, colors.icon);
-
-  ctx.fillStyle = 'white';
-  ctx.font = 'bold 60px system-ui, sans-serif';
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(alertData.event || 'Weather Alert', L.header.textX, headerCenterY);
-  y += L.header.height;
-  if (layout.hasPills || layout.hasTime) y += L.header.gapAfter;
-
-  // Pills row
-  if (layout.hasPills) {
-    let pillX = L.padding.x;
-    const pillY = y;
-
-    if (layout.showSeverityPill) {
-      const severityText = alertData.severity.toUpperCase();
-      const pillWidth = drawPill(ctx, pillX, pillY, severityText, colors.pill);
-      pillX += pillWidth + L.pills.gap;
-    }
-
-    if (layout.showUrgencyPill) {
-      const urgencyRaw = alertData.urgency || 'Unknown';
-      const urgency = urgencyRaw.toLowerCase();
-      const urgencyColor = urgencyColors[urgency] || urgencyColors.unknown;
-      const urgencyTextColor = urgency === 'future' ? '#1f2937' : 'white';
-      drawPill(ctx, pillX, pillY, urgencyRaw.toUpperCase(), urgencyColor, urgencyTextColor);
-    }
-    y += L.pills.height;
-    if (layout.hasTime) y += L.pills.gapAfter;
-  }
-
-  // Time line
-  if (layout.hasTime) {
-    ctx.font = '38px system-ui, sans-serif';
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
-    ctx.textBaseline = 'top';
-
-    const nowInTz = timezone
-      ? new Date(now.toLocaleString('en-US', { timeZone: timezone }))
-      : now;
-    const isToday = (d) => {
-      if (!d) return false;
-      const dInTz = timezone
-        ? new Date(d.toLocaleString('en-US', { timeZone: timezone }))
-        : d;
-      return dInTz.toDateString() === nowInTz.toDateString();
-    };
-    const formatOpts = (d) => {
-      const base = isToday(d)
-        ? { timeStyle: 'short' }
-        : { dateStyle: 'long', timeStyle: 'short' };
-      return timezone ? { ...base, timeZone: timezone } : base;
-    };
-
-    if (layout.isActiveNow && endsDate) {
-      ctx.fillText(`Until ${endsDate.toLocaleString(undefined, formatOpts(endsDate))}`, L.padding.x, y);
-    } else if (!layout.isActiveNow && onsetDate) {
-      ctx.fillText(`Starts ${onsetDate.toLocaleString(undefined, formatOpts(onsetDate))}`, L.padding.x, y);
-    }
-    y += L.time.height;
-  }
-
-  y += L.gap;
-
-  // Description
-  if (layout.descLines.length > 0) {
-    ctx.font = L.desc.font;
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
-    ctx.textBaseline = 'top';
-    for (const line of layout.descLines) {
-      ctx.fillText(line, L.padding.x, y);
-      y += L.desc.lineHeight;
-    }
-    y += L.gap;
-  }
-
-  // Instructions
-  if (layout.instructionLines.length > 0) {
-    ctx.font = L.inst.font;
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.75)';
-    ctx.textBaseline = 'top';
-    for (const line of layout.instructionLines) {
-      ctx.fillText(line, L.padding.x, y);
-      y += L.inst.lineHeight;
-    }
-  }
-
-  // Watermark
-  drawWatermark(ctx, width, height, alertData.senderName, timezone);
-}
-
 // Create alert map card with MapLibre background and alert content overlay
 export async function createAlertMapCard(alertData, userLocation, timezone = null) {
   const width = CARD_WIDTH;
@@ -263,7 +106,9 @@ export async function createAlertMapCard(alertData, userLocation, timezone = nul
   tempCanvas.width = width;
   tempCanvas.height = 100;
   const tempCtx = tempCanvas.getContext('2d');
-  const layout = calculateCardHeight(tempCtx, alertData, width, MAP_LAYOUT.TEXT_WIDTH_RATIO);
+  const L = alertLayout;
+  const maxWidth = (width * MAP_LAYOUT.TEXT_WIDTH_RATIO) - L.padding.x * 2;
+  const layout = calculateAlertLayout(tempCtx, alertData, maxWidth);
   const height = layout.height;
 
   // Create card container
@@ -367,8 +212,8 @@ export async function createAlertMapCard(alertData, userLocation, timezone = nul
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, width, height);
 
-    // Draw alert content (constrained to left portion)
-    drawAlertContent(ctx, width, height, alertData, layout, timezone, MAP_LAYOUT.TEXT_WIDTH_RATIO);
+    // Draw alert content (text already wrapped for narrower width)
+    drawAlertContent(ctx, width, height, alertData, layout, timezone);
   };
 
   // Wait for DOM connection before initializing map

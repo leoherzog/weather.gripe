@@ -8,10 +8,31 @@ import { renderDayForecast } from './day-forecast.js';
 import { renderForecastGraph } from './forecast-graph.js';
 import { renderHourlyForecast } from './hourly-forecast.js';
 import { renderAlert } from './alert.js';
-import { createAlertMapCard } from './alert-map.js';
 import { renderDetailedForecast } from './detailed.js';
-import { createRadarCard, renderRadarUnavailable, renderRadarError } from './radar.js';
 import { shareCard, downloadCard, createCardActions, createCardContainer } from './share.js';
+
+// Lazy-loaded map card modules (keeps maplibre-gl out of main bundle)
+// These are only loaded when a user actually views a radar or alert-map card
+
+async function createAlertMapCard(...args) {
+  const { createAlertMapCard: create } = await import('./alert-map.js');
+  return create(...args);
+}
+
+async function createRadarCard(...args) {
+  const { createRadarCard: create } = await import('./radar.js');
+  return create(...args);
+}
+
+async function renderRadarUnavailable(...args) {
+  const { renderRadarUnavailable: render } = await import('./radar.js');
+  return render(...args);
+}
+
+async function renderRadarError(...args) {
+  const { renderRadarError: render } = await import('./radar.js');
+  return render(...args);
+}
 
 // WeatherCards API - maintains backward compatibility with the original global object
 export const WeatherCards = {

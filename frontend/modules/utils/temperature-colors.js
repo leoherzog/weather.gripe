@@ -1,6 +1,26 @@
 // Temperature-based color system using Chroma.js
 // Based on windy.com temperature scale
 
+// Animation constants
+const DEFAULT_TRANSITION_DURATION_MS = 300;
+const EASE_OUT_EXPONENT = 3; // Cubic ease-out
+
+// Temperature and color constants
+const INITIAL_TEMP_F = 70; // Gold color temperature
+const GRADIENT_RANGE_F = 5; // ±5°F from current temperature
+const FALLBACK_COLOR = 'gold';
+const FALLBACK_HEX = '#ffd700';
+
+// Accessibility constants (WCAG)
+const WCAG_AAA_CONTRAST_RATIO = 7;
+const WCAG_AAA_LARGE_TEXT_RATIO = 4.5;
+const DARK_TEXT_COLOR = '#1a1a1a';
+
+// Color adjustment constants
+const BRIGHTEN_AMOUNT = 0.5;
+const DARKEN_AMOUNT = 0.5;
+const ALPHA_AMOUNT = 0.2;
+
 let chroma = null;
 
 // Dynamically load chroma-js
@@ -48,21 +68,21 @@ export const TemperatureColors = {
 
     // Set initial color to gold (70°F on the temperature scale)
     // This ensures both primary color and gradient start at the same gold
-    this.currentTempF = 70;
-    this.setColor('gold');
-    this.setButtonGradient(70);
+    this.currentTempF = INITIAL_TEMP_F;
+    this.setColor(FALLBACK_COLOR);
+    this.setButtonGradient(INITIAL_TEMP_F);
   },
 
   // Get color for a temperature (in Fahrenheit)
   getColor(tempF) {
-    if (!this.scale) return this.chroma?.('gold') || null;
+    if (!this.scale) return this.chroma?.(FALLBACK_COLOR) || null;
     return this.scale(tempF);
   },
 
   // Get hex color for a temperature
   getHex(tempF) {
     const color = this.getColor(tempF);
-    return color ? color.hex() : '#ffd700';
+    return color ? color.hex() : FALLBACK_HEX;
   },
 
   // Set the primary color (can be a color name, hex, or chroma color)
@@ -91,15 +111,15 @@ export const TemperatureColors = {
     }
 
     // Lighter variant (for hover states)
-    const lighter = color.brighten(0.5);
+    const lighter = color.brighten(BRIGHTEN_AMOUNT);
     root.style.setProperty('--color-primary-light', lighter.css('lab'));
 
     // Darker variant
-    const darker = color.darken(0.5);
+    const darker = color.darken(DARKEN_AMOUNT);
     root.style.setProperty('--color-primary-dark', darker.css('lab'));
 
     // Very light (for backgrounds)
-    const veryLight = color.alpha(0.2);
+    const veryLight = color.alpha(ALPHA_AMOUNT);
     root.style.setProperty('--color-primary-alpha', veryLight.css('lab'));
 
     // Map to Web Awesome brand tokens
@@ -114,8 +134,8 @@ export const TemperatureColors = {
   setButtonGradient(tempF, skipTextColor = false) {
     if (!this.chroma) return;
     const root = document.documentElement;
-    const tempLow = tempF - 5;
-    const tempHigh = tempF + 5;
+    const tempLow = tempF - GRADIENT_RANGE_F;
+    const tempHigh = tempF + GRADIENT_RANGE_F;
 
     const colorLowChroma = this.getColor(tempLow);
     const colorHighChroma = this.getColor(tempHigh);
@@ -137,13 +157,13 @@ export const TemperatureColors = {
   },
 
   // Animate transition from current color to temperature color
-  transitionToTemperature(tempF, duration = 300) {
+  transitionToTemperature(tempF, duration = DEFAULT_TRANSITION_DURATION_MS) {
     if (!this.scale || !this.chroma) return;
 
-    const startColor = this.currentColor || this.chroma('gold');
+    const startColor = this.currentColor || this.chroma(FALLBACK_COLOR);
     const endColor = this.getColor(tempF);
-    // Track starting temperature for gradient interpolation (estimate from color, or use 70°F for gold)
-    const startTempF = this.currentTempF ?? 70;
+    // Track starting temperature for gradient interpolation (estimate from color, or use initial temp for gold)
+    const startTempF = this.currentTempF ?? INITIAL_TEMP_F;
     const startTime = performance.now();
 
     // Cancel any existing transition
@@ -165,7 +185,7 @@ export const TemperatureColors = {
       const progress = Math.min(elapsed / duration, 1);
 
       // Ease out cubic
-      const eased = 1 - Math.pow(1 - progress, 3);
+      const eased = 1 - Math.pow(1 - progress, EASE_OUT_EXPONENT);
 
       // Interpolate between colors in lab space (skip text color recalculation)
       const interpolated = this.chroma.mix(startColor, endColor, eased, 'lab');
@@ -190,11 +210,11 @@ export const TemperatureColors = {
 
   // Get contrasting text color (white or black) for a background
   // Returns the color that meets the target contrast ratio, preferring white
-  getContrastingText(bgColor, targetRatio = 7) {
+  getContrastingText(bgColor, targetRatio = WCAG_AAA_CONTRAST_RATIO) {
     if (!this.chroma) return { color: { css: () => 'white' }, contrast: 21 };
     const bg = this.chroma(bgColor);
     const white = this.chroma('white');
-    const black = this.chroma('#1a1a1a');
+    const black = this.chroma(DARK_TEXT_COLOR);
 
     const whiteContrast = this.chroma.contrast(bg, white);
     const blackContrast = this.chroma.contrast(bg, black);
@@ -214,9 +234,9 @@ export const TemperatureColors = {
 
   // Check if a color combination meets WCAG AAA
   meetsAAA(bgColor, textColor, isLargeText = false) {
-    if (!this.chroma) return { passes: true, ratio: 21, required: 7 };
+    if (!this.chroma) return { passes: true, ratio: 21, required: WCAG_AAA_CONTRAST_RATIO };
     const ratio = this.chroma.contrast(bgColor, textColor);
-    const required = isLargeText ? 4.5 : 7;
+    const required = isLargeText ? WCAG_AAA_LARGE_TEXT_RATIO : WCAG_AAA_CONTRAST_RATIO;
     return { passes: ratio >= required, ratio, required };
   },
 

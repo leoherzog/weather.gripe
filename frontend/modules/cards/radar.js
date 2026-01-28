@@ -5,6 +5,42 @@ import { createCardContainer, createCardActions, shareCard, downloadCard } from 
 import { ensureMapLibre, waitForDOMConnection, exportMapToCanvas } from '../utils/map-utils.js';
 import { attachLightboxHandler } from '../ui/lightbox.js';
 
+// Layout constants
+const HEADER_HEIGHT = 70;
+const HEADER_PADDING = 24;
+const HEADER_BG_OPACITY = 0.7;
+const TITLE_FONT_SIZE = 36;
+const TIMESTAMP_FONT_SIZE = 24;
+const TIMESTAMP_TEXT_OPACITY = 0.8;
+
+const LEGEND_WIDTH = 200;
+const LEGEND_HEIGHT = 20;
+const LEGEND_BOTTOM_OFFSET = 60;
+const LEGEND_BG_OPACITY = 0.6;
+const LEGEND_PADDING_X = 10;
+const LEGEND_PADDING_Y_TOP = 25;
+const LEGEND_PADDING_Y_BOTTOM = 45;
+const LEGEND_LABEL_FONT_SIZE = 14;
+const LEGEND_LABEL_OFFSET_TOP = 20;
+const LEGEND_LABEL_OFFSET_BOTTOM = 4;
+const LEGEND_BORDER_OPACITY = 0.5;
+
+const MARKER_DEFAULT_SIZE = 24;
+const MARKER_LARGE_SIZE = 32;
+const MARKER_COLOR = '#ef4444';
+const MARKER_GLOW_COLOR = 'white';
+const MARKER_GLOW_BLUR = 4;
+
+const UNAVAILABLE_MESSAGE_FONT_SIZE = 36;
+const UNAVAILABLE_SUBMESSAGE_FONT_SIZE = 24;
+const UNAVAILABLE_MESSAGE_OFFSET_Y = 20;
+const UNAVAILABLE_SUBMESSAGE_OFFSET_Y = 30;
+const UNAVAILABLE_TEXT_OPACITY = 0.7;
+const UNAVAILABLE_SUBTEXT_OPACITY = 0.5;
+
+// Web Mercator projection constant (Earth's circumference / 2 in meters)
+const WEB_MERCATOR_EXTENT = 20037508.34;
+
 // Radar dBZ color scale (reflectivity values and colors)
 const radarColors = [
   { dbz: 5, color: '#04e9e7' },   // Light cyan
@@ -24,84 +60,85 @@ const radarColors = [
 ];
 
 // Draw location marker (red pin with white glow)
-function drawLocationMarker(ctx, x, y, size = 24) {
+function drawLocationMarker(ctx, x, y, size = MARKER_DEFAULT_SIZE) {
   ctx.save();
-  ctx.shadowColor = 'white';
-  ctx.shadowBlur = 4;
-  drawWeatherIcon(ctx, 'fa-location-dot', x, y - size / 2, size, '#ef4444');
+  ctx.shadowColor = MARKER_GLOW_COLOR;
+  ctx.shadowBlur = MARKER_GLOW_BLUR;
+  drawWeatherIcon(ctx, 'fa-location-dot', x, y - size / 2, size, MARKER_COLOR);
   ctx.restore();
 }
 
 // Draw radar header bar
 // timezone: IANA timezone string for displaying location's local time
 function drawRadarHeader(ctx, width, radarData, locationName, timezone = null) {
-  const headerHeight = 70;
-
   // Semi-transparent header background
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-  ctx.fillRect(0, 0, width, headerHeight);
+  ctx.fillStyle = `rgba(0, 0, 0, ${HEADER_BG_OPACITY})`;
+  ctx.fillRect(0, 0, width, HEADER_HEIGHT);
 
   // Title (left side)
   ctx.fillStyle = 'white';
-  ctx.font = 'bold 36px system-ui, sans-serif';
+  ctx.font = `bold ${TITLE_FONT_SIZE}px system-ui, sans-serif`;
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
   const title = locationName || 'Radar';
-  ctx.fillText(title, 24, headerHeight / 2);
+  ctx.fillText(title, HEADER_PADDING, HEADER_HEIGHT / 2);
 
   // Timestamp (right side) - use location's timezone if provided
   if (radarData?.timestamp) {
-    ctx.font = '24px system-ui, sans-serif';
+    ctx.font = `${TIMESTAMP_FONT_SIZE}px system-ui, sans-serif`;
     ctx.textAlign = 'right';
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+    ctx.fillStyle = `rgba(255, 255, 255, ${TIMESTAMP_TEXT_OPACITY})`;
     const date = new Date(radarData.timestamp);
     const timeOpts = { hour: 'numeric', minute: '2-digit' };
     if (timezone) timeOpts.timeZone = timezone;
     const timeStr = date.toLocaleTimeString(undefined, timeOpts);
-    ctx.fillText(`Updated: ${timeStr}`, width - 24, headerHeight / 2);
+    ctx.fillText(`Updated: ${timeStr}`, width - HEADER_PADDING, HEADER_HEIGHT / 2);
   }
 }
 
 // Draw radar legend (dBZ color scale)
 function drawRadarLegend(ctx, width, height) {
-  const legendWidth = 200;
-  const legendHeight = 20;
-  const legendX = width - legendWidth - 24;
-  const legendY = height - 60;
+  const legendX = width - LEGEND_WIDTH - HEADER_PADDING;
+  const legendY = height - LEGEND_BOTTOM_OFFSET;
 
   // Background for legend
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
-  ctx.fillRect(legendX - 10, legendY - 25, legendWidth + 20, legendHeight + 45);
+  ctx.fillStyle = `rgba(0, 0, 0, ${LEGEND_BG_OPACITY})`;
+  ctx.fillRect(
+    legendX - LEGEND_PADDING_X,
+    legendY - LEGEND_PADDING_Y_TOP,
+    LEGEND_WIDTH + LEGEND_PADDING_X * 2,
+    LEGEND_HEIGHT + LEGEND_PADDING_Y_BOTTOM
+  );
 
   // Draw color gradient
-  const segmentWidth = legendWidth / radarColors.length;
+  const segmentWidth = LEGEND_WIDTH / radarColors.length;
   for (let i = 0; i < radarColors.length; i++) {
     ctx.fillStyle = radarColors[i].color;
-    ctx.fillRect(legendX + i * segmentWidth, legendY, segmentWidth + 1, legendHeight);
+    ctx.fillRect(legendX + i * segmentWidth, legendY, segmentWidth + 1, LEGEND_HEIGHT);
   }
 
   // Border
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+  ctx.strokeStyle = `rgba(255, 255, 255, ${LEGEND_BORDER_OPACITY})`;
   ctx.lineWidth = 1;
-  ctx.strokeRect(legendX, legendY, legendWidth, legendHeight);
+  ctx.strokeRect(legendX, legendY, LEGEND_WIDTH, LEGEND_HEIGHT);
 
   // Labels
   ctx.fillStyle = 'white';
-  ctx.font = '14px system-ui, sans-serif';
+  ctx.font = `${LEGEND_LABEL_FONT_SIZE}px system-ui, sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
-  ctx.fillText('dBZ', legendX + legendWidth / 2, legendY - 20);
+  ctx.fillText('dBZ', legendX + LEGEND_WIDTH / 2, legendY - LEGEND_LABEL_OFFSET_TOP);
   ctx.textBaseline = 'top';
   ctx.textAlign = 'left';
-  ctx.fillText('5', legendX, legendY + legendHeight + 4);
+  ctx.fillText('5', legendX, legendY + LEGEND_HEIGHT + LEGEND_LABEL_OFFSET_BOTTOM);
   ctx.textAlign = 'right';
-  ctx.fillText('70+', legendX + legendWidth, legendY + legendHeight + 4);
+  ctx.fillText('70+', legendX + LEGEND_WIDTH, legendY + LEGEND_HEIGHT + LEGEND_LABEL_OFFSET_BOTTOM);
 }
 
 // Convert Web Mercator (EPSG:3857) coordinates to lat/lon
 function webMercatorToLatLon(x, y) {
-  const lon = (x / 20037508.34) * 180;
-  let lat = (y / 20037508.34) * 180;
+  const lon = (x / WEB_MERCATOR_EXTENT) * 180;
+  let lat = (y / WEB_MERCATOR_EXTENT) * 180;
   lat = (180 / Math.PI) * (2 * Math.atan(Math.exp(lat * Math.PI / 180)) - Math.PI / 2);
   return { lat, lon };
 }
@@ -215,7 +252,7 @@ export async function createRadarCard(radarData, locationName, timezone = null) 
     // Draw overlay elements once map is fully loaded and positioned
     const ctx = overlay.getContext('2d');
     map.once('idle', () => {
-      drawLocationMarker(ctx, width / 2, height / 2, 32);
+      drawLocationMarker(ctx, width / 2, height / 2, MARKER_LARGE_SIZE);
       drawRadarHeader(ctx, width, radarData, locationName, timezone);
       // drawRadarLegend(ctx, width, height);
       drawWatermark(ctx, width, height, 'NOAA', timezone);
@@ -273,14 +310,14 @@ export function renderRadarUnavailable(canvas, locationName, timezone = null) {
   drawRadarHeader(ctx, width, null, locationName, timezone);
 
   // Message
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-  ctx.font = '36px system-ui, sans-serif';
+  ctx.fillStyle = `rgba(255, 255, 255, ${UNAVAILABLE_TEXT_OPACITY})`;
+  ctx.font = `${UNAVAILABLE_MESSAGE_FONT_SIZE}px system-ui, sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('Radar not available for this location', width / 2, height / 2 - 20);
-  ctx.font = '24px system-ui, sans-serif';
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
-  ctx.fillText('NOAA radar coverage is limited to US territories', width / 2, height / 2 + 30);
+  ctx.fillText('Radar not available for this location', width / 2, height / 2 - UNAVAILABLE_MESSAGE_OFFSET_Y);
+  ctx.font = `${UNAVAILABLE_SUBMESSAGE_FONT_SIZE}px system-ui, sans-serif`;
+  ctx.fillStyle = `rgba(255, 255, 255, ${UNAVAILABLE_SUBTEXT_OPACITY})`;
+  ctx.fillText('NOAA radar coverage is limited to US territories', width / 2, height / 2 + UNAVAILABLE_SUBMESSAGE_OFFSET_Y);
 
   // Watermark
   drawWatermark(ctx, width, height, null, timezone);
@@ -300,8 +337,8 @@ export function renderRadarError(canvas, message, timezone = null) {
   drawFallbackBackground(ctx, width, height);
 
   // Error message
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-  ctx.font = '36px system-ui, sans-serif';
+  ctx.fillStyle = `rgba(255, 255, 255, ${UNAVAILABLE_TEXT_OPACITY})`;
+  ctx.font = `${UNAVAILABLE_MESSAGE_FONT_SIZE}px system-ui, sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(message || 'Radar temporarily unavailable', width / 2, height / 2);
