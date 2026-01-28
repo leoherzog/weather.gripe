@@ -42,11 +42,12 @@ export async function renderDayForecast(canvas, weatherData, timezone = null) {
   };
 
   // Three columns: adjust based on time of day
+  // Use dayForecast/nightForecast conditions when available for accurate icons
   const columns = isNightMode ? [
     {
       label: 'Tonight',
       low: daily[0]?.low,
-      condition: daily[0]?.condition,
+      condition: daily[0]?.nightForecast?.condition || daily[0]?.condition,
       precipitation: daily[0]?.precipitation,
       showHigh: false,
       showLow: true,
@@ -56,7 +57,7 @@ export async function renderDayForecast(canvas, weatherData, timezone = null) {
       label: 'Tomorrow',
       high: daily[1]?.high,
       low: daily[1]?.low,
-      condition: daily[1]?.condition,
+      condition: daily[1]?.dayForecast?.condition || daily[1]?.condition,
       precipitation: daily[1]?.precipitation,
       showHigh: true,
       showLow: true
@@ -64,7 +65,7 @@ export async function renderDayForecast(canvas, weatherData, timezone = null) {
     {
       label: 'Tomorrow Night',
       low: daily[1]?.low,
-      condition: daily[1]?.condition,
+      condition: daily[1]?.nightForecast?.condition || daily[1]?.condition,
       precipitation: daily[1]?.precipitation,
       showHigh: false,
       showLow: true,
@@ -75,7 +76,7 @@ export async function renderDayForecast(canvas, weatherData, timezone = null) {
       label: 'Today',
       high: daily[0]?.high,
       low: daily[0]?.low,
-      condition: daily[0]?.condition,
+      condition: daily[0]?.dayForecast?.condition || daily[0]?.condition,
       precipitation: daily[0]?.precipitation,
       showHigh: true,
       showLow: true
@@ -83,7 +84,7 @@ export async function renderDayForecast(canvas, weatherData, timezone = null) {
     {
       label: 'Tonight',
       low: daily[0]?.low,
-      condition: daily[0]?.condition,
+      condition: daily[0]?.nightForecast?.condition || daily[0]?.condition,
       precipitation: daily[0]?.precipitation,
       showHigh: false,
       showLow: true,
@@ -93,7 +94,7 @@ export async function renderDayForecast(canvas, weatherData, timezone = null) {
       label: 'Tomorrow',
       high: daily[1]?.high,
       low: daily[1]?.low,
-      condition: daily[1]?.condition,
+      condition: daily[1]?.dayForecast?.condition || daily[1]?.condition,
       precipitation: daily[1]?.precipitation,
       showHigh: true,
       showLow: true

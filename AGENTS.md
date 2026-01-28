@@ -133,13 +133,28 @@ Multi-layer caching using Cloudflare Cache API:
 - Alerts fetched in parallel with weather data
 - All independent fetches parallelized with `Promise.all`
 
-### Frontend (Static Assets in `public/`)
+### Frontend (Vite-bundled modules in `frontend/`)
 
-- **`app.js`** - Main application state and UI orchestration (search, geolocation, location persistence)
-- **`weather-cards.js`** - Weather card renderers (`WeatherCards` object) with share/download functionality. Uses Font Awesome icon definitions imported at build time for canvas drawing. Includes detailed text forecast cards for NWS data. Radar card uses embedded MapLibre GL JS map with canvas overlay for UI elements.
-- **`temperature-colors.js`** - Dynamic color system based on windy.com temperature scale (`TemperatureColors` object). See Temperature Color System below.
-- **`units.js`** - Unit conversion utilities (`Units` object). API returns metric (Celsius, km/h); all conversions to imperial happen client-side. Handles `-0` edge case in temperature formatting.
-- **`style.css`** - Custom layout utilities and temperature theming CSS. Uses Web Awesome design tokens (`--wa-*` custom properties).
+- **`modules/app/`** - Application orchestration
+  - `index.js` - Main app state, initialization, geolocation
+  - `card-renderer.js` - Renders all weather cards, handles render cancellation for rapid location changes
+  - `location.js` - Location management (Cloudflare detection → browser geolocation upgrade)
+  - `weather-loader.js` - API calls and data loading
+- **`modules/cards/`** - Weather card renderers (`WeatherCards` facade)
+  - `index.js` - Public API with lazy-loading wrappers for map-based cards
+  - `alert.js` / `alert-map.js` - Alert cards (text-only and map-overlay variants)
+  - `alert-renderer.js` - Shared alert drawing utilities (colors, layout, text/icon rendering)
+  - `radar.js` - Radar card with embedded MapLibre map
+  - `core.js` - Shared canvas utilities (watermark, icons, text wrapping)
+- **`modules/utils/`** - Shared utilities
+  - `temperature-colors.js` - Dynamic color system based on windy.com scale
+  - `map-utils.js` - MapLibre lazy-loading and utilities
+  - `units.js` - Unit conversion (API returns metric; imperial conversion client-side)
+- **`public/style.css`** - Custom layout utilities and temperature theming CSS
+
+**Lazy-Loading Strategy:** Map-based cards (`radar.js`, `alert-map.js`) are dynamically imported via wrappers in `cards/index.js`. This keeps MapLibre GL JS (~200KB) out of the main bundle—users who never view a radar card don't download map code.
+
+**Render Cancellation:** When location updates rapidly (e.g., Cloudflare location followed by browser geolocation), `card-renderer.js` tracks render versions. Stale renders are discarded before appending cards, preventing mixed-location UI states.
 
 ### Default Units Injection
 

@@ -62,7 +62,7 @@ function getHourlyIcon(condition, time, daily, timezone) {
 
 // Create Hourly Forecast Card with temperature line graph
 // timezone: IANA timezone string for displaying location's local time
-export async function renderHourlyForecast(canvas, weatherData, timezone = null) {
+export async function renderHourlyForecast(canvas, weatherData, cityName = '', timezone = null) {
   const ctx = canvas.getContext('2d');
   const width = CARD_WIDTH;
   const height = 500;
@@ -95,7 +95,7 @@ export async function renderHourlyForecast(canvas, weatherData, timezone = null)
   ctx.font = 'bold 48px system-ui, sans-serif';
   ctx.textAlign = 'left';
   ctx.textBaseline = 'top';
-  ctx.fillText('Next 24 Hours', padding.left - 10, 30);
+  ctx.fillText(cityName || 'Hourly Forecast', padding.left - 10, 30);
 
   // Get temperature range
   const temps = hours.map(h => h.temperature);

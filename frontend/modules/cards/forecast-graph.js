@@ -118,7 +118,8 @@ export async function renderForecastGraph(canvas, weatherData, locationName = '5
     const todayOpts = timezone ? { timeZone: timezone } : {};
     const todayStr = new Date().toLocaleDateString('en-CA', todayOpts); // YYYY-MM-DD format
     const date = new Date(p.day.date + 'T00:00:00');
-    const dayName = p.day.date === todayStr ? 'Today' : date.toLocaleDateString('en-US', { weekday: 'short' });
+    const weekdayOpts = timezone ? { weekday: 'short', timeZone: timezone } : { weekday: 'short' };
+    const dayName = p.day.date === todayStr ? 'Today' : date.toLocaleDateString('en-US', weekdayOpts);
 
     ctx.fillStyle = 'white';
     ctx.font = '32px system-ui, sans-serif';

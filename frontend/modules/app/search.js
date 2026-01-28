@@ -132,7 +132,12 @@ export function createSearchManager(app) {
 
         const wxStoryPromise = app.weatherLoader.fetchWxStory(data.location.nwsOffice);
 
-        localStorage.setItem('lastLocation', JSON.stringify(app.currentLocation));
+        try {
+          localStorage.setItem('lastLocation', JSON.stringify(app.currentLocation));
+        } catch (e) {
+          // localStorage may throw in Safari private mode or hardened contexts
+          console.warn('Failed to save location to localStorage:', e);
+        }
         combobox.value = '';
 
         app.isManualLocation = true;

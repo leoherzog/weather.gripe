@@ -1701,6 +1701,11 @@ async function handleRadarTile(request, env, ctx) {
     return jsonResponse({ error: 'Invalid radar region' }, 400);
   }
 
+  // Validate layer matches the configured layer for this region
+  if (layer !== NOAA_RADAR_CONFIG[region].layer) {
+    return jsonResponse({ error: 'Invalid layer for region' }, 400);
+  }
+
   // Build the NOAA WMS URL server-side
   const wmsParams = new URLSearchParams({
     service: 'WMS',

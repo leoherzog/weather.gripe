@@ -5,16 +5,28 @@ import { TemperatureColors } from '../utils/temperature-colors.js';
 
 // Create weather loader with dependency injection
 export function createWeatherLoader(app) {
+  // Request versioning to prevent race conditions
+  let currentRequestVersion = 0;
+
   return {
     // Load weather for a location
     // saveLocation: whether to persist to localStorage (false for auto-detected)
     async loadWeather(lat, lon, name = null, saveLocation = true) {
+      // Increment version to track this request
+      const thisRequest = ++currentRequestVersion;
       app.showLoading();
 
       try {
         const response = await fetch(`/api/location?lat=${lat}&lon=${lon}`);
+
+        // Check if a newer request has started - if so, abandon this one
+        if (thisRequest !== currentRequestVersion) return;
+
         if (!response.ok) throw new Error('Failed to load weather');
         const data = await response.json();
+
+        // Check again after parsing JSON
+        if (thisRequest !== currentRequestVersion) return;
 
         // Use city name from API for display
         const cityName = data.location.name;
@@ -37,7 +49,12 @@ export function createWeatherLoader(app) {
 
         // Save to local storage only for manual location selections
         if (saveLocation) {
-          localStorage.setItem('lastLocation', JSON.stringify(app.currentLocation));
+          try {
+            localStorage.setItem('lastLocation', JSON.stringify(app.currentLocation));
+          } catch (e) {
+            // localStorage may throw in Safari private mode or hardened contexts
+            console.warn('Failed to save location to localStorage:', e);
+          }
         }
 
         // Update location display with current conditions
@@ -48,6 +65,10 @@ export function createWeatherLoader(app) {
 
         // Wait for wxstory and render
         const wxStory = await wxStoryPromise;
+
+        // Final check before rendering
+        if (thisRequest !== currentRequestVersion) return;
+
         app.currentWxStory = wxStory;
 
         // Render weather cards
@@ -55,6 +76,8 @@ export function createWeatherLoader(app) {
 
         app.hideLoading();
       } catch (e) {
+        // Only show error if this is still the current request
+        if (thisRequest !== currentRequestVersion) return;
         console.error('Load weather error:', e);
         app.showError('Failed to load weather data. Please try again.');
       }

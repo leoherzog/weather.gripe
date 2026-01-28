@@ -222,7 +222,7 @@ export function createCardRenderer(app) {
       if (weather.hourly && weather.hourly.length > 0) {
         cardPromises.push((async () => {
           const canvas = document.createElement('canvas');
-          await WeatherCards.renderHourlyForecast(canvas, weather, timezone);
+          await WeatherCards.renderHourlyForecast(canvas, weather, cityName, timezone);
           return { order: 4.5, card: WeatherCards.createCardContainer(canvas, 'hourly') };
         })());
       }

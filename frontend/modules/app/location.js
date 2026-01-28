@@ -5,10 +5,7 @@ export function createLocationManager(app) {
   return {
     // Auto-detect location on pageload
     async autoDetectLocation() {
-      // Start browser geolocation request immediately (prompts user)
-      const browserGeoPromise = this.requestBrowserGeolocation();
-
-      // Check for saved location first
+      // Check for saved location first (before prompting for geolocation)
       const savedLocation = localStorage.getItem('lastLocation');
       if (savedLocation) {
         try {
@@ -23,14 +20,16 @@ export function createLocationManager(app) {
         } catch (e) {
           console.error('Failed to load saved location:', e);
           // Fall through to CF location
-          await this.loadFromCloudflareLocation();
         }
-      } else {
-        // No saved location, use Cloudflare location detection
-        await this.loadFromCloudflareLocation();
       }
 
-      // Wait for browser geolocation result (only if no saved location)
+      // No saved location - start browser geolocation request (prompts user)
+      const browserGeoPromise = this.requestBrowserGeolocation();
+
+      // Use Cloudflare location detection while waiting for browser geolocation
+      await this.loadFromCloudflareLocation();
+
+      // Wait for browser geolocation result
       const browserLocation = await browserGeoPromise;
       if (browserLocation) {
         // Update with more precise browser location (don't save auto-detected)
