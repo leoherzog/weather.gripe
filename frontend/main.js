@@ -11,6 +11,7 @@ import { TemperatureColors } from './modules/utils/temperature-colors.js';
 
 // Unit toggle and app
 import { initUnitToggle } from './modules/ui/unit-toggle.js';
+import { initPWAInstall } from './modules/ui/pwa-install.js';
 import { App } from './modules/app/index.js';
 
 // Initialize app when DOM is ready
@@ -20,6 +21,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Initialize unit toggle UI
   initUnitToggle();
+
+  // Initialize PWA install prompt (shows after first share)
+  initPWAInstall();
 
   // Initialize main app
   await App.init();

@@ -2,6 +2,7 @@
 
 import { WeatherCards } from '../cards/index.js';
 import { attachLightboxHandler } from '../ui/lightbox.js';
+import { notifyShareSuccess } from '../ui/pwa-install.js';
 
 // Create card renderer with dependency injection
 export function createCardRenderer(app) {
@@ -396,6 +397,7 @@ export function createCardRenderer(app) {
           title: `NWS ${office} Weather Story`,
           files: [file]
         });
+        notifyShareSuccess();
       } catch (e) {
         if (e.name !== 'AbortError') {
           console.error('Share failed:', e);

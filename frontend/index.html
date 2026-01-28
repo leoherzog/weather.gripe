@@ -149,6 +149,13 @@
     </small>
   </footer>
 
+  <!-- PWA Install Prompt (controlled via JS, not auto-shown) -->
+  <pwa-install
+    manual-chrome
+    manual-apple
+    install-description="Get instant access to shareable weather cards">
+  </pwa-install>
+
   <script type="module" src="/main.js"></script>
   <script>
     if ('serviceWorker' in navigator) {

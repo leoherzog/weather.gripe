@@ -1,6 +1,7 @@
 // Share/download utilities for weather cards
 
 import { attachLightboxHandler } from '../ui/lightbox.js';
+import { notifyShareSuccess } from '../ui/pwa-install.js';
 
 // Share card using Web Share API
 export async function shareCard(canvas, cardType) {
@@ -20,6 +21,7 @@ export async function shareCard(canvas, cardType) {
     }
 
     await navigator.share(shareData);
+    notifyShareSuccess();
   } catch (e) {
     if (e.name !== 'AbortError') {
       console.error('Share failed:', e);
