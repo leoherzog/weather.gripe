@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Offline - weather.gripe</title>
+  <style>
+    :root {
+      --gold: #ffd700;
+      --bg: #ffffff;
+      --text: #1a1a1a;
+      --text-muted: #666666;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #1a1a1a;
+        --text: #ffffff;
+        --text-muted: #999999;
+      }
+    }
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      text-align: center;
+    }
+    .icon {
+      width: 80px;
+      height: 80px;
+      margin-bottom: 1.5rem;
+    }
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+    p {
+      color: var(--text-muted);
+      margin-bottom: 1.5rem;
+      max-width: 300px;
+    }
+    button {
+      background: var(--gold);
+      color: #1a1a1a;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      font-size: 1rem;
+      font-weight: 600;
+      border-radius: 9999px;
+      cursor: pointer;
+      transition: transform 0.1s, box-shadow 0.1s;
+    }
+    button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3);
+    }
+    button:active {
+      transform: translateY(0);
+    }
+    .brand {
+      position: absolute;
+      bottom: 2rem;
+      color: var(--text-muted);
+      font-size: 0.875rem;
+    }
+  </style>
+</head>
+<body>
+  <svg class="icon" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="40" cy="40" r="36" stroke="#ffd700" stroke-width="4" stroke-dasharray="8 4"/>
+    <path d="M28 32L40 50L52 32" stroke="#ffd700" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="40" cy="26" r="3" fill="#ffd700"/>
+  </svg>
+  <h1>You're offline</h1>
+  <p>Weather data requires an internet connection. Please check your connection and try again.</p>
+  <button onclick="location.reload()">Try Again</button>
+  <span class="brand">weather.gripe</span>
+</body>
+</html>

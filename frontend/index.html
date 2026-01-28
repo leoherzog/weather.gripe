@@ -16,6 +16,18 @@
   <meta property="og:site_name" content="weather.gripe">
   <meta property="og:locale" content="en_US">
 
+  <!-- PWA -->
+  <meta name="theme-color" content="#ffd700">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="weather.gripe">
+  <link rel="manifest" href="/manifest.json">
+
+  <!-- Icons -->
+  <link rel="icon" href="/icons/favicon.ico" sizes="32x32">
+  <link rel="icon" href="/icons/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+
   <script>
     (function() {
       let theme;
@@ -138,5 +150,10 @@
   </footer>
 
   <script type="module" src="/main.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js');
+    }
+  </script>
 </body>
 </html>

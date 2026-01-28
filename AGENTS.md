@@ -147,10 +147,16 @@ Multi-layer caching using Cloudflare Cache API:
   - `radar.js` - Radar card with embedded MapLibre map
   - `core.js` - Shared canvas utilities (watermark, icons, text wrapping)
 - **`modules/utils/`** - Shared utilities
-  - `temperature-colors.js` - Dynamic color system based on windy.com scale
+  - `temperature-colors.js` - Dynamic color system based on windy.com scale, favicon & theme-color updates
   - `map-utils.js` - MapLibre lazy-loading and utilities
   - `units.js` - Unit conversion (API returns metric; imperial conversion client-side)
-- **`public/style.css`** - Custom layout utilities and temperature theming CSS
+- **`static/`** - Static assets copied to build output by Vite (`publicDir: 'static'`)
+  - `manifest.json` - PWA web app manifest
+  - `sw.js` - Service worker (offline fallback)
+  - `offline.html` - Branded offline page
+  - `icons/` - PWA icons (poo-storm icon), favicon
+  - `robots.txt`, `sitemap.xml` - SEO files
+- **`style.css`** - Custom layout utilities and temperature theming CSS
 
 **Lazy-Loading Strategy:** Map-based cards (`radar.js`, `alert-map.js`) are dynamically imported via wrappers in `cards/index.js`. This keeps MapLibre GL JS (~200KB) out of the main bundle—users who never view a radar card don't download map code.
 
@@ -186,21 +192,47 @@ The location search uses `wa-combobox` with dynamically populated options from t
 - **Server-side filtering:** Set `combobox.filter = () => true` to show all options (filtering done by API)
 - **Slots:** Use `slot="start"` for prefix icon (not `slot="prefix"`)
 
+### Progressive Web App (PWA)
+
+The app is installable as a PWA on mobile and desktop.
+
+**Manifest (`static/manifest.json`):**
+- App name: "Shareable Weather Cards", short name: "weather.gripe"
+- Display: standalone
+- Icons: poo-storm (Font Awesome `fa-poo-storm`) at 192px, 512px, maskable variants
+
+**Service Worker (`static/sw.js`):**
+- Minimal offline support - caches only the offline fallback page
+- Network-first for all requests; shows `offline.html` when offline
+- Weather data intentionally not cached (must be fresh)
+
+**Dynamic Favicon & Theme Color:**
+- Browser tab icon updates to match current temperature color
+- Uses `--color-primary-dark` in light mode, `--color-primary-light` in dark mode for visibility
+- `<meta name="theme-color">` updates to match temperature (affects mobile browser chrome)
+- Responds to system dark mode changes via `matchMedia` listener
+
+**Icon Generation (`scripts/generate-icons.js`):**
+- Generates PNG icons from Font Awesome poo-storm SVG paths
+- Uses Sharp for SVG-to-PNG conversion
+- Run with `node scripts/generate-icons.js`
+
 ### Temperature Color System
 
 The app's primary color dynamically changes based on current temperature using the windy.com color scale.
 
 **How it works:**
-- On page load, primary color starts as `gold`
-- When weather data loads, color animates to the temperature-based color over 1.5s
+- On page load, primary color starts as `gold` (70°F)
+- When weather data loads, color animates to the temperature-based color
 - Uses Chroma.js v3 with `lab` interpolation for perceptually uniform colors
 - Outputs CSS `lab()` color functions for browser-native color space support
 - Button gradients span ±5°F from current temperature, interpolated `in lab`
+- Favicon and theme-color meta tag update during color transitions
 
 **CSS Custom Properties** (set dynamically by `temperature-colors.js`):
 - `--color-primary` - Current temperature color
 - `--color-primary-text` - AAA-accessible text color (white or dark)
-- `--color-primary-light` / `--color-primary-dark` - Lighter/darker variants
+- `--color-primary-light` / `--color-primary-dark` - Lighter/darker variants (also used for favicon)
 - `--color-primary-alpha` - 20% opacity version for hover states
 - `--button-gradient` - Linear gradient for buttons (±5°F range)
 - `--gradient-text` - AAA-accessible text color for gradient backgrounds
@@ -234,6 +266,7 @@ The app's primary color dynamically changes based on current temperature using t
 
 ### Configuration
 
+- `vite.config.js` - Vite build config (`root: 'frontend'`, `publicDir: 'static'`, `outDir: '../public'`)
 - `wrangler.toml` - Worker configuration, points to `src/index.js` as entry point
 - `.dev.vars` - Local environment secrets (UNSPLASH_ACCESS_KEY, FONTAWESOME_NPM_TOKEN, WEBAWESOME_NPM_TOKEN)
 - `.npmrc` - Private npm registry configuration for `@fortawesome` and `@awesome.me` scoped packages
