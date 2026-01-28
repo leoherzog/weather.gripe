@@ -174,7 +174,23 @@ Injected as `<script>window.__defaultUnits="imperial";</script>` in `<head>`. Us
 
 The frontend uses [Web Awesome](https://webawesome.com), a web component library. Components use `wa-` prefixed custom elements (e.g., `wa-button`, `wa-card`, `wa-combobox`).
 
-**Font Awesome Icons:** Icons are imported at build time from `@fortawesome/pro-solid-svg-icons` (not via Kit CDN). The `frontend/modules/ui/icons.js` module registers icons with Web Awesome via `registerIconLibrary()` and exports `getIconData()` for canvas rendering.
+**Font Awesome Icons:** Icons are imported at build time from npm packages (not via Kit CDN). The `frontend/modules/ui/icons.js` module handles icon registration and exports.
+
+**Icon Libraries:**
+- `@fortawesome/pro-solid-svg-icons` - Solid icons for UI elements
+- `@fortawesome/pro-duotone-svg-icons` - Duotone icons (poo-storm logo)
+
+**Registered Libraries:**
+- `'default'` - Solid icons, used as `<wa-icon name="cloud-sun">`
+- `'duotone'` - Duotone icons, used as `<wa-icon library="duotone" name="poo-storm">`
+
+**Duotone Implementation:** Duotone icons have two paths (secondary at 40% opacity, primary at 100%). The mutator adds `data-duotone-primary` and `data-duotone-secondary` attributes for Web Awesome CSS custom property support (`--primary-color`, `--secondary-color`, `--primary-opacity`, `--secondary-opacity`).
+
+**Exports:**
+- `getIconData(name)` - Returns `{ width, height, paths }` for canvas rendering
+- `getDuotoneIconData(name)` - Returns `{ width, height, secondaryPath, primaryPath }` for favicon generation
+
+**Header Logo:** The poo-storm duotone icon in the header uses temperature-based coloring via `.header-logo-icon` class. Uses `--color-primary-dark` in light mode, `--color-primary-light` in dark mode for visibility against the background.
 
 **Dark Mode:** Uses `wa-dark` class on `<html>` element. Toggle persists to `localStorage.theme`.
 
@@ -208,6 +224,7 @@ The app is installable as a PWA on mobile and desktop.
 
 **Dynamic Favicon & Theme Color:**
 - Browser tab icon updates to match current temperature color
+- Favicon SVG generated using `getDuotoneIconData('poo-storm')` from `icons.js` (single source of truth)
 - Uses `--color-primary-dark` in light mode, `--color-primary-light` in dark mode for visibility
 - `<meta name="theme-color">` updates to match temperature (affects mobile browser chrome)
 - Responds to system dark mode changes via `matchMedia` listener
@@ -252,7 +269,7 @@ The app's primary color dynamically changes based on current temperature using t
 
 **Frontend (npm, bundled via Vite):**
 - `@awesome.me/webawesome-pro` - Web Awesome UI components
-- `@fortawesome/fontawesome-svg-core` + `@fortawesome/pro-solid-svg-icons` - Font Awesome icons (build-time imports, tree-shaken)
+- `@fortawesome/fontawesome-svg-core` + `@fortawesome/pro-solid-svg-icons` + `@fortawesome/pro-duotone-svg-icons` - Font Awesome icons (build-time imports, tree-shaken)
 - `maplibre-gl` - WebGL map rendering for radar card
 - `chroma-js` - Color manipulation for temperature colors
 

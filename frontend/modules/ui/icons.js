@@ -30,6 +30,11 @@ import {
   faTriangleExclamation
 } from '@fortawesome/pro-solid-svg-icons';
 
+// Duotone icons (have two paths: secondary at 40% opacity, primary at 100%)
+import {
+  faPooStorm as faPooStormDuotone
+} from '@fortawesome/pro-duotone-svg-icons';
+
 // Add all icons to Font Awesome library
 library.add(
   faArrowDown,
@@ -101,6 +106,41 @@ registerIconLibrary('default', {
   mutator: (svg) => svg.setAttribute('fill', 'currentColor')
 });
 
+// Duotone icon definitions (two-tone icons with secondary layer at 40% opacity)
+const duotoneDefinitions = {
+  'poo-storm': faPooStormDuotone
+};
+
+// Register duotone icon library
+// Duotone icons have svgPathData as [secondaryPath, primaryPath]
+registerIconLibrary('duotone', {
+  resolver: (name) => {
+    const def = duotoneDefinitions[name];
+    if (!def) {
+      console.warn(`Duotone icon not found: ${name}`);
+      return '';
+    }
+    const [width, height, , , pathData] = def.icon;
+    // Duotone icons have two paths: [secondary, primary]
+    const [secondaryPath, primaryPath] = Array.isArray(pathData) ? pathData : [pathData, ''];
+    // Return SVG with two paths - secondary has opacity attribute so mutator can identify it
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}">
+      <path opacity="0.4" d="${secondaryPath}"/>
+      <path d="${primaryPath}"/>
+    </svg>`;
+    return `data:image/svg+xml,${encodeURIComponent(svg)}`;
+  },
+  mutator: (svg) => {
+    svg.setAttribute('fill', 'currentColor');
+    // Add data attributes for Web Awesome CSS custom property support
+    const paths = [...svg.querySelectorAll('path')];
+    const primaryPath = paths.find(p => !p.hasAttribute('opacity'));
+    const secondaryPath = paths.find(p => p.hasAttribute('opacity'));
+    if (primaryPath) primaryPath.setAttribute('data-duotone-primary', '');
+    if (secondaryPath) secondaryPath.setAttribute('data-duotone-secondary', '');
+  }
+});
+
 /**
  * Get icon data for canvas rendering
  * @param {string} name - Icon name in kebab-case (e.g., 'cloud-sun')
@@ -118,6 +158,25 @@ export function getIconData(name) {
   const paths = Array.isArray(pathData) ? pathData : [pathData];
 
   return { width, height, paths };
+}
+
+/**
+ * Get duotone icon data (for favicon generation, etc.)
+ * @param {string} name - Icon name in kebab-case (e.g., 'poo-storm')
+ * @returns {{ width: number, height: number, secondaryPath: string, primaryPath: string } | null}
+ */
+export function getDuotoneIconData(name) {
+  const def = duotoneDefinitions[name];
+  if (!def) {
+    console.warn(`Duotone icon not found: ${name}`);
+    return null;
+  }
+
+  // Font Awesome duotone structure: [width, height, ligatures, unicode, [secondaryPath, primaryPath]]
+  const [width, height, , , pathData] = def.icon;
+  const [secondaryPath, primaryPath] = Array.isArray(pathData) ? pathData : [pathData, ''];
+
+  return { width, height, secondaryPath, primaryPath };
 }
 
 /**

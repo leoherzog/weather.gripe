@@ -1,7 +1,55 @@
 /* Layout utilities */
 .flex { display: flex; }
 .flex-1 { flex: 1 1 0%; }
-.justify-between { justify-content: space-between; }
+
+/* Site header */
+.site-header {
+  background: var(--wa-color-surface-raised);
+  border-bottom: 1px solid var(--wa-color-neutral-border-normal);
+}
+
+.site-nav {
+  padding-top: var(--wa-space-s);
+  padding-bottom: var(--wa-space-s);
+}
+
+.site-title {
+  font-size: var(--wa-font-size-l);
+  font-weight: var(--wa-font-weight-bold);
+  margin: 0;
+}
+
+/* Site main */
+.site-main {
+  padding-top: var(--wa-space-xl);
+  padding-bottom: var(--wa-space-xl);
+}
+
+/* Site footer */
+.site-footer {
+  border-top: 1px solid var(--wa-color-neutral-border-normal);
+  margin-top: var(--wa-space-3xl);
+  padding: var(--wa-space-l) 0;
+}
+
+.footer-text {
+  font-size: var(--wa-font-size-s);
+  color: var(--wa-color-text-quiet);
+}
+
+/* Location heading */
+.location-heading {
+  font-size: var(--wa-font-size-2xl);
+  font-weight: var(--wa-font-weight-bold);
+}
+
+/* Spacing utilities */
+.mt-s { margin-top: var(--wa-space-s); }
+
+/* Accent icon (uses temperature-based primary color) */
+.accent-icon {
+  color: var(--color-primary);
+}
 
 /* Masonry layout for weather cards */
 .masonry-gap { gap: var(--wa-space-l); }
@@ -121,6 +169,16 @@ wa-button[appearance="outlined"][variant="brand"]:hover::part(base) {
 
 .photo-attribution a:hover {
   text-decoration: underline;
+}
+
+/* Header logo icon - uses darker variant in light mode, lighter in dark mode for visibility */
+.header-logo-icon {
+  font-size: var(--wa-font-size-xl);
+  color: var(--color-primary-dark);
+}
+
+.wa-dark .header-logo-icon {
+  color: var(--color-primary-light);
 }
 
 /* Footer links */

@@ -39,9 +39,12 @@
   </script>
 </head>
 <body class="min-h-screen">
-  <header class="sticky top-0 z-50" style="background: var(--wa-color-surface-raised); border-bottom: 1px solid var(--wa-color-neutral-border-normal);">
-    <nav class="max-w-6xl mx-auto px-4 flex wa-align-items-center justify-between" style="padding-top: var(--wa-space-s); padding-bottom: var(--wa-space-s);">
-      <strong style="font-size: var(--wa-font-size-l); font-weight: var(--wa-font-weight-bold);">weather.gripe</strong>
+  <header class="site-header sticky top-0 z-50">
+    <nav class="site-nav max-w-6xl mx-auto px-4 wa-split wa-align-items-center">
+      <div class="flex wa-align-items-center wa-gap-xs">
+        <wa-icon library="duotone" name="poo-storm" class="header-logo-icon" aria-hidden="true"></wa-icon>
+        <h1 class="site-title">weather.gripe</h1>
+      </div>
       <div class="flex wa-align-items-center wa-gap-m">
         <!-- Unit Toggle -->
         <wa-tooltip for="units-metric">Celsius, km/h</wa-tooltip>
@@ -79,9 +82,9 @@
     </nav>
   </header>
 
-  <main class="max-w-6xl mx-auto px-4" style="padding-top: var(--wa-space-xl); padding-bottom: var(--wa-space-xl);">
+  <main class="site-main max-w-6xl mx-auto px-4">
     <!-- Search Section -->
-    <section id="search-section" class="relative mb-6">
+    <search id="search-section" class="relative mb-6">
       <wa-combobox
         id="search-combobox"
         placeholder="Search Location..."
@@ -96,11 +99,11 @@
           <wa-icon name="location-crosshairs" aria-hidden="true"></wa-icon>
         </wa-button>
       </wa-combobox>
-    </section>
+    </search>
 
     <!-- Current Location Display -->
     <section id="location-display" class="mb-6" hidden>
-      <h2 id="location-name" style="font-size: var(--wa-font-size-2xl); font-weight: var(--wa-font-weight-bold);"></h2>
+      <h2 id="location-name" class="location-heading"></h2>
     </section>
 
     <!-- Error State -->
@@ -109,7 +112,7 @@
         <wa-icon slot="icon" name="triangle-exclamation" aria-hidden="true"></wa-icon>
         <strong>Error</strong>
         <p id="error-message"></p>
-        <wa-button id="error-retry" variant="danger" size="small" style="margin-top: var(--wa-space-s);" aria-label="Retry loading weather data">Try Again</wa-button>
+        <wa-button id="error-retry" variant="danger" size="small" class="mt-s" aria-label="Retry loading weather data">Try Again</wa-button>
       </wa-callout>
     </section>
 
@@ -140,11 +143,11 @@
     </section>
   </main>
 
-  <footer id="site-footer" style="border-top: 1px solid var(--wa-color-neutral-border-normal); margin-top: var(--wa-space-3xl); padding: var(--wa-space-l) 0;" hidden>
-    <small class="block max-w-6xl mx-auto px-4 text-center" style="font-size: var(--wa-font-size-s); color: var(--wa-color-text-quiet);">
+  <footer id="site-footer" class="site-footer" hidden>
+    <small class="footer-text block max-w-6xl mx-auto px-4 text-center">
       Weather via <span id="data-source"></span> |
       Photos from <a href="https://unsplash.com/" target="_blank" rel="noopener noreferrer" class="footer-link" aria-label="Unsplash (opens in new tab)">Unsplash</a> |
-      <wa-icon name="heart" aria-label="Made with love by" style="color: var(--color-primary);"></wa-icon>
+      <wa-icon name="heart" aria-label="Made with love by" class="accent-icon"></wa-icon>
       <a href="https://herzog.tech" target="_blank" rel="noopener noreferrer" class="footer-link" aria-label="herzog.tech (opens in new tab)">herzog.tech</a>
     </small>
   </footer>
