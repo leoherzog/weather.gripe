@@ -2,24 +2,7 @@
 // Used by both alert.js and alert-map.js
 
 import { drawWatermark, drawPill, wrapText, drawWeatherIcon } from './core.js';
-
-// Severity color mapping
-export const severityColors = {
-  extreme: { bg: ['#7f1d1d', '#450a0a'], pill: '#ef4444', icon: '#fca5a5' },
-  severe: { bg: ['#7c2d12', '#431407'], pill: '#f97316', icon: '#fdba74' },
-  moderate: { bg: ['#713f12', '#422006'], pill: '#eab308', icon: '#fde047' },
-  minor: { bg: ['#1e3a5f', '#0d1b2a'], pill: '#3b82f6', icon: '#93c5fd' },
-  unknown: { bg: ['#374151', '#1f2937'], pill: '#6b7280', icon: '#9ca3af' }
-};
-
-// Urgency color mapping
-export const urgencyColors = {
-  immediate: '#dc2626',
-  expected: '#ea580c',
-  future: '#ca8a04',
-  past: '#4b5563',
-  unknown: '#6b7280'
-};
+import { getSeverityColors, getUrgencyColor } from '../utils/palette-colors.js';
 
 // Layout constants for alert cards
 export const alertLayout = {
@@ -35,10 +18,6 @@ export const alertLayout = {
 
 // Text style for header event name
 const HEADER_FONT = 'bold 60px system-ui, sans-serif';
-
-// Urgency value that uses dark text on pill
-const DARK_TEXT_URGENCY = 'future';
-const DARK_TEXT_COLOR = '#1f2937';
 
 /**
  * Calculate layout information for an alert card
@@ -147,16 +126,14 @@ export function drawAlertPills(ctx, alertData, layout, y, colors) {
 
   if (layout.showSeverityPill) {
     const severityText = alertData.severity.toUpperCase();
-    const pillWidth = drawPill(ctx, pillX, y, severityText, colors.pill);
+    const pillWidth = drawPill(ctx, pillX, y, severityText, colors.pill, colors.pillText);
     pillX += pillWidth + L.pills.gap;
   }
 
   if (layout.showUrgencyPill) {
     const urgencyRaw = alertData.urgency || 'Unknown';
-    const urgency = urgencyRaw.toLowerCase();
-    const urgencyColor = urgencyColors[urgency] || urgencyColors.unknown;
-    const urgencyTextColor = urgency === DARK_TEXT_URGENCY ? DARK_TEXT_COLOR : 'white';
-    drawPill(ctx, pillX, y, urgencyRaw.toUpperCase(), urgencyColor, urgencyTextColor);
+    const urgencyColors = getUrgencyColor(urgencyRaw.toLowerCase());
+    drawPill(ctx, pillX, y, urgencyRaw.toUpperCase(), urgencyColors.bg, urgencyColors.text);
   }
 
   return y + L.pills.height;
@@ -276,7 +253,7 @@ export function drawAlertInstructions(ctx, lines, y) {
  */
 export function drawAlertContent(ctx, width, height, alertData, layout, timezone) {
   const L = alertLayout;
-  const colors = severityColors[layout.severity] || severityColors.unknown;
+  const colors = getSeverityColors(layout.severity);
 
   let y = L.padding.top;
 

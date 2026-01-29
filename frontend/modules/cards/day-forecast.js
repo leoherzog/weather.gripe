@@ -1,6 +1,6 @@
 // Day forecast card renderer (Today/Tonight/Tomorrow)
 
-import { CARD_WIDTH, COLOR_TEMP_HIGH, COLOR_TEMP_LOW, drawWatermark, drawWeatherIcon, loadImage, drawOverlay, drawFallbackBackground } from './core.js';
+import { CARD_WIDTH, getTempHighColor, getTempLowColor, drawWatermark, drawWeatherIcon, loadImage, drawOverlay, drawFallbackBackground } from './core.js';
 import { Units } from '../utils/units.js';
 
 // Create Today/Tonight/Tomorrow Card
@@ -143,7 +143,7 @@ export async function renderDayForecast(canvas, weatherData, backgroundUrl = nul
       const highTempWidth = ctx.measureText(highTemp).width;
       const highTotalWidth = arrowSize + arrowGap + highTempWidth;
       const highStart = x - highTotalWidth / 2;
-      drawWeatherIcon(ctx, 'arrow-up', highStart + arrowSize / 2, 300 + 28, arrowSize, COLOR_TEMP_HIGH);
+      drawWeatherIcon(ctx, 'arrow-up', highStart + arrowSize / 2, 300 + 28, arrowSize, getTempHighColor());
       ctx.fillStyle = 'white';
       ctx.fillText(highTemp, highStart + arrowSize + arrowGap, 300);
 
@@ -152,7 +152,7 @@ export async function renderDayForecast(canvas, weatherData, backgroundUrl = nul
       const lowTempWidth = ctx.measureText(lowTemp).width;
       const lowTotalWidth = arrowSize + arrowGap + lowTempWidth;
       const lowStart = x - lowTotalWidth / 2;
-      drawWeatherIcon(ctx, 'arrow-down', lowStart + arrowSize / 2, 370 + 28, arrowSize, COLOR_TEMP_LOW);
+      drawWeatherIcon(ctx, 'arrow-down', lowStart + arrowSize / 2, 370 + 28, arrowSize, getTempLowColor());
       ctx.fillStyle = 'white';
       ctx.fillText(lowTemp, lowStart + arrowSize + arrowGap, 370);
     } else if (col.showLow) {
@@ -161,7 +161,7 @@ export async function renderDayForecast(canvas, weatherData, backgroundUrl = nul
       const lowTempWidth = ctx.measureText(lowTemp).width;
       const lowTotalWidth = arrowSize + arrowGap + lowTempWidth;
       const lowStart = x - lowTotalWidth / 2;
-      drawWeatherIcon(ctx, 'arrow-down', lowStart + arrowSize / 2, 335 + 28, arrowSize, COLOR_TEMP_LOW);
+      drawWeatherIcon(ctx, 'arrow-down', lowStart + arrowSize / 2, 335 + 28, arrowSize, getTempLowColor());
       ctx.fillStyle = 'white';
       ctx.fillText(lowTemp, lowStart + arrowSize + arrowGap, 335);
     }

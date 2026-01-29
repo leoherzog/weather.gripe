@@ -1,6 +1,6 @@
 // Hourly forecast card renderer (24-hour forecast with temperature line graph)
 
-import { CARD_WIDTH, drawWatermark, drawWeatherIcon, loadImage, drawOverlay, drawFallbackBackground } from './core.js';
+import { CARD_WIDTH, getTempLowColor, drawWatermark, drawWeatherIcon, loadImage, drawOverlay, drawFallbackBackground } from './core.js';
 import { Units } from '../utils/units.js';
 
 // Night icon mappings for clear/partly-cloudy conditions
@@ -138,7 +138,7 @@ export async function renderHourlyForecast(canvas, weatherData, cityName = '', b
   ctx.beginPath();
   ctx.moveTo(points[0].x, points[0].y);
   points.forEach(p => ctx.lineTo(p.x, p.y));
-  ctx.strokeStyle = '#3b82f6';
+  ctx.strokeStyle = getTempLowColor();
   ctx.lineWidth = 4;
   ctx.stroke();
 
@@ -154,7 +154,7 @@ export async function renderHourlyForecast(canvas, weatherData, cityName = '', b
     // Draw point
     ctx.beginPath();
     ctx.arc(p.x, p.y, 8, 0, Math.PI * 2);
-    ctx.fillStyle = '#3b82f6';
+    ctx.fillStyle = getTempLowColor();
     ctx.fill();
     ctx.strokeStyle = 'white';
     ctx.lineWidth = 2;

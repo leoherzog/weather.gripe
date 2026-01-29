@@ -1,6 +1,7 @@
 // Radar card renderer with lazy-loaded MapLibre
 
 import { CARD_WIDTH, CARD_HEIGHT, drawWatermark, drawFallbackBackground, drawWeatherIcon } from './core.js';
+import { getRadarMarkerColor } from '../utils/palette-colors.js';
 import { createCardContainer, createCardActions, shareCard, downloadCard } from './share.js';
 import { ensureMapLibre, waitForDOMConnection, exportMapToCanvas } from '../utils/map-utils.js';
 import { attachLightboxHandler } from '../ui/lightbox.js';
@@ -27,7 +28,6 @@ const LEGEND_BORDER_OPACITY = 0.5;
 
 const MARKER_DEFAULT_SIZE = 24;
 const MARKER_LARGE_SIZE = 32;
-const MARKER_COLOR = '#ef4444';
 const MARKER_GLOW_COLOR = 'white';
 const MARKER_GLOW_BLUR = 4;
 
@@ -64,7 +64,7 @@ function drawLocationMarker(ctx, x, y, size = MARKER_DEFAULT_SIZE) {
   ctx.save();
   ctx.shadowColor = MARKER_GLOW_COLOR;
   ctx.shadowBlur = MARKER_GLOW_BLUR;
-  drawWeatherIcon(ctx, 'fa-location-dot', x, y - size / 2, size, MARKER_COLOR);
+  drawWeatherIcon(ctx, 'fa-location-dot', x, y - size / 2, size, getRadarMarkerColor());
   ctx.restore();
 }
 

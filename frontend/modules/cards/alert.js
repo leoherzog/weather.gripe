@@ -2,14 +2,14 @@
 
 import { CARD_WIDTH } from './core.js';
 import {
-  severityColors,
   alertLayout,
   calculateAlertLayout,
   drawAlertContent
 } from './alert-renderer.js';
+import { getSeverityColors } from '../utils/palette-colors.js';
 
-// Re-export for consumers that import from alert.js
-export { severityColors, urgencyColors, alertLayout } from './alert-renderer.js';
+// Re-export alertLayout for consumers
+export { alertLayout } from './alert-renderer.js';
 
 // Create Severe Weather Alert Card
 // timezone: IANA timezone string for displaying location's local time
@@ -32,7 +32,7 @@ export async function renderAlert(canvas, alertData, timezone = null) {
 
   // Background gradient
   const severity = layout.severity;
-  const colors = severityColors[severity] || severityColors.unknown;
+  const colors = getSeverityColors(severity);
   const gradient = ctx.createLinearGradient(0, 0, 0, height);
   gradient.addColorStop(0, colors.bg[0]);
   gradient.addColorStop(1, colors.bg[1]);

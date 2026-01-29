@@ -148,6 +148,7 @@ Multi-layer caching using Cloudflare Cache API:
   - `core.js` - Shared canvas utilities (watermark, icons, text wrapping)
 - **`modules/utils/`** - Shared utilities
   - `temperature-colors.js` - Dynamic color system based on windy.com scale, favicon & theme-color updates
+  - `palette-colors.js` - Resolves Web Awesome color palette CSS variables for canvas rendering
   - `map-utils.js` - MapLibre lazy-loading and utilities
   - `units.js` - Unit conversion (API returns metric; imperial conversion client-side)
 - **`static/`** - Static assets copied to build output by Vite (`publicDir: 'static'`)
@@ -261,6 +262,42 @@ The app's primary color dynamically changes based on current temperature using t
 **Accessibility:**
 - `getContrastingText(bgColor, targetRatio = 7)` - Returns white or dark text meeting WCAG AAA
 - `meetsAAA(bgColor, textColor, isLargeText)` - Checks if color pair passes AAA (7:1 normal, 4.5:1 large)
+
+### Palette Color System (Canvas Rendering)
+
+Canvas-based weather cards use Web Awesome's color palette system for consistent theming. Since canvas rendering cannot use CSS variables directly, `palette-colors.js` resolves them at runtime.
+
+**How it works:**
+- Reads `--wa-color-{hue}-{tint}` CSS variables via `getComputedStyle()`
+- Caches resolved hex values for performance
+- Watches `<html>` classList for palette changes (`wa-palette-*`)
+- Invalidates cache when palette changes
+- Calculates WCAG AAA-accessible text colors for pill backgrounds
+
+**Available Palettes:**
+- `wa-palette-default`, `wa-palette-bright`, `wa-palette-natural`, `wa-palette-anodized`, `wa-palette-elegant`, etc.
+- Switch by adding class to `<html>`: `document.documentElement.classList.add('wa-palette-bright')`
+
+**Semantic Color Mappings:**
+| Category | Colors | Used For |
+|----------|--------|----------|
+| Severity (extreme/severe/moderate/minor) | bg gradient, pill, pillText, icon, stroke | Alert cards |
+| Urgency (immediate/expected/future/past) | bg, text | Alert urgency pills |
+| Temperature (high/low) | indicator colors | Forecast cards (arrows, lines) |
+| Radar | marker | Location pin on radar map |
+| Fallback | gradient | Card background when Unsplash fails |
+
+**API Functions** (`frontend/modules/utils/palette-colors.js`):
+- `getSeverityColors(severity)` → `{ bg: [dark, light], pill, pillText, icon, stroke }`
+- `getUrgencyColor(urgency)` → `{ bg, text }`
+- `getTemperatureColors()` → `{ high, low }`
+- `getRadarMarkerColor()` → hex string
+- `getFallbackGradient()` → `{ start, end }`
+- `getContrastingTextColor(bgColor)` → white or dark hex for WCAG AAA (7:1 ratio)
+
+**Fallbacks:** If CSS variables aren't loaded, hardcoded fallback values matching the original design are used.
+
+**Architecture Note:** `palette-colors.js` (READER - resolves CSS variables for canvas) and `temperature-colors.js` (WRITER - generates dynamic theme colors) are intentionally kept separate despite both having contrast calculation. This avoids coupling canvas rendering to the chroma-js dependency.
 
 ### External Dependencies
 

@@ -4,11 +4,11 @@
 import { CARD_WIDTH } from './core.js';
 import { createCardActions, shareCard, downloadCard } from './share.js';
 import {
-  severityColors,
   alertLayout,
   calculateAlertLayout,
   drawAlertContent
 } from './alert-renderer.js';
+import { getSeverityColors } from '../utils/palette-colors.js';
 import { ensureMapLibre, waitForDOMConnection, exportMapToCanvas } from '../utils/map-utils.js';
 import { attachLightboxHandler } from '../ui/lightbox.js';
 
@@ -33,14 +33,11 @@ const GRADIENT_OPACITY = {
 // Gradient stop position for text boundary
 const GRADIENT_TEXT_BOUNDARY = 0.65;
 
-// Severity-based polygon colors (derived from severityColors.pill values)
-const polygonColors = {
-  extreme: { fill: severityColors.extreme.pill, stroke: '#dc2626' },
-  severe: { fill: severityColors.severe.pill, stroke: '#ea580c' },
-  moderate: { fill: severityColors.moderate.pill, stroke: '#ca8a04' },
-  minor: { fill: severityColors.minor.pill, stroke: '#2563eb' },
-  unknown: { fill: severityColors.unknown.pill, stroke: '#4b5563' }
-};
+// Get polygon colors for a severity level (fill from pill, stroke from palette)
+function getPolygonColors(severity) {
+  const colors = getSeverityColors(severity);
+  return { fill: colors.pill, stroke: colors.stroke };
+}
 
 // Calculate bounds from GeoJSON geometry
 function calculatePolygonBounds(geometry) {
@@ -98,8 +95,8 @@ export async function createAlertMapCard(alertData, userLocation, timezone = nul
   }
 
   const severity = (alertData.severity || 'unknown').toLowerCase();
-  const polyColors = polygonColors[severity] || polygonColors.unknown;
-  const bgColors = severityColors[severity] || severityColors.unknown;
+  const polyColors = getPolygonColors(severity);
+  const bgColors = getSeverityColors(severity);
 
   // Calculate card height based on content (with narrower text area)
   const tempCanvas = document.createElement('canvas');

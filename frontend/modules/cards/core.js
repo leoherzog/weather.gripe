@@ -2,6 +2,7 @@
 
 // Import icon data directly from build-time imports
 import { getIconData, initIcons } from '../ui/icons.js';
+import { getTemperatureColors, getFallbackGradient } from '../utils/palette-colors.js';
 
 // Re-export for backward compatibility
 export { getIconData, initIcons };
@@ -10,9 +11,14 @@ export { getIconData, initIcons };
 export const CARD_WIDTH = 1200;
 export const CARD_HEIGHT = 800;
 
-// Temperature colors
-export const COLOR_TEMP_HIGH = '#f97316';
-export const COLOR_TEMP_LOW = '#3b82f6';
+// Temperature color getters (resolved from Web Awesome palette)
+export function getTempHighColor() {
+  return getTemperatureColors().high;
+}
+
+export function getTempLowColor() {
+  return getTemperatureColors().low;
+}
 
 // Draw weather icon using imported SVG path data
 export function drawWeatherIcon(ctx, iconClass, x, y, size, color = 'white') {
@@ -97,9 +103,10 @@ export function drawOverlay(ctx, width, height, opacity = 0.5) {
 
 // Draw fallback gradient background when Unsplash fails
 export function drawFallbackBackground(ctx, width, height) {
+  const colors = getFallbackGradient();
   const gradient = ctx.createLinearGradient(0, 0, 0, height);
-  gradient.addColorStop(0, '#1e3a5f');
-  gradient.addColorStop(1, '#0d1b2a');
+  gradient.addColorStop(0, colors.start);
+  gradient.addColorStop(1, colors.end);
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, width, height);
 }
