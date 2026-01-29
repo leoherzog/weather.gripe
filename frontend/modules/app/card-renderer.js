@@ -9,6 +9,9 @@ export function createCardRenderer(app) {
   // Track current render to cancel stale renders when location changes rapidly
   let currentRenderVersion = 0;
 
+  // Ad card persists across renders (created once, re-appended each time)
+  let adCard = null;
+
   return {
     // Render all weather cards
     async renderAllCards(weather, alerts = [], wxStory = null, locationName = null) {
@@ -289,6 +292,50 @@ export function createCardRenderer(app) {
       this.cleanupMapCards();
       app.elements.weatherCards.innerHTML = '';
       results.forEach(r => app.elements.weatherCards.appendChild(r.card));
+
+      // Create ad card once, re-append after each render
+      if (!adCard) {
+        adCard = document.createElement('wa-card');
+        adCard.className = 'weather-card';
+        adCard.dataset.cardType = 'ad';
+
+        const fallback = document.createElement('div');
+        fallback.className = 'ad-fallback';
+        const text = document.createElement('p');
+        text.className = 'ad-fallback-text';
+        text.textContent = 'Was this helpful?';
+        fallback.appendChild(text);
+        const btn = document.createElement('wa-button');
+        btn.setAttribute('variant', 'brand');
+        btn.setAttribute('size', 'large');
+        btn.setAttribute('href', 'https://herzog.tech/$');
+        btn.setAttribute('target', '_blank');
+        btn.setAttribute('rel', 'noopener noreferrer');
+        btn.textContent = '\u2615 Buy me a Tea';
+        fallback.appendChild(btn);
+        adCard.appendChild(fallback);
+      }
+      app.elements.weatherCards.appendChild(adCard);
+
+      // Initialize ad once after first append (element must be visible and laid out)
+      if (!adCard.dataset.adInitialized) {
+        adCard.dataset.adInitialized = 'true';
+        const adIns = document.createElement('ins');
+        adIns.className = 'adsbygoogle';
+        adIns.style.display = 'block';
+        adIns.dataset.adClient = 'ca-pub-9544720367752359';
+        adIns.dataset.adSlot = '5303986771';
+        adIns.dataset.adFormat = 'auto';
+        adIns.dataset.fullWidthResponsive = 'true';
+        adCard.prepend(adIns);
+        requestAnimationFrame(() => {
+          try {
+            (window.adsbygoogle = window.adsbygoogle || []).push({});
+          } catch (e) {
+            // Ad blocked or failed - fallback remains visible
+          }
+        });
+      }
 
       // Update footer attribution based on data source
       this.updateDataSource(weather);

@@ -163,6 +163,15 @@ Multi-layer caching using Cloudflare Cache API:
 
 **Render Cancellation:** When location updates rapidly (e.g., Cloudflare location followed by browser geolocation), `card-renderer.js` tracks render versions. Stale renders are discarded before appending cards, preventing mixed-location UI states.
 
+**Ad/Support Card:** An ad card is appended after all weather cards on each render. It contains a Google AdSense ad unit with a "Buy me a Tea" fallback link. Key implementation details:
+- The ad card element is held in a **closure variable** inside `createCardRenderer()`, created once on first render and re-appended from the same JS reference after every `innerHTML = ''` clear.
+- The `<ins class="adsbygoogle">` element is **not in static HTML** — it is created dynamically and prepended to the card on first render. This prevents AdSense's async auto-scan from finding a hidden/zero-dimension `<ins>` and throwing `no_div` errors.
+- `adsbygoogle.push({})` is called once via `requestAnimationFrame` after the `<ins>` is in the visible DOM, ensuring the element is laid out before AdSense measures it.
+- The AdSense library script (`adsbygoogle.js`) is loaded async in `<head>` of `index.html`.
+- The card uses a `wa-card` web component. AdSense can find the slotted `<ins>` because Web Component slots keep content in the light DOM.
+- CSS `:has(ins[data-ad-status="filled"])` hides the fallback when an ad loads. If the ad is blocked or unfilled, the fallback "Buy me a Tea" button remains visible.
+- The ad card has `cursor: default` and no lightbox handler (unlike weather cards).
+
 ### Default Units Injection
 
 The Worker injects default units into HTML responses based on Cloudflare's detected country:
@@ -317,6 +326,7 @@ Canvas-based weather cards use Web Awesome's color palette system for consistent
 - **Unsplash** - Location background photos (requires `UNSPLASH_ACCESS_KEY`)
 - **NOAA MRMS (opengeo.ncep.noaa.gov)** - US radar imagery via WMS (no key required)
 - **OpenFreeMap (tiles.openfreemap.org)** - Vector tile basemap for radar card (no key required)
+- **Google AdSense (pagead2.googlesyndication.com)** - Ad unit in support card (client ID: `ca-pub-9544720367752359`)
 
 ### Configuration
 

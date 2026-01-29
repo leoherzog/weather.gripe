@@ -123,7 +123,7 @@ wa-button[appearance="outlined"][variant="brand"]:hover::part(base) {
 }
 
 /* Hide empty body slot in cards that only use media + footer */
-.weather-card:not(:has(.photo-attribution))::part(body) {
+.weather-card:not(:has(.photo-attribution)):not([data-card-type="ad"])::part(body) {
   display: none;
 }
 
@@ -261,6 +261,35 @@ wa-button[appearance="outlined"][variant="brand"]:hover::part(base) {
   object-fit: contain;
   border-radius: var(--wa-border-radius-l);
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+
+/* Ad card */
+.weather-card[data-card-type="ad"] {
+  cursor: default;
+}
+
+.weather-card[data-card-type="ad"]::part(body) {
+  padding: 0;
+}
+
+/* Hide fallback when ad loads successfully */
+.weather-card[data-card-type="ad"]:has(ins[data-ad-status="filled"]) .ad-fallback {
+  display: none;
+}
+
+.ad-fallback {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--wa-space-xl) 0;
+  gap: var(--wa-space-m);
+}
+
+.ad-fallback-text {
+  font-size: var(--wa-font-size-l);
+  color: var(--wa-color-text-quiet);
+  margin: 0;
 }
 
 /* Card click cursor */
