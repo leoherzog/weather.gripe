@@ -49,14 +49,14 @@
         <!-- Unit Toggle -->
         <wa-tooltip for="units-metric">Celsius, km/h</wa-tooltip>
         <wa-tooltip for="units-imperial">Fahrenheit, mph</wa-tooltip>
-        <wa-button-group aria-label="Temperature unit selection">
+        <wa-button-group label="Temperature unit selection">
           <wa-button id="units-metric" size="small" appearance="outlined" variant="brand" aria-label="Switch to metric units (Celsius, km/h)">Metric</wa-button>
           <wa-button id="units-imperial" size="small" class="temp-gradient-btn" aria-label="Switch to imperial units (Fahrenheit, mph)">Imperial</wa-button>
         </wa-button-group>
         <!-- Dark Mode Toggle -->
         <wa-tooltip id="dark-mode-tooltip" for="dark-mode-toggle">Switch to dark mode</wa-tooltip>
-        <wa-button id="dark-mode-toggle" appearance="plain" size="small" aria-label="Switch to dark mode">
-          <wa-icon name="moon" aria-hidden="true"></wa-icon>
+        <wa-button id="dark-mode-toggle" appearance="plain" size="small">
+          <wa-icon name="moon" label="Switch to dark mode"></wa-icon>
         </wa-button>
         <script>
           (function() {
@@ -67,7 +67,7 @@
               const isDark = document.documentElement.classList.contains('wa-dark');
               icon.setAttribute('name', isDark ? 'sun' : 'moon');
               const label = isDark ? 'Switch to light mode' : 'Switch to dark mode';
-              btn.setAttribute('aria-label', label);
+              icon.setAttribute('label', label);
               if (tooltip) tooltip.textContent = label;
             };
             update();
@@ -95,8 +95,8 @@
       >
         <wa-icon slot="start" name="magnifying-glass" aria-hidden="true"></wa-icon>
         <wa-tooltip for="location-reset-btn">Return to detected location</wa-tooltip>
-        <wa-button id="location-reset-btn" slot="end" appearance="plain" size="small" hidden aria-label="Return to detected location">
-          <wa-icon name="location-crosshairs" aria-hidden="true"></wa-icon>
+        <wa-button id="location-reset-btn" slot="end" appearance="plain" size="small" hidden>
+          <wa-icon name="location-crosshairs" label="Return to detected location"></wa-icon>
         </wa-button>
       </wa-combobox>
     </search>
