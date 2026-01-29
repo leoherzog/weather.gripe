@@ -5,7 +5,7 @@ import { Units } from '../utils/units.js';
 
 // Create 5-Day Forecast Card with line graph
 // timezone: IANA timezone string for displaying location's local time
-export async function renderForecastGraph(canvas, weatherData, locationName = '5-Day Forecast', backgroundUrl = null, unsplashUsername = null, timezone = null) {
+export async function renderForecastGraph(canvas, weatherData, locationName = '5-Day Forecast', backgroundUrl = null, flickrPhotographer = null, timezone = null) {
   const ctx = canvas.getContext('2d');
   const width = CARD_WIDTH;
   const height = 700;
@@ -49,7 +49,7 @@ export async function renderForecastGraph(canvas, weatherData, locationName = '5
   ctx.font = 'bold 48px system-ui, sans-serif';
   ctx.textAlign = 'left';
   ctx.textBaseline = 'top';
-  ctx.fillText(locationName, padding.left - 35, 40);
+  ctx.fillText(locationName ? `Coming Up in ${locationName}` : 'Coming Up', padding.left - 35, 40);
 
   // Get temperature range
   const temps = completeDays.flatMap(d => [d.high, d.low]);
@@ -142,8 +142,8 @@ export async function renderForecastGraph(canvas, weatherData, locationName = '5
 
   // Watermark - determine data source from observedAt presence
   const dataSource = weatherData?.current?.observedAt ? 'NWS' : 'Open-Meteo';
-  const attribution = unsplashUsername
-    ? `${dataSource} and @${unsplashUsername} on Unsplash`
+  const attribution = flickrPhotographer
+    ? `${dataSource} and ${flickrPhotographer} on Flickr`
     : dataSource;
   drawWatermark(ctx, width, height, attribution, timezone);
 

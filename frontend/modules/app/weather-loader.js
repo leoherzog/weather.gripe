@@ -83,28 +83,26 @@ export function createWeatherLoader(app) {
       }
     },
 
-    // Fetch Unsplash background images with optional location fallback
-    // options: { location, region } for cascading search
+    // Fetch Flickr background photos with optional geo-based search
+    // options: { lat, lon } for location-based cascading search
     // Returns array of photos (call pickRandomPhoto to select one)
     async fetchBackgrounds(query, options = {}) {
       try {
         const params = new URLSearchParams({ query });
-        if (options.location) params.set('location', options.location);
-        if (options.region) params.set('region', options.region);
+        if (options.lat) params.set('lat', options.lat);
+        if (options.lon) params.set('lon', options.lon);
 
-        const response = await fetch(`/api/unsplash?${params.toString()}`);
+        const response = await fetch(`/api/photos/search?${params.toString()}`);
         if (!response.ok) return [];
         const data = await response.json();
         if (data.error) return [];
-        // New format: array of photos
         if (data.photos?.length) {
           return data.photos;
         }
-        // Old format (cached responses): single photo object with url directly
         if (data.url) return [data];
         return [];
       } catch (e) {
-        console.warn('Unsplash fetch failed:', e);
+        console.warn('Photo fetch failed:', e);
         return [];
       }
     },

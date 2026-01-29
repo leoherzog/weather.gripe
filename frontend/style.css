@@ -268,8 +268,9 @@ wa-button[appearance="outlined"][variant="brand"]:hover::part(base) {
   cursor: default;
 }
 
-.weather-card[data-card-type="ad"]::part(body) {
-  padding: 0;
+/* Collapse unfilled ad slot so it doesn't push fallback out of the card */
+.weather-card[data-card-type="ad"] ins.adsbygoogle:not([data-ad-status="filled"]) {
+  display: none !important;
 }
 
 /* Hide fallback when ad loads successfully */
@@ -281,9 +282,8 @@ wa-button[appearance="outlined"][variant="brand"]:hover::part(base) {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  padding: var(--wa-space-xl) 0;
-  gap: var(--wa-space-m);
+  gap: var(--wa-space-s);
+  padding-bottom: var(--wa-space-s);
 }
 
 .ad-fallback-text {

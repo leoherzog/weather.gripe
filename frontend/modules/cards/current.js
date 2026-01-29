@@ -6,7 +6,7 @@ import { Units } from '../utils/units.js';
 
 // Create Current Conditions Card
 // timezone: IANA timezone string for displaying location's local time
-export async function renderCurrentConditions(canvas, weatherData, backgroundUrl = null, unsplashUsername = null, timezone = null) {
+export async function renderCurrentConditions(canvas, weatherData, backgroundUrl = null, flickrPhotographer = null, timezone = null) {
   const ctx = canvas.getContext('2d');
   const width = CARD_WIDTH;
   const height = CARD_HEIGHT;
@@ -78,8 +78,8 @@ export async function renderCurrentConditions(canvas, weatherData, backgroundUrl
 
   // Watermark - indicate data source based on whether we have observedAt (NWS) or not (Open-Meteo)
   const dataSource = current.observedAt ? 'NWS' : 'Open-Meteo';
-  const attribution = unsplashUsername
-    ? `${dataSource} and @${unsplashUsername} on Unsplash`
+  const attribution = flickrPhotographer
+    ? `${dataSource} and ${flickrPhotographer} on Flickr`
     : dataSource;
   drawWatermark(ctx, width, height, attribution, timezone);
 

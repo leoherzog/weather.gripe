@@ -14,7 +14,7 @@ const detailedLayout = {
 
 // Create Detailed Forecast Card (Today/Tonight/Tomorrow with text forecast)
 // timezone: IANA timezone string for displaying location's local time
-export async function renderDetailedForecast(canvas, forecastData, backgroundUrl = null, unsplashUsername = null, cityName = null, timezone = null) {
+export async function renderDetailedForecast(canvas, forecastData, backgroundUrl = null, flickrPhotographer = null, cityName = null, timezone = null) {
   const ctx = canvas.getContext('2d');
   const width = CARD_WIDTH;
   const L = detailedLayout;
@@ -84,8 +84,8 @@ export async function renderDetailedForecast(canvas, forecastData, backgroundUrl
   }
 
   // Watermark with attribution
-  const attribution = unsplashUsername
-    ? `NWS and @${unsplashUsername} on Unsplash`
+  const attribution = flickrPhotographer
+    ? `NWS and ${flickrPhotographer} on Flickr`
     : 'NWS';
   drawWatermark(ctx, width, height, attribution, timezone);
 

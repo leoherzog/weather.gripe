@@ -5,7 +5,7 @@ import { Units } from '../utils/units.js';
 
 // Create Today/Tonight/Tomorrow Card
 // timezone: IANA timezone string for displaying location's local time
-export async function renderDayForecast(canvas, weatherData, backgroundUrl = null, unsplashUsername = null, timezone = null) {
+export async function renderDayForecast(canvas, weatherData, backgroundUrl = null, flickrPhotographer = null, timezone = null) {
   const ctx = canvas.getContext('2d');
   const width = CARD_WIDTH;
   const height = 600;
@@ -186,8 +186,8 @@ export async function renderDayForecast(canvas, weatherData, backgroundUrl = nul
 
   // Watermark - determine data source from observedAt presence
   const dataSource = weatherData?.current?.observedAt ? 'NWS' : 'Open-Meteo';
-  const attribution = unsplashUsername
-    ? `${dataSource} and @${unsplashUsername} on Unsplash`
+  const attribution = flickrPhotographer
+    ? `${dataSource} and ${flickrPhotographer} on Flickr`
     : dataSource;
   drawWatermark(ctx, width, height, attribution, timezone);
 

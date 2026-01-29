@@ -1,23 +1,23 @@
 // Condition code utilities for weather cards
 
-// Condition code to Unsplash query mapping (describe the image, not the condition)
+// Condition code to photo search query mapping (use terms photographers tag with)
 export const conditionQueries = {
-  'clear': 'blue sky',
-  'mostly-clear': 'blue sky',
-  'partly-cloudy': 'clouds sky',
-  'mostly-cloudy': 'cloudy sky',
-  'overcast': 'gray sky',
+  'clear': 'blue sky sunshine',
+  'mostly-clear': 'blue sky sunshine',
+  'partly-cloudy': 'clouds blue sky',
+  'mostly-cloudy': 'cloudy clouds',
+  'overcast': 'cloudy grey sky',
   'fog': 'fog mist',
   'drizzle': 'rain',
   'rain-light': 'rain',
-  'rain': 'rain',
+  'rain': 'rain rainy',
   'rain-heavy': 'rain storm',
-  'freezing-rain': 'ice rain',
-  'snow-light': 'snow',
-  'snow': 'snow',
-  'snow-heavy': 'snowstorm',
-  'thunderstorm': 'lightning storm',
-  'thunderstorm-severe': 'lightning storm'
+  'freezing-rain': 'ice rain winter',
+  'snow-light': 'snow snowy',
+  'snow': 'snow snowy',
+  'snow-heavy': 'snowstorm blizzard snow',
+  'thunderstorm': 'storm lightning thunder',
+  'thunderstorm-severe': 'storm lightning thunder'
 };
 
 // Conditions that already imply cold (skip temperature modifiers)
@@ -29,17 +29,16 @@ export const coldImpliedConditions = new Set([
 export const snowConditions = new Set(['snow-light', 'snow', 'snow-heavy']);
 export const rainConditions = new Set(['drizzle', 'rain-light', 'rain', 'rain-heavy', 'freezing-rain', 'thunderstorm', 'thunderstorm-severe']);
 
-// Get temperature modifier for Unsplash query
+// Get temperature modifier for photo search query (use terms photographers tag with)
 export function getTemperatureModifier(tempC) {
-  if (tempC <= -10) return 'freezing';
-  if (tempC <= 0) return 'icy';
-  if (tempC <= 10) return 'cold';
-  if (tempC >= 30) return 'hot';
+  if (tempC <= -10) return 'winter';
+  if (tempC <= 0) return 'cold';
+  if (tempC >= 30) return 'summer';
   if (tempC >= 25) return 'warm';
   return null;
 }
 
-// Get Unsplash query for a condition, optionally adjusted for temperature
+// Get photo search query for a condition, optionally adjusted for temperature
 export function getConditionQuery(condition, tempC = null) {
   const baseQuery = conditionQueries[condition?.code] || 'weather';
 
