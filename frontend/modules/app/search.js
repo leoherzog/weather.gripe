@@ -1,6 +1,5 @@
 // Search functionality for the app
 
-import { Units } from '../utils/units.js';
 import { TemperatureColors } from '../utils/temperature-colors.js';
 
 // HTML escape function to prevent XSS
@@ -144,9 +143,7 @@ export function createSearchManager(app) {
         app.isManualLocation = true;
         app.location.updateLocationModeUI();
 
-        const temp = Units.formatTemp(data.weather.current.temperature);
-        const condition = data.weather.current.condition?.text || 'Unknown';
-        app.elements.locationName.textContent = `${temp} and ${condition} in ${cityName}`;
+        app.updateHeading();
         app.elements.locationDisplay.hidden = false;
 
         const wxStory = await wxStoryPromise;

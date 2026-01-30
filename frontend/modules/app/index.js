@@ -1,6 +1,7 @@
 // App orchestrator - main application logic
 
 import { WeatherCards } from '../cards/index.js';
+import { Units } from '../utils/units.js';
 import { createLocationManager } from './location.js';
 import { createSearchManager } from './search.js';
 import { createWeatherLoader } from './weather-loader.js';
@@ -130,12 +131,20 @@ export const App = {
       }
     });
 
-    // Unit toggle buttons - UI handled by inline script, just refresh cards here
-    this.elements.unitsMetric.addEventListener('click', () => this.cardRenderer.refreshCards());
-    this.elements.unitsImperial.addEventListener('click', () => this.cardRenderer.refreshCards());
+    // Unit toggle buttons - UI handled by inline script, refresh cards and heading
+    this.elements.unitsMetric.addEventListener('click', () => { this.updateHeading(); this.cardRenderer.refreshCards(); });
+    this.elements.unitsImperial.addEventListener('click', () => { this.updateHeading(); this.cardRenderer.refreshCards(); });
 
     // Location reset button - return to auto-detected location
     this.elements.locationResetBtn.addEventListener('click', () => this.location.resetToAutoLocation());
+  },
+
+  // Update the h2 heading with current units
+  updateHeading() {
+    if (!this.currentWeather?.current || !this.currentLocation?.name) return;
+    const temp = Units.formatTemp(this.currentWeather.current.temperature);
+    const condition = this.currentWeather.current.condition?.text || 'Unknown';
+    this.elements.locationName.textContent = `${temp} and ${condition} in ${this.currentLocation.name}`;
   },
 
   // Proxy method to weather loader for backward compatibility

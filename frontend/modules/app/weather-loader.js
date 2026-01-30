@@ -1,6 +1,5 @@
 // Weather data loading for the app
 
-import { Units } from '../utils/units.js';
 import { TemperatureColors } from '../utils/temperature-colors.js';
 
 // Create weather loader with dependency injection
@@ -58,9 +57,7 @@ export function createWeatherLoader(app) {
         }
 
         // Update location display with current conditions
-        const temp = Units.formatTemp(data.weather.current.temperature);
-        const condition = data.weather.current.condition?.text || 'Unknown';
-        app.elements.locationName.textContent = `${temp} and ${condition} in ${cityName}`;
+        app.updateHeading();
         app.elements.locationDisplay.hidden = false;
 
         // Wait for wxstory and render
