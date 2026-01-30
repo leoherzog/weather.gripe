@@ -54,8 +54,7 @@ export const App = {
       errorMessage: document.getElementById('error-message'),
       errorRetry: document.getElementById('error-retry'),
       weatherCards: document.getElementById('weather-cards'),
-      unitsMetric: document.getElementById('units-metric'),
-      unitsImperial: document.getElementById('units-imperial'),
+      unitToggle: document.getElementById('unit-toggle'),
       siteFooter: document.getElementById('site-footer'),
       dataSource: document.getElementById('data-source')
     };
@@ -64,9 +63,6 @@ export const App = {
   // Bind event handlers
   bindEvents() {
     const combobox = this.elements.searchCombobox;
-
-    // Set custom filter that always returns true (we filter server-side)
-    combobox.filter = () => true;
 
     // Track current search query for Enter key handler
     let currentQuery = '';
@@ -98,8 +94,8 @@ export const App = {
     // Use capture phase since wa-combobox may intercept the event in shadow DOM
     combobox.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
-        // Check if an option is highlighted
-        const highlighted = combobox.querySelector('wa-option[aria-selected="true"]');
+        // Check if an option is highlighted (current = keyboard-navigated, not selected)
+        const highlighted = [...combobox.querySelectorAll('wa-option')].some(opt => opt.current);
         if (!highlighted && currentQuery) {
           e.preventDefault();
           e.stopPropagation();
@@ -131,9 +127,12 @@ export const App = {
       }
     });
 
-    // Unit toggle buttons - UI handled by inline script, refresh cards and heading
-    this.elements.unitsMetric.addEventListener('click', () => { this.updateHeading(); this.cardRenderer.refreshCards(); });
-    this.elements.unitsImperial.addEventListener('click', () => { this.updateHeading(); this.cardRenderer.refreshCards(); });
+    // Unit toggle - wa-radio-group emits change with built-in selection state
+    this.elements.unitToggle.addEventListener('change', () => {
+      Units.setSystem(this.elements.unitToggle.value);
+      this.updateHeading();
+      this.cardRenderer.refreshCards();
+    });
 
     // Location reset button - return to auto-detected location
     this.elements.locationResetBtn.addEventListener('click', () => this.location.resetToAutoLocation());

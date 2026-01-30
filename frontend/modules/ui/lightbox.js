@@ -13,6 +13,7 @@ function ensureLightboxDialog() {
 
   lightboxDialog = document.createElement('wa-dialog');
   lightboxDialog.className = 'card-lightbox';
+  lightboxDialog.setAttribute('label', 'Enlarged weather card');
   lightboxDialog.setAttribute('without-header', '');
   lightboxDialog.setAttribute('light-dismiss', '');
 

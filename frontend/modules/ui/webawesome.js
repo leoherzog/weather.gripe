@@ -2,7 +2,8 @@
 
 import '@awesome.me/webawesome-pro/dist/styles/webawesome.css';
 import '@awesome.me/webawesome-pro/dist/components/button/button.js';
-import '@awesome.me/webawesome-pro/dist/components/button-group/button-group.js';
+import '@awesome.me/webawesome-pro/dist/components/radio-group/radio-group.js';
+import '@awesome.me/webawesome-pro/dist/components/radio/radio.js';
 import '@awesome.me/webawesome-pro/dist/components/input/input.js';
 import '@awesome.me/webawesome-pro/dist/components/icon/icon.js';
 import '@awesome.me/webawesome-pro/dist/components/card/card.js';

@@ -45,19 +45,19 @@
   <header class="site-header sticky top-0 z-50">
     <nav class="site-nav max-w-6xl mx-auto px-4 wa-split wa-align-items-center">
       <div class="flex wa-align-items-center wa-gap-xs">
-        <wa-icon library="duotone" name="poo-storm" class="header-logo-icon" aria-hidden="true"></wa-icon>
+        <wa-icon library="duotone" name="poo-storm" class="header-logo-icon"></wa-icon>
         <h1 class="site-title">weather.gripe</h1>
       </div>
       <div class="flex wa-align-items-center wa-gap-m">
         <!-- Unit Toggle -->
-        <wa-tooltip for="units-metric">Celsius, km/h</wa-tooltip>
-        <wa-tooltip for="units-imperial">Fahrenheit, mph</wa-tooltip>
-        <wa-button-group label="Temperature unit selection">
-          <wa-button id="units-metric" size="small" appearance="outlined" variant="brand" aria-label="Switch to metric units (Celsius, km/h)">Metric</wa-button>
-          <wa-button id="units-imperial" size="small" class="temp-gradient-btn" aria-label="Switch to imperial units (Fahrenheit, mph)">Imperial</wa-button>
-        </wa-button-group>
+        <wa-tooltip for="units-metric" placement="bottom">Celsius, km/h</wa-tooltip>
+        <wa-tooltip for="units-imperial" placement="bottom">Fahrenheit, mph</wa-tooltip>
+        <wa-radio-group id="unit-toggle" label="Temperature unit selection" orientation="horizontal" size="small">
+          <wa-radio id="units-metric" value="metric" appearance="button">Metric</wa-radio>
+          <wa-radio id="units-imperial" value="imperial" appearance="button">Imperial</wa-radio>
+        </wa-radio-group>
         <!-- Dark Mode Toggle -->
-        <wa-tooltip id="dark-mode-tooltip" for="dark-mode-toggle">Switch to dark mode</wa-tooltip>
+        <wa-tooltip id="dark-mode-tooltip" for="dark-mode-toggle" placement="bottom">Switch to dark mode</wa-tooltip>
         <wa-button id="dark-mode-toggle" appearance="plain" size="small">
           <wa-icon name="moon" label="Switch to dark mode"></wa-icon>
         </wa-button>
@@ -88,6 +88,7 @@
   <main class="site-main max-w-6xl mx-auto px-4">
     <!-- Search Section -->
     <search id="search-section" class="relative mb-6">
+      <wa-tooltip for="location-reset-btn">Return to detected location</wa-tooltip>
       <wa-combobox
         id="search-combobox"
         placeholder="Search Location..."
@@ -96,8 +97,7 @@
         autocomplete="none"
         aria-label="Search for a location"
       >
-        <wa-icon slot="start" name="magnifying-glass" aria-hidden="true"></wa-icon>
-        <wa-tooltip for="location-reset-btn">Return to detected location</wa-tooltip>
+        <wa-icon slot="start" name="magnifying-glass"></wa-icon>
         <wa-button id="location-reset-btn" slot="end" appearance="plain" size="small" hidden>
           <wa-icon name="location-crosshairs" label="Return to detected location"></wa-icon>
         </wa-button>
@@ -112,7 +112,7 @@
     <!-- Error State -->
     <section id="error-state" hidden>
       <wa-callout variant="danger">
-        <wa-icon slot="icon" name="triangle-exclamation" aria-hidden="true"></wa-icon>
+        <wa-icon slot="icon" name="triangle-exclamation"></wa-icon>
         <strong>Error</strong>
         <p id="error-message"></p>
         <wa-button id="error-retry" variant="danger" size="small" class="mt-s" aria-label="Retry loading weather data">Try Again</wa-button>
@@ -150,7 +150,7 @@
     <small class="footer-text block max-w-6xl mx-auto px-4 text-center">
       Weather via <span id="data-source"></span> |
       Photos from <a href="https://www.flickr.com/" target="_blank" rel="noopener noreferrer" class="footer-link" aria-label="Flickr (opens in new tab)">Flickr</a> |
-      <wa-icon name="heart" aria-label="Made with love by" class="accent-icon"></wa-icon>
+      <wa-icon name="heart" label="Made with love by" class="accent-icon"></wa-icon>
       <a href="https://herzog.tech" target="_blank" rel="noopener noreferrer" class="footer-link" aria-label="herzog.tech (opens in new tab)">herzog.tech</a>
     </small>
   </footer>

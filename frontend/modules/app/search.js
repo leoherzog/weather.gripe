@@ -43,7 +43,7 @@ export function createSearchManager(app) {
             <strong>${escapeHtml(loc.name)}</strong>
             <small>${[loc.admin1, loc.country].filter(Boolean).map(escapeHtml).join(', ')}</small>
           `;
-          option.setAttribute('aria-label', fullName);
+          option.label = fullName;
 
           combobox.appendChild(option);
         });
@@ -105,6 +105,8 @@ export function createSearchManager(app) {
 
       this.clearOptions();
       combobox.open = false;
+      combobox.value = '';
+      combobox.inputValue = '';
       app.showLoading();
 
       try {

@@ -58,7 +58,7 @@ export function createCardActions(onShare, onDownload) {
     shareBtn.setAttribute('size', 'small');
     shareBtn.setAttribute('aria-label', 'Share this weather card');
     shareBtn.className = 'flex-1';
-    shareBtn.innerHTML = '<wa-icon slot="start" name="share-nodes" aria-hidden="true"></wa-icon> Share';
+    shareBtn.innerHTML = '<wa-icon slot="start" name="share-nodes"></wa-icon> Share';
     shareBtn.onclick = onShare;
 
     const downloadBtn = document.createElement('wa-button');
@@ -67,7 +67,7 @@ export function createCardActions(onShare, onDownload) {
     downloadBtn.setAttribute('size', 'small');
     downloadBtn.setAttribute('aria-label', 'Download this weather card as an image');
     downloadBtn.className = 'flex-1';
-    downloadBtn.innerHTML = '<wa-icon slot="start" name="download" aria-hidden="true"></wa-icon> Download';
+    downloadBtn.innerHTML = '<wa-icon slot="start" name="download"></wa-icon> Download';
     downloadBtn.onclick = onDownload;
 
     footer.appendChild(shareBtn);
@@ -79,7 +79,7 @@ export function createCardActions(onShare, onDownload) {
     downloadBtn.setAttribute('size', 'small');
     downloadBtn.setAttribute('aria-label', 'Download this weather card as an image');
     downloadBtn.className = 'flex-1';
-    downloadBtn.innerHTML = '<wa-icon slot="start" name="download" aria-hidden="true"></wa-icon> Download';
+    downloadBtn.innerHTML = '<wa-icon slot="start" name="download"></wa-icon> Download';
     downloadBtn.onclick = onDownload;
     footer.appendChild(downloadBtn);
   }
