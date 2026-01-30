@@ -129,10 +129,16 @@ export function createCardRenderer(app) {
       // Current conditions card (order: 1, depends on background)
       cardPromises.push((async () => {
         const backgrounds = await backgroundsPromise;
-        const background = app.weatherLoader.pickRandomPhoto(backgrounds);
+        const startIndex = backgrounds.length > 0 ? Math.floor(Math.random() * backgrounds.length) : -1;
+        const background = startIndex >= 0 ? backgrounds[startIndex] : null;
         const canvas = document.createElement('canvas');
         await WeatherCards.renderCurrentConditions(canvas, weather, background?.url, background?.photographer, timezone);
-        const card = WeatherCards.createCardContainer(canvas, 'current');
+        const rerender = async (photo) => {
+          await WeatherCards.renderCurrentConditions(canvas, weather, photo?.url, photo?.photographer, timezone);
+        };
+        const card = WeatherCards.createCardContainer(canvas, 'current', {
+          photos: backgrounds, currentIndex: startIndex, rerender
+        });
         this.addPhotoAttribution(card, background);
         return { order: 1, card };
       })());
@@ -145,13 +151,19 @@ export function createCardRenderer(app) {
           if (tonightForecast?.detailedForecast) {
             cardPromises.push((async () => {
               const detailedBgs1 = detailedBgs1Promise ? await detailedBgs1Promise : [];
-              const detailedBg1 = app.weatherLoader.pickRandomPhoto(detailedBgs1);
+              const startIdx1 = detailedBgs1.length > 0 ? Math.floor(Math.random() * detailedBgs1.length) : -1;
+              const detailedBg1 = startIdx1 >= 0 ? detailedBgs1[startIdx1] : null;
               const canvas = document.createElement('canvas');
               const result = await WeatherCards.renderDetailedForecast(
                 canvas, tonightForecast, detailedBg1?.url, detailedBg1?.photographer, cityName, timezone
               );
               if (result) {
-                const card = WeatherCards.createCardContainer(canvas, 'detailed-tonight');
+                const rerender = async (photo) => {
+                  await WeatherCards.renderDetailedForecast(canvas, tonightForecast, photo?.url, photo?.photographer, cityName, timezone);
+                };
+                const card = WeatherCards.createCardContainer(canvas, 'detailed-tonight', {
+                  photos: detailedBgs1, currentIndex: startIdx1, rerender
+                });
                 this.addPhotoAttribution(card, detailedBg1);
                 return { order: 2, card };
               }
@@ -164,13 +176,19 @@ export function createCardRenderer(app) {
           if (tomorrowForecast?.detailedForecast) {
             cardPromises.push((async () => {
               const detailedBgs2 = detailedBgs2Promise ? await detailedBgs2Promise : [];
-              const detailedBg2 = app.weatherLoader.pickRandomPhoto(detailedBgs2);
+              const startIdx2 = detailedBgs2.length > 0 ? Math.floor(Math.random() * detailedBgs2.length) : -1;
+              const detailedBg2 = startIdx2 >= 0 ? detailedBgs2[startIdx2] : null;
               const canvas = document.createElement('canvas');
               const result = await WeatherCards.renderDetailedForecast(
                 canvas, tomorrowForecast, detailedBg2?.url, detailedBg2?.photographer, cityName, timezone
               );
               if (result) {
-                const card = WeatherCards.createCardContainer(canvas, 'detailed-tomorrow');
+                const rerender = async (photo) => {
+                  await WeatherCards.renderDetailedForecast(canvas, tomorrowForecast, photo?.url, photo?.photographer, cityName, timezone);
+                };
+                const card = WeatherCards.createCardContainer(canvas, 'detailed-tomorrow', {
+                  photos: detailedBgs2, currentIndex: startIdx2, rerender
+                });
                 this.addPhotoAttribution(card, detailedBg2);
                 return { order: 3, card };
               }
@@ -183,13 +201,19 @@ export function createCardRenderer(app) {
           if (todayForecast?.detailedForecast) {
             cardPromises.push((async () => {
               const detailedBgs1 = detailedBgs1Promise ? await detailedBgs1Promise : [];
-              const detailedBg1 = app.weatherLoader.pickRandomPhoto(detailedBgs1);
+              const startIdx1 = detailedBgs1.length > 0 ? Math.floor(Math.random() * detailedBgs1.length) : -1;
+              const detailedBg1 = startIdx1 >= 0 ? detailedBgs1[startIdx1] : null;
               const canvas = document.createElement('canvas');
               const result = await WeatherCards.renderDetailedForecast(
                 canvas, todayForecast, detailedBg1?.url, detailedBg1?.photographer, cityName, timezone
               );
               if (result) {
-                const card = WeatherCards.createCardContainer(canvas, 'detailed-today');
+                const rerender = async (photo) => {
+                  await WeatherCards.renderDetailedForecast(canvas, todayForecast, photo?.url, photo?.photographer, cityName, timezone);
+                };
+                const card = WeatherCards.createCardContainer(canvas, 'detailed-today', {
+                  photos: detailedBgs1, currentIndex: startIdx1, rerender
+                });
                 this.addPhotoAttribution(card, detailedBg1);
                 return { order: 2, card };
               }
@@ -202,13 +226,19 @@ export function createCardRenderer(app) {
           if (tonightForecast?.detailedForecast) {
             cardPromises.push((async () => {
               const detailedBgs2 = detailedBgs2Promise ? await detailedBgs2Promise : [];
-              const detailedBg2 = app.weatherLoader.pickRandomPhoto(detailedBgs2);
+              const startIdx2 = detailedBgs2.length > 0 ? Math.floor(Math.random() * detailedBgs2.length) : -1;
+              const detailedBg2 = startIdx2 >= 0 ? detailedBgs2[startIdx2] : null;
               const canvas = document.createElement('canvas');
               const result = await WeatherCards.renderDetailedForecast(
                 canvas, tonightForecast, detailedBg2?.url, detailedBg2?.photographer, cityName, timezone
               );
               if (result) {
-                const card = WeatherCards.createCardContainer(canvas, 'detailed-tonight');
+                const rerender = async (photo) => {
+                  await WeatherCards.renderDetailedForecast(canvas, tonightForecast, photo?.url, photo?.photographer, cityName, timezone);
+                };
+                const card = WeatherCards.createCardContainer(canvas, 'detailed-tonight', {
+                  photos: detailedBgs2, currentIndex: startIdx2, rerender
+                });
                 this.addPhotoAttribution(card, detailedBg2);
                 return { order: 3, card };
               }
@@ -221,10 +251,16 @@ export function createCardRenderer(app) {
       // Day forecast card (order: 4, depends on background)
       cardPromises.push((async () => {
         const backgrounds = await backgroundsPromise;
-        const background = app.weatherLoader.pickRandomPhoto(backgrounds);
+        const startIndex = backgrounds.length > 0 ? Math.floor(Math.random() * backgrounds.length) : -1;
+        const background = startIndex >= 0 ? backgrounds[startIndex] : null;
         const canvas = document.createElement('canvas');
         await WeatherCards.renderDayForecast(canvas, weather, background?.url, background?.photographer, timezone);
-        const card = WeatherCards.createCardContainer(canvas, 'day');
+        const rerender = async (photo) => {
+          await WeatherCards.renderDayForecast(canvas, weather, photo?.url, photo?.photographer, timezone);
+        };
+        const card = WeatherCards.createCardContainer(canvas, 'day', {
+          photos: backgrounds, currentIndex: startIndex, rerender
+        });
         this.addPhotoAttribution(card, background);
         return { order: 4, card };
       })());
@@ -233,10 +269,16 @@ export function createCardRenderer(app) {
       if (weather.hourly && weather.hourly.length > 0) {
         cardPromises.push((async () => {
           const backgrounds = await backgroundsPromise;
-          const background = app.weatherLoader.pickRandomPhoto(backgrounds);
+          const startIndex = backgrounds.length > 0 ? Math.floor(Math.random() * backgrounds.length) : -1;
+          const background = startIndex >= 0 ? backgrounds[startIndex] : null;
           const canvas = document.createElement('canvas');
           await WeatherCards.renderHourlyForecast(canvas, weather, cityName, background?.url, background?.photographer, timezone);
-          const card = WeatherCards.createCardContainer(canvas, 'hourly');
+          const rerender = async (photo) => {
+            await WeatherCards.renderHourlyForecast(canvas, weather, cityName, photo?.url, photo?.photographer, timezone);
+          };
+          const card = WeatherCards.createCardContainer(canvas, 'hourly', {
+            photos: backgrounds, currentIndex: startIndex, rerender
+          });
           this.addPhotoAttribution(card, background);
           return { order: 4.5, card };
         })());
@@ -254,10 +296,16 @@ export function createCardRenderer(app) {
       // Forecast graph card (order: 6, depends on background)
       cardPromises.push((async () => {
         const backgrounds = await backgroundsPromise;
-        const background = app.weatherLoader.pickRandomPhoto(backgrounds);
+        const startIndex = backgrounds.length > 0 ? Math.floor(Math.random() * backgrounds.length) : -1;
+        const background = startIndex >= 0 ? backgrounds[startIndex] : null;
         const canvas = document.createElement('canvas');
         await WeatherCards.renderForecastGraph(canvas, weather, cityName, background?.url, background?.photographer, timezone);
-        const card = WeatherCards.createCardContainer(canvas, 'forecast');
+        const rerender = async (photo) => {
+          await WeatherCards.renderForecastGraph(canvas, weather, cityName, photo?.url, photo?.photographer, timezone);
+        };
+        const card = WeatherCards.createCardContainer(canvas, 'forecast', {
+          photos: backgrounds, currentIndex: startIndex, rerender
+        });
         this.addPhotoAttribution(card, background);
         return { order: 6, card };
       })());

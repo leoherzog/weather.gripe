@@ -13,7 +13,7 @@ function ensureLightboxDialog() {
 
   lightboxDialog = document.createElement('wa-dialog');
   lightboxDialog.className = 'card-lightbox';
-  lightboxDialog.setAttribute('no-header', '');
+  lightboxDialog.setAttribute('without-header', '');
   lightboxDialog.setAttribute('light-dismiss', '');
 
   // Create content container
@@ -61,9 +61,10 @@ async function getCardCanvas(card) {
     return null;
   }
 
-  // For canvas-based cards, find the canvas in media slot
-  const canvas = card.querySelector('canvas[slot="media"]');
-  return canvas || null;
+  // For canvas-based cards, find the canvas in media slot (or inside media wrapper)
+  return card.querySelector('canvas[slot="media"]')
+      || card.querySelector('.card-media-wrapper canvas')
+      || null;
 }
 
 /**

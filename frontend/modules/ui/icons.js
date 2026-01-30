@@ -4,8 +4,10 @@
 import { library } from '@fortawesome/fontawesome-svg-core';
 import { registerIconLibrary } from '@awesome.me/webawesome-pro/dist/webawesome.js';
 
-// Import all needed icons (25 total)
+// Import all needed icons (27 total)
 import {
+  faAngleLeft,
+  faAngleRight,
   faArrowDown,
   faArrowUp,
   faCloud,
@@ -39,6 +41,8 @@ import {
 
 // Add all icons to Font Awesome library
 library.add(
+  faAngleLeft,
+  faAngleRight,
   faArrowDown,
   faArrowUp,
   faCloud,
@@ -67,6 +71,8 @@ library.add(
 
 // Map kebab-case names to imported icon definitions for canvas rendering
 const iconDefinitions = {
+  'angle-left': faAngleLeft,
+  'angle-right': faAngleRight,
   'arrow-down': faArrowDown,
   'arrow-up': faArrowUp,
   'cloud': faCloud,

@@ -87,19 +87,99 @@ export function createCardActions(onShare, onDownload) {
   return footer;
 }
 
+// Update photo attribution on a card (used by photo nav buttons)
+function updatePhotoAttribution(card, photo) {
+  const existing = card.querySelector('.photo-attribution');
+  if (!existing) return;
+  if (!photo) {
+    existing.remove();
+    return;
+  }
+  existing.innerHTML = '';
+  existing.appendChild(document.createTextNode('Photo by '));
+
+  const photographerLink = document.createElement('a');
+  photographerLink.href = photo.photographerUrl;
+  photographerLink.target = '_blank';
+  photographerLink.rel = 'noopener noreferrer';
+  photographerLink.textContent = photo.photographer;
+  photographerLink.setAttribute('aria-label', `${photo.photographer} on Flickr (opens in new tab)`);
+  existing.appendChild(photographerLink);
+
+  existing.appendChild(document.createTextNode(' on '));
+
+  const flickrLink = document.createElement('a');
+  flickrLink.href = photo.flickrUrl;
+  flickrLink.target = '_blank';
+  flickrLink.rel = 'noopener noreferrer';
+  flickrLink.textContent = 'Flickr';
+  flickrLink.setAttribute('aria-label', 'Flickr (opens in new tab)');
+  existing.appendChild(flickrLink);
+}
+
 // Create card container with share/download buttons
-export function createCardContainer(canvas, cardType) {
+// photoNav: optional { photos, currentIndex, rerender } for background photo cycling
+export function createCardContainer(canvas, cardType, photoNav = null) {
   const container = document.createElement('wa-card');
   container.className = 'weather-card';
   container.dataset.cardType = cardType;
 
-  // Use media slot for edge-to-edge display
-  canvas.setAttribute('slot', 'media');
   canvas.style.width = '100%';
   canvas.style.height = 'auto';
   canvas.style.display = 'block';
 
-  container.appendChild(canvas);
+  if (photoNav && photoNav.photos.length > 1) {
+    // Wrap canvas in a positioned container for overlay buttons
+    const wrapper = document.createElement('div');
+    wrapper.className = 'card-media-wrapper';
+    wrapper.setAttribute('slot', 'media');
+    wrapper.appendChild(canvas);
+
+    let currentIndex = photoNav.currentIndex;
+    let isNavigating = false;
+
+    const prevBtn = document.createElement('button');
+    prevBtn.className = 'photo-nav-btn photo-nav-prev';
+    prevBtn.setAttribute('aria-label', 'Previous photo');
+    prevBtn.innerHTML = '<wa-icon name="angle-left"></wa-icon>';
+    wrapper.appendChild(prevBtn);
+
+    const nextBtn = document.createElement('button');
+    nextBtn.className = 'photo-nav-btn photo-nav-next';
+    nextBtn.setAttribute('aria-label', 'Next photo');
+    nextBtn.innerHTML = '<wa-icon name="angle-right"></wa-icon>';
+    wrapper.appendChild(nextBtn);
+
+    const navigate = async (newIndex) => {
+      if (isNavigating) return;
+      isNavigating = true;
+      try {
+        currentIndex = newIndex;
+        const photo = photoNav.photos[currentIndex];
+        await photoNav.rerender(photo);
+        updatePhotoAttribution(container, photo);
+      } finally {
+        isNavigating = false;
+      }
+    };
+
+    prevBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      navigate((currentIndex - 1 + photoNav.photos.length) % photoNav.photos.length);
+    });
+
+    nextBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      navigate((currentIndex + 1) % photoNav.photos.length);
+    });
+
+    container.appendChild(wrapper);
+  } else {
+    // No photo navigation - direct media slot
+    canvas.setAttribute('slot', 'media');
+    container.appendChild(canvas);
+  }
+
   container.appendChild(createCardActions(
     () => shareCard(canvas, cardType),
     () => downloadCard(canvas, cardType)

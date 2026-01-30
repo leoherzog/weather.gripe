@@ -212,6 +212,46 @@ wa-button[appearance="outlined"][variant="brand"]:hover::part(base) {
   pointer-events: none;
 }
 
+/* Photo navigation controls (prev/next background image) */
+.card-media-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.card-media-wrapper > canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.photo-nav-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 10;
+  background: none;
+  color: white;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-size: 32px;
+  opacity: 0.25;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.6));
+  transition: opacity 0.2s;
+}
+
+.photo-nav-btn:hover {
+  opacity: 1;
+}
+
+.photo-nav-prev {
+  left: 12px;
+}
+
+.photo-nav-next {
+  right: 12px;
+}
+
 /* Radar zoom controls */
 .radar-zoom-btn {
   position: absolute;

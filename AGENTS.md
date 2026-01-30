@@ -85,6 +85,8 @@ The radar card embeds a live MapLibre GL JS map (not canvas compositing):
 
 **MapLibre Cleanup:** The app calls `card._cleanup()` before removing radar cards to properly dispose of WebGL resources.
 
+**Photo Navigation Controls:** Canvas-based weather cards with Flickr background photos have prev/next buttons (`fa-angle-left` / `fa-angle-right`) to cycle through the photos array. Buttons are 25% opacity (100% on hover), no background, positioned absolutely within a `.card-media-wrapper` div that wraps the canvas in the `media` slot. `createCardContainer` accepts an optional `photoNav` config (`{ photos, currentIndex, rerender }`) — when the photos array has 2+ items, buttons are added. Clicking navigates the index (wrapping with modular arithmetic), calls the card-specific `rerender` async closure to repaint the canvas with the new photo, and updates the `.photo-attribution` element. A `isNavigating` guard prevents concurrent canvas renders from racing. `stopPropagation()` prevents lightbox activation.
+
 ### Unified Condition Code System
 
 Both NWS and Open-Meteo data are normalized to these condition codes:
