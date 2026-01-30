@@ -173,6 +173,9 @@ export function createCardContainer(canvas, cardType, photoNav = null) {
       navigate((currentIndex + 1) % photoNav.photos.length);
     });
 
+    // Expose theme refresh: re-render canvas with current photo (no re-fetch)
+    container._rerenderTheme = () => photoNav.rerender(photoNav.photos[currentIndex]);
+
     container.appendChild(wrapper);
   } else {
     // No photo navigation - direct media slot

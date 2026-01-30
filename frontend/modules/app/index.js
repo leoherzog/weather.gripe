@@ -131,13 +131,14 @@ export const App = {
     this.elements.unitToggle.addEventListener('change', () => {
       Units.setSystem(this.elements.unitToggle.value);
       this.updateHeading();
-      this.cardRenderer.refreshCards();
+      this.cardRenderer.refreshTheme();
     });
 
     // Location reset button - return to auto-detected location
     this.elements.locationResetBtn.addEventListener('click', () => this.location.resetToAutoLocation());
 
     // Re-render cards when dark/light mode changes (canvas cards are theme-aware)
+    // Uses refreshTheme() to re-render canvases in-place, preserving current photos
     // Track wa-dark state so we only refresh on actual theme toggle, not unrelated class changes
     // (e.g., wa-scroll-lock added/removed by dialogs/lightbox)
     let wasDark = document.documentElement.classList.contains('wa-dark');
@@ -145,7 +146,7 @@ export const App = {
       const isDark = document.documentElement.classList.contains('wa-dark');
       if (isDark !== wasDark) {
         wasDark = isDark;
-        this.cardRenderer.refreshCards();
+        this.cardRenderer.refreshTheme();
       }
     }).observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
   },

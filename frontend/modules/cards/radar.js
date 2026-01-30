@@ -311,6 +311,15 @@ export async function createRadarCard(radarData, locationName, timezone = null) 
   // Expose export function for lightbox
   card._exportToCanvas = exportToCanvas;
 
+  // Theme refresh: redraw overlay canvas (header, legend, watermark) without touching the map
+  card._rerenderTheme = () => {
+    const ctx = overlay.getContext('2d');
+    ctx.clearRect(0, 0, width, height);
+    drawLocationMarker(ctx, width / 2, height / 2, MARKER_LARGE_SIZE);
+    drawRadarHeader(ctx, width, radarData, locationName, timezone);
+    drawWatermark(ctx, width, height, 'NOAA', timezone);
+  };
+
   // Attach lightbox click handler
   attachLightboxHandler(card);
 

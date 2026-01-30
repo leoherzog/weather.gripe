@@ -112,7 +112,7 @@ export function createCardRenderer(app) {
 
           // Fall back to text-based card
           const canvas = document.createElement('canvas');
-          await WeatherCards.renderAlert(canvas, {
+          const alertData = {
             event: alert.event,
             severity: alert.severity,
             urgency: alert.urgency,
@@ -121,8 +121,11 @@ export function createCardRenderer(app) {
             instruction: alert.instruction,
             description: alert.description,
             senderName: alert.senderName
-          }, timezone);
-          return { order: 0 + i * 0.1, card: WeatherCards.createCardContainer(canvas, 'alert') };
+          };
+          await WeatherCards.renderAlert(canvas, alertData, timezone);
+          const card = WeatherCards.createCardContainer(canvas, 'alert');
+          card._rerenderTheme = () => WeatherCards.renderAlert(canvas, alertData, timezone);
+          return { order: 0 + i * 0.1, card };
         })());
       });
 
@@ -391,6 +394,16 @@ export function createCardRenderer(app) {
       if (app.currentWeather) {
         await this.renderAllCards(app.currentWeather, app.currentAlerts || [], app.currentWxStory, app.currentLocation?.name);
       }
+    },
+
+    // Re-render existing card canvases for theme change (preserves current photos)
+    async refreshTheme() {
+      const cards = app.elements.weatherCards.querySelectorAll('.weather-card');
+      const promises = [];
+      for (const card of cards) {
+        if (card._rerenderTheme) promises.push(card._rerenderTheme());
+      }
+      await Promise.all(promises);
     },
 
     // Add photo attribution to a card

@@ -199,19 +199,28 @@ export async function createAlertMapCard(alertData, userLocation, timezone = nul
     });
 
     // Draw overlay content immediately (doesn't depend on map loading)
+    drawOverlayContent();
+  };
+
+  // Draw the gradient overlay + alert text on the overlay canvas
+  function drawOverlayContent() {
     const ctx = overlay.getContext('2d');
+    ctx.clearRect(0, 0, width, height);
+
+    // Re-resolve severity colors (may differ between dark/light mode)
+    const colors = getSeverityColors(severity);
 
     // Horizontal gradient: opaque on left (text area) → transparent on right (map area)
     const gradient = ctx.createLinearGradient(0, 0, width, 0);
-    gradient.addColorStop(0, `${bgColors.bg[0]}${GRADIENT_OPACITY.leftEdge}`);
-    gradient.addColorStop(GRADIENT_TEXT_BOUNDARY, `${bgColors.bg[1]}${GRADIENT_OPACITY.textBoundary}`);
-    gradient.addColorStop(1, `${bgColors.bg[1]}${GRADIENT_OPACITY.rightEdge}`);
+    gradient.addColorStop(0, `${colors.bg[0]}${GRADIENT_OPACITY.leftEdge}`);
+    gradient.addColorStop(GRADIENT_TEXT_BOUNDARY, `${colors.bg[1]}${GRADIENT_OPACITY.textBoundary}`);
+    gradient.addColorStop(1, `${colors.bg[1]}${GRADIENT_OPACITY.rightEdge}`);
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, width, height);
 
     // Draw alert content (text already wrapped for narrower width)
     drawAlertContent(ctx, width, height, alertData, layout, timezone);
-  };
+  }
 
   // Wait for DOM connection before initializing map
   const cancelDOMWait = waitForDOMConnection(mapContainer, initMap);
@@ -221,6 +230,9 @@ export async function createAlertMapCard(alertData, userLocation, timezone = nul
 
   // Expose export function for lightbox
   card._exportToCanvas = exportToCanvas;
+
+  // Theme refresh: redraw overlay (gradient + alert text) without touching the map
+  card._rerenderTheme = drawOverlayContent;
 
   // Attach lightbox click handler
   attachLightboxHandler(card);
