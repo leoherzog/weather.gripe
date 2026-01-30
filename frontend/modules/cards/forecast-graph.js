@@ -1,6 +1,6 @@
 // Forecast graph card renderer (5-day forecast with line graph)
 
-import { CARD_WIDTH, getTempHighColor, getTempLowColor, drawWatermark, drawWeatherIcon, loadImage, drawOverlay, drawFallbackBackground } from './core.js';
+import { CARD_WIDTH, getTempHighColor, getTempLowColor, drawWatermark, drawWeatherIcon, loadImage, drawOverlay, drawFallbackBackground, cardText } from './core.js';
 import { Units } from '../utils/units.js';
 
 // Create 5-Day Forecast Card with line graph
@@ -45,7 +45,7 @@ export async function renderForecastGraph(canvas, weatherData, locationName = '5
   const graphHeight = height - padding.top - padding.bottom;
 
   // Title (location name) - offset to align with centered temp labels on first data point
-  ctx.fillStyle = 'white';
+  ctx.fillStyle = cardText();
   ctx.font = 'bold 48px system-ui, sans-serif';
   ctx.textAlign = 'left';
   ctx.textBaseline = 'top';
@@ -130,7 +130,7 @@ export async function renderForecastGraph(canvas, weatherData, locationName = '5
     const weekdayOpts = timezone ? { weekday: 'short', timeZone: timezone } : { weekday: 'short' };
     const dayName = p.day.date === todayStr ? 'Today' : date.toLocaleDateString('en-US', weekdayOpts);
 
-    ctx.fillStyle = 'white';
+    ctx.fillStyle = cardText();
     ctx.font = '32px system-ui, sans-serif';
     ctx.textBaseline = 'top';
     ctx.fillText(dayName, p.x, height - padding.bottom + 70);

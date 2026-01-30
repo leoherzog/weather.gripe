@@ -11,6 +11,34 @@ export { getIconData, initIcons };
 export const CARD_WIDTH = 1200;
 export const CARD_HEIGHT = 800;
 
+// Theme colors
+const LIGHT_TEXT = '26, 26, 26';   // #1a1a1a
+const DARK_TEXT = '255, 255, 255'; // white
+const LIGHT_OVERLAY = '255, 255, 255'; // white overlay for light mode
+const DARK_OVERLAY = '0, 0, 0';       // black overlay for dark mode
+
+// Theme detection
+export function isDarkMode() {
+  return document.documentElement.classList.contains('wa-dark');
+}
+
+// Theme-aware text color (white in dark mode, dark in light mode)
+export function cardText(opacity = 1) {
+  const rgb = isDarkMode() ? DARK_TEXT : LIGHT_TEXT;
+  return opacity >= 1 ? `rgb(${rgb})` : `rgba(${rgb}, ${opacity})`;
+}
+
+// Theme-aware overlay color (black in dark mode, white in light mode)
+export function cardOverlay(opacity) {
+  const rgb = isDarkMode() ? DARK_OVERLAY : LIGHT_OVERLAY;
+  return `rgba(${rgb}, ${opacity})`;
+}
+
+// Theme-aware divider color (same as text, different semantic usage)
+export function cardDivider(opacity) {
+  return cardText(opacity);
+}
+
 // Temperature color getters (resolved from Web Awesome palette)
 export function getTempHighColor() {
   return getTemperatureColors().high;
@@ -21,7 +49,8 @@ export function getTempLowColor() {
 }
 
 // Draw weather icon using imported SVG path data
-export function drawWeatherIcon(ctx, iconClass, x, y, size, color = 'white') {
+export function drawWeatherIcon(ctx, iconClass, x, y, size, color) {
+  if (color === undefined) color = cardText();
   // Convert 'fa-cloud-sun' to 'cloud-sun'
   const iconName = iconClass.replace(/^fa-/, '');
 
@@ -52,8 +81,9 @@ export function drawWeatherIcon(ctx, iconClass, x, y, size, color = 'white') {
 // timezone: IANA timezone string (e.g., 'America/New_York') for displaying location's local time
 export function drawWatermark(ctx, width, height, suffix = null, timezone = null) {
   ctx.save();
+  const wmColor = cardText(0.7);
   ctx.font = '24px system-ui, sans-serif';
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+  ctx.fillStyle = wmColor;
   ctx.textBaseline = 'bottom';
 
   // Watermark (bottom-left) with underlined "weather.gripe"
@@ -68,7 +98,7 @@ export function drawWatermark(ctx, width, height, suffix = null, timezone = null
     ctx.fillText(siteText, 20 + prefixWidth, y);
     // Underline
     const siteWidth = ctx.measureText(siteText).width;
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+    ctx.strokeStyle = wmColor;
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(20 + prefixWidth, y + 2);
@@ -78,7 +108,7 @@ export function drawWatermark(ctx, width, height, suffix = null, timezone = null
     ctx.fillText(siteText, 20, y);
     // Underline
     const siteWidth = ctx.measureText(siteText).width;
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+    ctx.strokeStyle = wmColor;
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(20, y + 2);
@@ -96,8 +126,9 @@ export function drawWatermark(ctx, width, height, suffix = null, timezone = null
 }
 
 // Draw semi-transparent overlay for text readability
+// Dark mode: black overlay; Light mode: white overlay
 export function drawOverlay(ctx, width, height, opacity = 0.5) {
-  ctx.fillStyle = `rgba(0, 0, 0, ${opacity})`;
+  ctx.fillStyle = cardOverlay(opacity);
   ctx.fillRect(0, 0, width, height);
 }
 
@@ -112,7 +143,8 @@ export function drawFallbackBackground(ctx, width, height) {
 }
 
 // Draw a rounded rectangle pill
-export function drawPill(ctx, x, y, text, bgColor, textColor = 'white') {
+export function drawPill(ctx, x, y, text, bgColor, textColor) {
+  if (textColor === undefined) textColor = cardText();
   ctx.font = 'bold 32px system-ui, sans-serif';
   const padding = 20;
   const height = 48;

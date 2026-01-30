@@ -1,6 +1,6 @@
 // Hourly forecast card renderer (24-hour forecast with temperature line graph)
 
-import { CARD_WIDTH, getTempLowColor, drawWatermark, drawWeatherIcon, loadImage, drawOverlay, drawFallbackBackground } from './core.js';
+import { CARD_WIDTH, getTempLowColor, drawWatermark, drawWeatherIcon, loadImage, drawOverlay, drawFallbackBackground, cardText } from './core.js';
 import { Units } from '../utils/units.js';
 
 // Night icon mappings for clear/partly-cloudy conditions
@@ -100,7 +100,7 @@ export async function renderHourlyForecast(canvas, weatherData, cityName = '', b
   const graphHeight = height - padding.top - padding.bottom;
 
   // Title
-  ctx.fillStyle = 'white';
+  ctx.fillStyle = cardText();
   ctx.font = 'bold 48px system-ui, sans-serif';
   ctx.textAlign = 'left';
   ctx.textBaseline = 'top';
@@ -156,12 +156,12 @@ export async function renderHourlyForecast(canvas, weatherData, cityName = '', b
     ctx.arc(p.x, p.y, 8, 0, Math.PI * 2);
     ctx.fillStyle = getTempLowColor();
     ctx.fill();
-    ctx.strokeStyle = 'white';
+    ctx.strokeStyle = cardText();
     ctx.lineWidth = 2;
     ctx.stroke();
 
     // Temperature label above point
-    ctx.fillStyle = 'white';
+    ctx.fillStyle = cardText();
     ctx.font = 'bold 24px system-ui, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
@@ -174,7 +174,7 @@ export async function renderHourlyForecast(canvas, weatherData, cityName = '', b
       : { hour: 'numeric', hour12: true };
     const timeStr = time.toLocaleTimeString('en-US', timeOpts).replace(' ', '');
 
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+    ctx.fillStyle = cardText(0.8);
     ctx.font = '22px system-ui, sans-serif';
     ctx.textBaseline = 'top';
     ctx.fillText(timeStr, p.x, height - padding.bottom + 15);

@@ -90,6 +90,7 @@
   --wa-color-brand-fill-normal: var(--color-primary);
   --wa-color-brand-fill-quiet: var(--color-primary-light);
   --wa-color-brand-fill-loud: var(--color-primary-dark);
+  --wa-color-brand-on-loud: var(--color-primary-text);
 }
 
 /* Unit toggle radio buttons - temperature gradient for checked state */

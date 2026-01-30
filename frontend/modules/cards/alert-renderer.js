@@ -1,7 +1,7 @@
 // Shared alert content rendering utilities
 // Used by both alert.js and alert-map.js
 
-import { drawWatermark, drawPill, wrapText, drawWeatherIcon } from './core.js';
+import { drawWatermark, drawPill, wrapText, drawWeatherIcon, cardText } from './core.js';
 import { getSeverityColors, getUrgencyColor } from '../utils/palette-colors.js';
 
 // Layout constants for alert cards
@@ -99,7 +99,7 @@ export function drawAlertHeader(ctx, alertData, y, colors) {
 
   drawWeatherIcon(ctx, icon, L.header.iconX, headerCenterY, L.header.iconSize, colors.icon);
 
-  ctx.fillStyle = 'white';
+  ctx.fillStyle = cardText();
   ctx.font = HEADER_FONT;
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
@@ -175,7 +175,7 @@ export function drawAlertTime(ctx, layout, y, timezone) {
   if (!layout.hasTime) return y;
 
   ctx.font = L.time.font;
-  ctx.fillStyle = `rgba(255, 255, 255, ${L.time.opacity})`;
+  ctx.fillStyle = cardText(L.time.opacity);
   ctx.textBaseline = 'top';
 
   const now = new Date();
@@ -207,7 +207,7 @@ export function drawAlertDescription(ctx, lines, y) {
   if (lines.length === 0) return y;
 
   ctx.font = L.desc.font;
-  ctx.fillStyle = `rgba(255, 255, 255, ${L.desc.opacity})`;
+  ctx.fillStyle = cardText(L.desc.opacity);
   ctx.textBaseline = 'top';
 
   for (const line of lines) {
@@ -231,7 +231,7 @@ export function drawAlertInstructions(ctx, lines, y) {
   if (lines.length === 0) return y;
 
   ctx.font = L.inst.font;
-  ctx.fillStyle = `rgba(255, 255, 255, ${L.inst.opacity})`;
+  ctx.fillStyle = cardText(L.inst.opacity);
   ctx.textBaseline = 'top';
 
   for (const line of lines) {

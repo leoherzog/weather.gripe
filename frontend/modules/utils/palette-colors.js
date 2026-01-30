@@ -99,30 +99,42 @@ const FALLBACKS = {
   'red-50': '#ef4444',
   'red-60': '#dc2626',
   'red-80': '#fca5a5',
+  'red-90': '#fee2e2',
   'orange-05': '#431407',
   'orange-10': '#7c2d12',
   'orange-50': '#ea580c',
   'orange-60': '#f97316',
   'orange-80': '#fdba74',
+  'orange-90': '#ffedd5',
   'yellow-05': '#422006',
   'yellow-10': '#713f12',
   'yellow-70': '#ca8a04',
   'yellow-80': '#eab308',
   'yellow-90': '#fde047',
+  'yellow-95': '#fef9c3',
   'blue-10': '#0d1b2a',
   'blue-20': '#1e3a5f',
   'blue-50': '#2563eb',
   'blue-60': '#3b82f6',
   'blue-80': '#93c5fd',
+  'blue-90': '#dbeafe',
   'gray-10': '#1f2937',
   'gray-30': '#374151',
   'gray-50': '#4b5563',
   'gray-60': '#6b7280',
-  'gray-70': '#9ca3af'
+  'gray-70': '#9ca3af',
+  'gray-80': '#d1d5db',
+  'gray-90': '#e5e7eb'
 };
 
+// Theme detection for canvas rendering
+function isDarkMode() {
+  return document.documentElement.classList.contains('wa-dark');
+}
+
 // Semantic color mappings → Web Awesome variable names (without --wa-color- prefix)
-const COLOR_MAP = {
+// Dark mode colors (current defaults)
+const COLOR_MAP_DARK = {
   severity: {
     extreme: { bg: ['red-10', 'red-05'], pill: 'red-50', icon: 'red-80', stroke: 'red-60' },
     severe: { bg: ['orange-10', 'orange-05'], pill: 'orange-60', icon: 'orange-80', stroke: 'orange-50' },
@@ -130,6 +142,29 @@ const COLOR_MAP = {
     minor: { bg: ['blue-20', 'blue-10'], pill: 'blue-60', icon: 'blue-80', stroke: 'blue-50' },
     unknown: { bg: ['gray-30', 'gray-10'], pill: 'gray-60', icon: 'gray-70', stroke: 'gray-50' }
   },
+  fallback: {
+    gradientStart: 'blue-20',
+    gradientEnd: 'blue-10'
+  }
+};
+
+// Light mode colors
+const COLOR_MAP_LIGHT = {
+  severity: {
+    extreme: { bg: ['red-80', 'red-90'], pill: 'red-50', icon: 'red-10', stroke: 'red-60' },
+    severe: { bg: ['orange-80', 'orange-90'], pill: 'orange-60', icon: 'orange-10', stroke: 'orange-50' },
+    moderate: { bg: ['yellow-80', 'yellow-95'], pill: 'yellow-70', icon: 'yellow-10', stroke: 'yellow-70' },
+    minor: { bg: ['blue-80', 'blue-90'], pill: 'blue-60', icon: 'blue-10', stroke: 'blue-50' },
+    unknown: { bg: ['gray-80', 'gray-90'], pill: 'gray-50', icon: 'gray-10', stroke: 'gray-50' }
+  },
+  fallback: {
+    gradientStart: 'blue-80',
+    gradientEnd: 'blue-90'
+  }
+};
+
+// Shared (mode-independent) color mappings
+const COLOR_MAP_SHARED = {
   urgency: {
     immediate: 'red-60',
     expected: 'orange-50',
@@ -143,12 +178,13 @@ const COLOR_MAP = {
   },
   radar: {
     marker: 'red-50'
-  },
-  fallback: {
-    gradientStart: 'blue-20',
-    gradientEnd: 'blue-10'
   }
 };
+
+// Get the active color map based on current theme
+function getColorMap() {
+  return isDarkMode() ? COLOR_MAP_DARK : COLOR_MAP_LIGHT;
+}
 
 // Cache: variable name → resolved hex value
 const cache = new Map();
@@ -158,6 +194,9 @@ const callbacks = new Set();
 
 // Current palette class
 let currentPalette = null;
+
+// Current dark mode state (tracked to invalidate cache on toggle)
+let currentDarkMode = null;
 
 // MutationObserver instance
 let observer = null;
@@ -214,9 +253,23 @@ function detectPalette() {
 function handleMutations(mutations) {
   for (const mutation of mutations) {
     if (mutation.attributeName === 'class') {
+      let changed = false;
+
       const newPalette = detectPalette();
       if (newPalette !== currentPalette) {
         currentPalette = newPalette;
+        changed = true;
+      }
+
+      // Also invalidate cache on dark/light mode toggle
+      // (severity colors and fallback gradient depend on isDarkMode())
+      const newDarkMode = isDarkMode();
+      if (newDarkMode !== currentDarkMode) {
+        currentDarkMode = newDarkMode;
+        changed = true;
+      }
+
+      if (changed) {
         invalidateCache();
         notifyPaletteChange();
       }
@@ -232,6 +285,7 @@ export function init() {
   if (observer) return; // Already initialized
 
   currentPalette = detectPalette();
+  currentDarkMode = isDarkMode();
 
   observer = new MutationObserver(handleMutations);
   observer.observe(document.documentElement, {
@@ -256,7 +310,8 @@ export function onPaletteChange(callback) {
  * @returns {Object} Colors object with bg (array), pill, pillText, icon, stroke properties
  */
 export function getSeverityColors(severity) {
-  const mapping = COLOR_MAP.severity[severity.toLowerCase()] || COLOR_MAP.severity.unknown;
+  const colorMap = getColorMap();
+  const mapping = colorMap.severity[severity.toLowerCase()] || colorMap.severity.unknown;
   const pillColor = resolve(mapping.pill);
   return {
     bg: mapping.bg.map(resolve),
@@ -273,7 +328,7 @@ export function getSeverityColors(severity) {
  * @returns {Object} Object with bg and text properties
  */
 export function getUrgencyColor(urgency) {
-  const mapping = COLOR_MAP.urgency[urgency.toLowerCase()] || COLOR_MAP.urgency.unknown;
+  const mapping = COLOR_MAP_SHARED.urgency[urgency.toLowerCase()] || COLOR_MAP_SHARED.urgency.unknown;
   const color = resolve(mapping);
   return {
     bg: color,
@@ -287,8 +342,8 @@ export function getUrgencyColor(urgency) {
  */
 export function getTemperatureColors() {
   return {
-    high: resolve(COLOR_MAP.temperature.high),
-    low: resolve(COLOR_MAP.temperature.low)
+    high: resolve(COLOR_MAP_SHARED.temperature.high),
+    low: resolve(COLOR_MAP_SHARED.temperature.low)
   };
 }
 
@@ -297,7 +352,7 @@ export function getTemperatureColors() {
  * @returns {string} Resolved color value
  */
 export function getRadarMarkerColor() {
-  return resolve(COLOR_MAP.radar.marker);
+  return resolve(COLOR_MAP_SHARED.radar.marker);
 }
 
 /**
@@ -305,9 +360,10 @@ export function getRadarMarkerColor() {
  * @returns {Object} Colors object with start and end properties
  */
 export function getFallbackGradient() {
+  const colorMap = getColorMap();
   return {
-    start: resolve(COLOR_MAP.fallback.gradientStart),
-    end: resolve(COLOR_MAP.fallback.gradientEnd)
+    start: resolve(colorMap.fallback.gradientStart),
+    end: resolve(colorMap.fallback.gradientEnd)
   };
 }
 

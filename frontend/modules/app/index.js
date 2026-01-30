@@ -136,6 +136,18 @@ export const App = {
 
     // Location reset button - return to auto-detected location
     this.elements.locationResetBtn.addEventListener('click', () => this.location.resetToAutoLocation());
+
+    // Re-render cards when dark/light mode changes (canvas cards are theme-aware)
+    // Track wa-dark state so we only refresh on actual theme toggle, not unrelated class changes
+    // (e.g., wa-scroll-lock added/removed by dialogs/lightbox)
+    let wasDark = document.documentElement.classList.contains('wa-dark');
+    new MutationObserver(() => {
+      const isDark = document.documentElement.classList.contains('wa-dark');
+      if (isDark !== wasDark) {
+        wasDark = isDark;
+        this.cardRenderer.refreshCards();
+      }
+    }).observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
   },
 
   // Update the h2 heading with current units

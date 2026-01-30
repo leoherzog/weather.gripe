@@ -1,6 +1,6 @@
 // Day forecast card renderer (Today/Tonight/Tomorrow)
 
-import { CARD_WIDTH, getTempHighColor, getTempLowColor, drawWatermark, drawWeatherIcon, loadImage, drawOverlay, drawFallbackBackground } from './core.js';
+import { CARD_WIDTH, getTempHighColor, getTempLowColor, drawWatermark, drawWeatherIcon, loadImage, drawOverlay, drawFallbackBackground, cardText, cardDivider } from './core.js';
 import { Units } from '../utils/units.js';
 
 // Create Today/Tonight/Tomorrow Card
@@ -113,7 +113,7 @@ export async function renderDayForecast(canvas, weatherData, backgroundUrl = nul
     const x = i * colWidth + colWidth / 2;
 
     // Label
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+    ctx.fillStyle = cardText(0.7);
     ctx.font = '40px system-ui, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
@@ -130,7 +130,7 @@ export async function renderDayForecast(canvas, weatherData, backgroundUrl = nul
     drawWeatherIcon(ctx, icon, x, 180, 100);
 
     // Temperatures
-    ctx.fillStyle = 'white';
+    ctx.fillStyle = cardText();
     ctx.font = 'bold 56px system-ui, sans-serif';
 
     ctx.textAlign = 'left';
@@ -144,7 +144,7 @@ export async function renderDayForecast(canvas, weatherData, backgroundUrl = nul
       const highTotalWidth = arrowSize + arrowGap + highTempWidth;
       const highStart = x - highTotalWidth / 2;
       drawWeatherIcon(ctx, 'arrow-up', highStart + arrowSize / 2, 300 + 28, arrowSize, getTempHighColor());
-      ctx.fillStyle = 'white';
+      ctx.fillStyle = cardText();
       ctx.fillText(highTemp, highStart + arrowSize + arrowGap, 300);
 
       // Low temp with blue arrow icon
@@ -153,7 +153,7 @@ export async function renderDayForecast(canvas, weatherData, backgroundUrl = nul
       const lowTotalWidth = arrowSize + arrowGap + lowTempWidth;
       const lowStart = x - lowTotalWidth / 2;
       drawWeatherIcon(ctx, 'arrow-down', lowStart + arrowSize / 2, 370 + 28, arrowSize, getTempLowColor());
-      ctx.fillStyle = 'white';
+      ctx.fillStyle = cardText();
       ctx.fillText(lowTemp, lowStart + arrowSize + arrowGap, 370);
     } else if (col.showLow) {
       // Low temp only with blue arrow icon
@@ -162,7 +162,7 @@ export async function renderDayForecast(canvas, weatherData, backgroundUrl = nul
       const lowTotalWidth = arrowSize + arrowGap + lowTempWidth;
       const lowStart = x - lowTotalWidth / 2;
       drawWeatherIcon(ctx, 'arrow-down', lowStart + arrowSize / 2, 335 + 28, arrowSize, getTempLowColor());
-      ctx.fillStyle = 'white';
+      ctx.fillStyle = cardText();
       ctx.fillText(lowTemp, lowStart + arrowSize + arrowGap, 335);
     }
 
@@ -170,12 +170,12 @@ export async function renderDayForecast(canvas, weatherData, backgroundUrl = nul
 
     // Condition text (use short description directly, no detail suffix)
     ctx.font = '28px system-ui, sans-serif';
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+    ctx.fillStyle = cardText(0.8);
     ctx.fillText(col.condition?.text || 'Unknown', x, 440);
   });
 
   // Divider lines
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+  ctx.strokeStyle = cardDivider(0.2);
   ctx.lineWidth = 2;
   for (let i = 1; i < 3; i++) {
     ctx.beginPath();

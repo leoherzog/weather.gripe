@@ -1,6 +1,6 @@
 // Radar card renderer with lazy-loaded MapLibre
 
-import { CARD_WIDTH, CARD_HEIGHT, drawWatermark, drawFallbackBackground, drawWeatherIcon } from './core.js';
+import { CARD_WIDTH, CARD_HEIGHT, drawWatermark, drawFallbackBackground, drawWeatherIcon, cardText, cardOverlay, cardDivider } from './core.js';
 import { getRadarMarkerColor } from '../utils/palette-colors.js';
 import { createCardContainer, createCardActions, shareCard, downloadCard } from './share.js';
 import { ensureMapLibre, waitForDOMConnection, exportMapToCanvas } from '../utils/map-utils.js';
@@ -72,11 +72,11 @@ function drawLocationMarker(ctx, x, y, size = MARKER_DEFAULT_SIZE) {
 // timezone: IANA timezone string for displaying location's local time
 function drawRadarHeader(ctx, width, radarData, locationName, timezone = null) {
   // Semi-transparent header background
-  ctx.fillStyle = `rgba(0, 0, 0, ${HEADER_BG_OPACITY})`;
+  ctx.fillStyle = cardOverlay(HEADER_BG_OPACITY);
   ctx.fillRect(0, 0, width, HEADER_HEIGHT);
 
   // Title (left side)
-  ctx.fillStyle = 'white';
+  ctx.fillStyle = cardText();
   ctx.font = `bold ${TITLE_FONT_SIZE}px system-ui, sans-serif`;
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
@@ -87,7 +87,7 @@ function drawRadarHeader(ctx, width, radarData, locationName, timezone = null) {
   if (radarData?.timestamp) {
     ctx.font = `${TIMESTAMP_FONT_SIZE}px system-ui, sans-serif`;
     ctx.textAlign = 'right';
-    ctx.fillStyle = `rgba(255, 255, 255, ${TIMESTAMP_TEXT_OPACITY})`;
+    ctx.fillStyle = cardText(TIMESTAMP_TEXT_OPACITY);
     const date = new Date(radarData.timestamp);
     const timeOpts = { hour: 'numeric', minute: '2-digit' };
     if (timezone) timeOpts.timeZone = timezone;
@@ -102,7 +102,7 @@ function drawRadarLegend(ctx, width, height) {
   const legendY = height - LEGEND_BOTTOM_OFFSET;
 
   // Background for legend
-  ctx.fillStyle = `rgba(0, 0, 0, ${LEGEND_BG_OPACITY})`;
+  ctx.fillStyle = cardOverlay(LEGEND_BG_OPACITY);
   ctx.fillRect(
     legendX - LEGEND_PADDING_X,
     legendY - LEGEND_PADDING_Y_TOP,
@@ -118,12 +118,12 @@ function drawRadarLegend(ctx, width, height) {
   }
 
   // Border
-  ctx.strokeStyle = `rgba(255, 255, 255, ${LEGEND_BORDER_OPACITY})`;
+  ctx.strokeStyle = cardDivider(LEGEND_BORDER_OPACITY);
   ctx.lineWidth = 1;
   ctx.strokeRect(legendX, legendY, LEGEND_WIDTH, LEGEND_HEIGHT);
 
   // Labels
-  ctx.fillStyle = 'white';
+  ctx.fillStyle = cardText();
   ctx.font = `${LEGEND_LABEL_FONT_SIZE}px system-ui, sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
@@ -357,13 +357,13 @@ export function renderRadarUnavailable(canvas, locationName, timezone = null) {
   drawRadarHeader(ctx, width, null, locationName, timezone);
 
   // Message
-  ctx.fillStyle = `rgba(255, 255, 255, ${UNAVAILABLE_TEXT_OPACITY})`;
+  ctx.fillStyle = cardText(UNAVAILABLE_TEXT_OPACITY);
   ctx.font = `${UNAVAILABLE_MESSAGE_FONT_SIZE}px system-ui, sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText('Radar not available for this location', width / 2, height / 2 - UNAVAILABLE_MESSAGE_OFFSET_Y);
   ctx.font = `${UNAVAILABLE_SUBMESSAGE_FONT_SIZE}px system-ui, sans-serif`;
-  ctx.fillStyle = `rgba(255, 255, 255, ${UNAVAILABLE_SUBTEXT_OPACITY})`;
+  ctx.fillStyle = cardText(UNAVAILABLE_SUBTEXT_OPACITY);
   ctx.fillText('NOAA radar coverage is limited to US territories', width / 2, height / 2 + UNAVAILABLE_SUBMESSAGE_OFFSET_Y);
 
   // Watermark
@@ -384,7 +384,7 @@ export function renderRadarError(canvas, message, timezone = null) {
   drawFallbackBackground(ctx, width, height);
 
   // Error message
-  ctx.fillStyle = `rgba(255, 255, 255, ${UNAVAILABLE_TEXT_OPACITY})`;
+  ctx.fillStyle = cardText(UNAVAILABLE_TEXT_OPACITY);
   ctx.font = `${UNAVAILABLE_MESSAGE_FONT_SIZE}px system-ui, sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';

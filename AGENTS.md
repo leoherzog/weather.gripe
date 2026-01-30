@@ -206,7 +206,18 @@ The frontend uses [Web Awesome](https://webawesome.com), a web component library
 
 **Header Logo:** The poo-storm duotone icon in the header uses temperature-based coloring via `.header-logo-icon` class. Uses `--color-primary-dark` in light mode, `--color-primary-light` in dark mode for visibility against the background.
 
-**Dark Mode:** Uses `wa-dark` class on `<html>` element. Toggle persists to `localStorage.theme`.
+**Dark Mode:** Uses `wa-dark` class on `<html>` element. Toggle persists to `localStorage.theme`. Canvas-rendered weather cards are theme-aware: dark mode uses light text/icons on dark overlays; light mode uses dark text/icons on light overlays. A `MutationObserver` on `<html>` class changes triggers `cardRenderer.refreshCards()` to re-render all cards when the theme toggles.
+
+**Canvas Theme Helpers** (`frontend/modules/cards/core.js`):
+- `isDarkMode()` - Checks for `wa-dark` class on `<html>`
+- `cardText(opacity?)` - Returns themed text color (white in dark, `#1a1a1a` in light)
+- `cardOverlay(opacity)` - Returns themed overlay color (black in dark, white in light)
+- `cardDivider(opacity)` - Themed divider color (alias for `cardText`)
+- All shared drawing functions (`drawOverlay`, `drawWatermark`, `drawWeatherIcon`, `drawPill`) auto-detect the theme internally.
+
+**Light-Mode Alert Colors** (`palette-colors.js`): Severity background colors switch between dark tints (e.g., `red-10`/`red-05`) in dark mode and light tints (e.g., `red-80`/`red-90`) in light mode. Icon colors invert correspondingly. Pill text uses `getContrastingTextColor()` for automatic WCAG AAA contrast in both modes.
+
+**Radar Card Theme:** The MapLibre basemap always uses the dark "fiord" style. Only the canvas overlay (header bar, legend, text, watermark) switches between dark and light themes. Highway overlays and the location marker glow remain white (on the dark basemap).
 
 **Search Combobox (`wa-combobox`):**
 The location search uses `wa-combobox` with dynamically populated options from the geocoding API. Key implementation notes:

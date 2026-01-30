@@ -163,8 +163,10 @@ export const TemperatureColors = {
     // Contrasting text color for AAA accessibility (skip during transitions)
     if (!skipTextColor) {
       const textColor = this.getContrastingText(color);
-      root.style.setProperty('--color-primary-text', textColor.color.css('lab'));
+      const textCss = textColor.color.css('lab');
+      root.style.setProperty('--color-primary-text', textCss);
       root.style.setProperty('--color-primary-contrast', textColor.contrast.toFixed(2));
+      root.style.setProperty('--wa-color-brand-on-loud', textCss);
     }
 
     // Lighter variant (for hover states)
@@ -231,8 +233,10 @@ export const TemperatureColors = {
     // Pre-calculate and set final text colors immediately to avoid flashing during transition
     const root = document.documentElement;
     const primaryTextColor = this.getContrastingText(endColor);
-    root.style.setProperty('--color-primary-text', primaryTextColor.color.css('lab'));
+    const primaryTextCss = primaryTextColor.color.css('lab');
+    root.style.setProperty('--color-primary-text', primaryTextCss);
     root.style.setProperty('--color-primary-contrast', primaryTextColor.contrast.toFixed(2));
+    root.style.setProperty('--wa-color-brand-on-loud', primaryTextCss);
     const gradientMidColor = this.getColor(tempF);
     const gradientTextColor = this.getContrastingText(gradientMidColor);
     root.style.setProperty('--gradient-text', gradientTextColor.color.css('lab'));

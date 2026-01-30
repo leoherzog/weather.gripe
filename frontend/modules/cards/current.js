@@ -1,6 +1,6 @@
 // Current conditions card renderer
 
-import { CARD_WIDTH, CARD_HEIGHT, drawWatermark, drawOverlay, drawFallbackBackground, drawWeatherIcon, loadImage } from './core.js';
+import { CARD_WIDTH, CARD_HEIGHT, drawWatermark, drawOverlay, drawFallbackBackground, drawWeatherIcon, loadImage, cardText } from './core.js';
 import { getConditionText } from './condition-utils.js';
 import { Units } from '../utils/units.js';
 
@@ -40,7 +40,7 @@ export async function renderCurrentConditions(canvas, weatherData, backgroundUrl
   const conditionText = getConditionText(condition, todayPrecip);
 
   // Current temperature (large)
-  ctx.fillStyle = 'white';
+  ctx.fillStyle = cardText();
   ctx.font = 'bold 192px system-ui, sans-serif';
   ctx.textAlign = 'left';
   ctx.textBaseline = 'top';
@@ -48,18 +48,18 @@ export async function renderCurrentConditions(canvas, weatherData, backgroundUrl
 
   // Feels like
   ctx.font = '48px system-ui, sans-serif';
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+  ctx.fillStyle = cardText(0.8);
   ctx.fillText(`Feels like ${Units.formatTemp(current.feelsLike)}`, 60, 300);
 
   // Condition text
   ctx.font = '56px system-ui, sans-serif';
-  ctx.fillStyle = 'white';
+  ctx.fillStyle = cardText();
   ctx.fillText(conditionText, 60, 380);
 
   // Wind (descriptive text, omit if null)
   let nextY = 460;
   ctx.font = '40px system-ui, sans-serif';
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+  ctx.fillStyle = cardText(0.9);
   const windDesc = Units.describeWind(current.wind?.speed);
   if (windDesc) {
     const windDir = Units.windDirection(current.wind?.direction);

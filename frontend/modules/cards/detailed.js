@@ -1,6 +1,6 @@
 // Detailed forecast card renderer (Today/Tonight/Tomorrow with text forecast)
 
-import { CARD_WIDTH, drawWatermark, drawOverlay, drawFallbackBackground, drawWeatherIcon, wrapText, loadImage } from './core.js';
+import { CARD_WIDTH, drawWatermark, drawOverlay, drawFallbackBackground, drawWeatherIcon, wrapText, loadImage, cardText } from './core.js';
 
 // Layout constants for detailed forecast cards
 const detailedLayout = {
@@ -62,10 +62,10 @@ export async function renderDetailedForecast(canvas, forecastData, backgroundUrl
 
   // Weather icon on the left
   const icon = `fa-${forecastData.condition?.icon || 'cloud-sun'}`;
-  drawWeatherIcon(ctx, icon, L.header.iconX, headerCenterY, L.header.iconSize, 'white');
+  drawWeatherIcon(ctx, icon, L.header.iconX, headerCenterY, L.header.iconSize);
 
   // Title (e.g., "Today in Portland", "Tonight in Portland")
-  ctx.fillStyle = 'white';
+  ctx.fillStyle = cardText();
   ctx.font = L.title.font;
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
@@ -77,7 +77,7 @@ export async function renderDetailedForecast(canvas, forecastData, backgroundUrl
 
   // Detailed forecast text
   ctx.font = L.text.font;
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+  ctx.fillStyle = cardText(0.95);
   for (const line of textLines) {
     ctx.fillText(line, L.padding.x, y);
     y += L.text.lineHeight;
