@@ -188,6 +188,29 @@ export async function createRadarCard(radarData, locationName, timezone = null) 
   overlay.className = 'map-overlay';
   mapWrapper.appendChild(overlay);
 
+  // Zoom controls
+  const zoomOut = document.createElement('button');
+  zoomOut.className = 'radar-zoom-btn radar-zoom-out';
+  zoomOut.setAttribute('aria-label', 'Zoom out');
+  zoomOut.innerHTML = '<wa-icon name="minus"></wa-icon>';
+  mapWrapper.appendChild(zoomOut);
+
+  const zoomIn = document.createElement('button');
+  zoomIn.className = 'radar-zoom-btn radar-zoom-in';
+  zoomIn.setAttribute('aria-label', 'Zoom in');
+  zoomIn.innerHTML = '<wa-icon name="plus"></wa-icon>';
+  mapWrapper.appendChild(zoomIn);
+
+  zoomOut.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (map) map.zoomOut({ duration: 200 });
+  });
+
+  zoomIn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (map) map.zoomIn({ duration: 200 });
+  });
+
   card.appendChild(mapWrapper);
 
   // Initialize map after element is in DOM
@@ -200,6 +223,10 @@ export async function createRadarCard(radarData, locationName, timezone = null) 
       map.fitBounds(mapBounds, { padding: 0, duration: 0 });
     };
 
+    // Render at overlay resolution so map is as crisp as the canvas overlay
+    const containerWidth = mapContainer.clientWidth || width;
+    const pixelRatio = width / containerWidth;
+
     map = new MapLibre.Map({
       container: mapContainer,
       style: 'https://tiles.openfreemap.org/styles/fiord',
@@ -207,7 +234,8 @@ export async function createRadarCard(radarData, locationName, timezone = null) 
       preserveDrawingBuffer: true,
       interactive: false,
       attributionControl: false,
-      fitBoundsOptions: { padding: 0 }
+      fitBoundsOptions: { padding: 0 },
+      pixelRatio
     });
 
     // Ignore missing sprite images

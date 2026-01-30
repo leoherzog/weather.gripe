@@ -79,6 +79,9 @@ The radar card embeds a live MapLibre GL JS map (not canvas compositing):
    - Header bar (city name + timestamp)
    - dBZ legend (color scale 5-70+)
    - Watermark ("NOAA via weather.gripe")
+5. **Zoom Controls** - `fa-minus` (left) and `fa-plus` (right), vertically centered, positioned absolutely within the map wrapper. Click handlers call `map.zoomOut()`/`map.zoomIn()` programmatically (the map itself is `interactive: false`). `stopPropagation()` prevents lightbox activation.
+
+**MapLibre Pixel Ratio:** The map is initialized with a custom `pixelRatio` of `CARD_WIDTH / containerWidth` so the WebGL canvas renders at 1200×800 regardless of the container's CSS pixel size. Without this, the basemap appears blurry because the overlay canvas is hardcoded to 1200×800 while MapLibre would default to the container's much smaller CSS dimensions × `devicePixelRatio`.
 
 **MapLibre Cleanup:** The app calls `card._cleanup()` before removing radar cards to properly dispose of WebGL resources.
 

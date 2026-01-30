@@ -212,6 +212,38 @@ wa-button[appearance="outlined"][variant="brand"]:hover::part(base) {
   pointer-events: none;
 }
 
+/* Radar zoom controls */
+.radar-zoom-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 10;
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 16px;
+  transition: background 0.2s;
+}
+
+.radar-zoom-btn:hover {
+  background: rgba(0, 0, 0, 0.8);
+}
+
+.radar-zoom-out {
+  left: 12px;
+}
+
+.radar-zoom-in {
+  right: 12px;
+}
+
 /* Card lightbox */
 .card-lightbox {
   --width: fit-content;

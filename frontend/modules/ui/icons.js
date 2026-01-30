@@ -4,7 +4,7 @@
 import { library } from '@fortawesome/fontawesome-svg-core';
 import { registerIconLibrary } from '@awesome.me/webawesome-pro/dist/webawesome.js';
 
-// Import all needed icons (23 total)
+// Import all needed icons (25 total)
 import {
   faArrowDown,
   faArrowUp,
@@ -21,7 +21,9 @@ import {
   faLocationCrosshairs,
   faLocationDot,
   faMagnifyingGlass,
+  faMinus,
   faMoon,
+  faPlus,
   faQuestion,
   faShareNodes,
   faSmog,
@@ -52,7 +54,9 @@ library.add(
   faLocationCrosshairs,
   faLocationDot,
   faMagnifyingGlass,
+  faMinus,
   faMoon,
+  faPlus,
   faQuestion,
   faShareNodes,
   faSmog,
@@ -78,7 +82,9 @@ const iconDefinitions = {
   'location-crosshairs': faLocationCrosshairs,
   'location-dot': faLocationDot,
   'magnifying-glass': faMagnifyingGlass,
+  'minus': faMinus,
   'moon': faMoon,
+  'plus': faPlus,
   'question': faQuestion,
   'share-nodes': faShareNodes,
   'smog': faSmog,
