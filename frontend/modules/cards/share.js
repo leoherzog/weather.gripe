@@ -60,29 +60,18 @@ export function createCardActions(onShare, onDownload) {
     shareBtn.className = 'flex-1';
     shareBtn.innerHTML = '<wa-icon slot="start" name="share-nodes"></wa-icon> Share';
     shareBtn.onclick = onShare;
-
-    const downloadBtn = document.createElement('wa-button');
-    downloadBtn.setAttribute('variant', 'brand');
-    downloadBtn.setAttribute('appearance', 'outlined');
-    downloadBtn.setAttribute('size', 'small');
-    downloadBtn.setAttribute('aria-label', 'Download this weather card as an image');
-    downloadBtn.className = 'flex-1';
-    downloadBtn.innerHTML = '<wa-icon slot="start" name="download"></wa-icon> Download';
-    downloadBtn.onclick = onDownload;
-
     footer.appendChild(shareBtn);
-    footer.appendChild(downloadBtn);
-  } else {
-    const downloadBtn = document.createElement('wa-button');
-    downloadBtn.setAttribute('variant', 'brand');
-    downloadBtn.setAttribute('appearance', 'outlined');
-    downloadBtn.setAttribute('size', 'small');
-    downloadBtn.setAttribute('aria-label', 'Download this weather card as an image');
-    downloadBtn.className = 'flex-1';
-    downloadBtn.innerHTML = '<wa-icon slot="start" name="download"></wa-icon> Download';
-    downloadBtn.onclick = onDownload;
-    footer.appendChild(downloadBtn);
   }
+
+  const downloadBtn = document.createElement('wa-button');
+  downloadBtn.setAttribute('variant', 'brand');
+  downloadBtn.setAttribute('appearance', 'outlined');
+  downloadBtn.setAttribute('size', 'small');
+  downloadBtn.setAttribute('aria-label', 'Download this weather card as an image');
+  downloadBtn.className = 'flex-1';
+  downloadBtn.innerHTML = '<wa-icon slot="start" name="download"></wa-icon> Download';
+  downloadBtn.onclick = onDownload;
+  footer.appendChild(downloadBtn);
 
   return footer;
 }

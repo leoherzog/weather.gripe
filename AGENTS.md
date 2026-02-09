@@ -186,7 +186,7 @@ Injected as `<script>window.__defaultUnits="imperial";</script>` in `<head>`. Us
 
 ### UI Framework (Web Awesome)
 
-The frontend uses [Web Awesome](https://webawesome.com), a web component library. Components use `wa-` prefixed custom elements (e.g., `wa-button`, `wa-card`, `wa-combobox`).
+The frontend uses [Web Awesome](https://webawesome.com) v3.2, a web component library. Components use `wa-` prefixed custom elements (e.g., `wa-button`, `wa-card`, `wa-combobox`). The package ships an `llms.txt` reference at `node_modules/@awesome.me/webawesome-pro/dist/llms.txt` with full component API docs.
 
 **Font Awesome Icons:** Icons are imported at build time from npm packages (not via Kit CDN). The `frontend/modules/ui/icons.js` module handles icon registration and exports.
 
@@ -198,7 +198,7 @@ The frontend uses [Web Awesome](https://webawesome.com), a web component library
 - `'default'` - Solid icons, used as `<wa-icon name="cloud-sun">`
 - `'duotone'` - Duotone icons, used as `<wa-icon library="duotone" name="poo-storm">`
 
-**Duotone Implementation:** Duotone icons have two paths (secondary at 40% opacity, primary at 100%). The mutator adds `data-duotone-primary` and `data-duotone-secondary` attributes for Web Awesome CSS custom property support (`--primary-color`, `--secondary-color`, `--primary-opacity`, `--secondary-opacity`).
+**Duotone Implementation:** Duotone icons have two SVG paths (secondary at 40% opacity, primary at 100%). The mutator sets `fill="currentColor"` so icons inherit text color.
 
 **Exports:**
 - `getIconData(name)` - Returns `{ width, height, paths }` for canvas rendering
@@ -219,19 +219,54 @@ The frontend uses [Web Awesome](https://webawesome.com), a web component library
 
 **Radar Card Theme:** The MapLibre basemap always uses the dark "fiord" style. Only the canvas overlay (header bar, legend, text, watermark) switches between dark and light themes. Highway overlays and the location marker glow remain white (on the dark basemap).
 
+**Card Component (`wa-card`):**
+- **Slots:** `(default)`, `header`, `footer`, `media`, `actions`, `header-actions`, `footer-actions`
+- **Properties:** `appearance` (`'accent'|'filled'|'outlined'|'filled-outlined'|'plain'`, default `'outlined'`), `orientation` (`'horizontal'|'vertical'`, default `'vertical'`)
+- **CSS Parts:** `media`, `header`, `body`, `footer`
+- **CSS Custom Properties:** `--spacing` (space around/between sections)
+
+**Button Component (`wa-button`):**
+- **Slots:** `(default)`, `start`, `end`
+- **Properties:** `variant` (`'default'|'brand'|'success'|'neutral'|'warning'|'danger'|'text'`), `appearance` (`'filled'|'outlined'|'plain'`), `size` (`'small'|'medium'|'large'`), `href`, `target`, `disabled`, `loading`
+- **CSS Parts:** `base`, `label`, `start`, `end`
+
+**Dialog Component (`wa-dialog`):**
+- **Slots:** `(default)`, `label`, `header-actions`, `footer`
+- **Properties:** `label`, `open`, `withoutHeader` (attr: `without-header`), `lightDismiss` (attr: `light-dismiss`)
+- **Events:** `wa-show`, `wa-after-show`, `wa-hide`, `wa-after-hide`
+- **CSS Parts:** `dialog`, `header`, `header-actions`, `title`, `close-button`, `close-button__base`, `body`, `footer`
+- **CSS Custom Properties:** `--width`, `--spacing`, `--show-duration`, `--hide-duration`
+- **Note:** `--wa-color-overlay-modal` is a global design token (not component-level) that controls the backdrop color. The lightbox overrides it to `rgba(0, 0, 0, 0.85)`.
+
+**Icon Component (`wa-icon`):**
+- **Properties:** `name`, `library`, `label`, `src`, `family`, `variant`, `autoWidth` (attr: `auto-width`), `swapOpacity` (attr: `swap-opacity`), `rotate` (degrees), `flip` (`'x'|'y'|'both'`), `animation` (beat, bounce, fade, flip, shake, spin, etc.)
+- **CSS Custom Properties:** Duotone: `--primary-color`, `--primary-opacity`, `--secondary-color`, `--secondary-opacity`. Animation: `--animation-duration`, `--beat-scale`, `--bounce-height`, `--fade-opacity`, `--flip-angle`, etc.
+- **Events:** `wa-load`, `wa-error`
+- **Note:** `rotate`, `flip`, and `animation` are new in 3.2.
+
 **Search Combobox (`wa-combobox`):**
 The location search uses `wa-combobox` with dynamically populated options from the geocoding API. Key implementation notes:
 
-- **Events:** Use standard DOM events, not `wa-` prefixed:
-  - `keyup` for input detection (not `input` or `wa-input`)
-  - `change` for selection (not `wa-change`)
-  - `wa-hide` for dropdown close
+- **Events:**
+  - `input` for input detection (fires only on actual value changes, no key filtering needed)
+  - `change` for selection (unprefixed, per docs)
+  - `wa-hide` for dropdown close (wa-prefixed lifecycle event)
 - **Properties:**
   - `combobox.inputValue` - The typed text (not `value` or `displayValue`)
   - `combobox.value` - The selected option's value (JSON-encoded lat/lon/name)
+  - `combobox.open` - Show/hide the dropdown
+  - `combobox.updateComplete` - Lit lifecycle promise, await before opening dropdown after appending options
 - **Dynamic options:** Create `wa-option` elements and append to combobox, then set `combobox.open = true`
 - **Server-side filtering:** Set `combobox.filter = () => true` to show all options (filtering done by API)
-- **Slots:** Use `slot="start"` for prefix icon (not `slot="prefix"`)
+- **Slots:** `(default)`, `label`, `start` (prefix icon), `end` (suffix), `hint` (help text), `clear-icon`, `expand-icon`
+- **CSS Parts:** `combobox`, `input`, `listbox`, `tags`, `expand-icon`, `clear-button`, `form-control`, `form-control-label`, `form-control-input`, `form-control-hint`
+- **CSS States:** `wa-option:state(current)` for keyboard-highlighted option, `wa-option:state(selected)` for selected
+
+**Radio Group (`wa-radio-group`) & Radio (`wa-radio`):**
+- **Radio Group CSS Parts:** `form-control`, `form-control-label`, `form-control-input`, `radios`, `hint`
+- **Radio Properties:** `appearance` (`'default'|'button'`), `value`, `disabled`
+- **Radio CSS States:** `:state(checked)` for selected radio (uses `customStates` API)
+- **Events:** `change` on `wa-radio-group` (unprefixed)
 
 ### Progressive Web App (PWA)
 

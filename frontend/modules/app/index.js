@@ -1,6 +1,5 @@
 // App orchestrator - main application logic
 
-import { WeatherCards } from '../cards/index.js';
 import { Units } from '../utils/units.js';
 import { createLocationManager } from './location.js';
 import { createSearchManager } from './search.js';
@@ -26,9 +25,6 @@ export const App = {
 
   // Initialize the app
   async init() {
-    // Initialize WeatherCards (detects FontAwesome font)
-    await WeatherCards.init();
-
     this.cacheElements();
 
     // Initialize sub-modules with dependency injection
@@ -67,13 +63,9 @@ export const App = {
     // Track current search query for Enter key handler
     let currentQuery = '';
 
-    // Debounced keyup handler for autocomplete (wa-combobox doesn't fire 'input' event)
+    // Debounced input handler for autocomplete
     let searchTimeout;
-    const ignoreKeys = ['ArrowUp', 'ArrowDown', 'Enter', 'Escape', 'Tab', 'Shift', 'Control', 'Alt', 'Meta'];
-    combobox.addEventListener('keyup', (e) => {
-      // Ignore navigation and modifier keys
-      if (ignoreKeys.includes(e.key)) return;
-
+    combobox.addEventListener('input', () => {
       clearTimeout(searchTimeout);
       currentQuery = combobox.inputValue?.trim() || '';
 

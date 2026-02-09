@@ -142,15 +142,7 @@ registerIconLibrary('duotone', {
     </svg>`;
     return `data:image/svg+xml,${encodeURIComponent(svg)}`;
   },
-  mutator: (svg) => {
-    svg.setAttribute('fill', 'currentColor');
-    // Add data attributes for Web Awesome CSS custom property support
-    const paths = [...svg.querySelectorAll('path')];
-    const primaryPath = paths.find(p => !p.hasAttribute('opacity'));
-    const secondaryPath = paths.find(p => p.hasAttribute('opacity'));
-    if (primaryPath) primaryPath.setAttribute('data-duotone-primary', '');
-    if (secondaryPath) secondaryPath.setAttribute('data-duotone-secondary', '');
-  }
+  mutator: (svg) => svg.setAttribute('fill', 'currentColor')
 });
 
 /**
@@ -191,11 +183,3 @@ export function getDuotoneIconData(name) {
   return { width, height, secondaryPath, primaryPath };
 }
 
-/**
- * Initialize icons (no-op, kept for API compatibility)
- * With build-time imports, icons are available immediately
- */
-export async function initIcons() {
-  // Icons are loaded at import time, nothing to wait for
-  return Promise.resolve();
-}

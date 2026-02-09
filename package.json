@@ -8,7 +8,7 @@
     "deploy": "vite build && wrangler deploy"
   },
   "dependencies": {
-    "@awesome.me/webawesome-pro": "^3.1.0",
+    "@awesome.me/webawesome-pro": "^3.2.0",
     "@fortawesome/fontawesome-svg-core": "^7.1.0",
     "@fortawesome/pro-duotone-svg-icons": "^7.1.0",
     "@fortawesome/pro-solid-svg-icons": "^7.1.0",

@@ -1,11 +1,11 @@
 // Core canvas utilities for weather cards
 
 // Import icon data directly from build-time imports
-import { getIconData, initIcons } from '../ui/icons.js';
+import { getIconData } from '../ui/icons.js';
 import { getTemperatureColors, getFallbackGradient } from '../utils/palette-colors.js';
 
 // Re-export for backward compatibility
-export { getIconData, initIcons };
+export { getIconData };
 
 // Card dimensions
 export const CARD_WIDTH = 1200;

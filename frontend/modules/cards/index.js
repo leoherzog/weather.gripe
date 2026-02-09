@@ -1,7 +1,7 @@
 // Weather Cards module facade
 // Re-exports all public card rendering functions
 
-import { initIcons, CARD_WIDTH, CARD_HEIGHT } from './core.js';
+import { CARD_WIDTH, CARD_HEIGHT } from './core.js';
 import { getConditionQuery, getConditionText } from './condition-utils.js';
 import { renderCurrentConditions } from './current.js';
 import { renderDayForecast } from './day-forecast.js';
@@ -40,11 +40,6 @@ export const WeatherCards = {
   CARD_WIDTH,
   CARD_HEIGHT,
 
-  // Initialize (load icons)
-  async init() {
-    await initIcons();
-  },
-
   // Condition utilities
   getConditionQuery,
   getConditionText,
@@ -70,7 +65,6 @@ export const WeatherCards = {
 
 // Also export individual functions for tree-shaking
 export {
-  initIcons,
   getConditionQuery,
   getConditionText,
   renderCurrentConditions,
