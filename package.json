@@ -9,9 +9,9 @@
   },
   "dependencies": {
     "@awesome.me/webawesome-pro": "^3.2.0",
-    "@fortawesome/fontawesome-svg-core": "^7.1.0",
-    "@fortawesome/pro-duotone-svg-icons": "^7.1.0",
-    "@fortawesome/pro-solid-svg-icons": "^7.1.0",
+    "@fortawesome/fontawesome-svg-core": "^7.2.0",
+    "@fortawesome/pro-duotone-svg-icons": "^7.2.0",
+    "@fortawesome/pro-solid-svg-icons": "^7.2.0",
     "@khmyznikov/pwa-install": "^0.6.2",
     "chroma-js": "^3.2.0",
     "maplibre-gl": "^4.7.1",
