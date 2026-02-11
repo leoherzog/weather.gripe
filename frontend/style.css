@@ -353,8 +353,10 @@ wa-button[appearance="outlined"][variant="brand"]:hover::part(base) {
   cursor: default;
 }
 
-/* Collapse unfilled ad slot so it doesn't push fallback out of the card */
-.weather-card[data-card-type="ad"] ins.adsbygoogle:not([data-ad-status="filled"]) {
+/* Collapse unfilled ad slot so it doesn't push fallback out of the card.
+   The [data-ad-status] guard ensures the <ins> stays visible until AdSense
+   has measured it and set a status — hiding it earlier prevents filling. */
+.weather-card[data-card-type="ad"] ins.adsbygoogle[data-ad-status]:not([data-ad-status="filled"]) {
   display: none !important;
 }
 
