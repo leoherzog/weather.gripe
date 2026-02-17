@@ -1,12 +1,12 @@
 // Weather.gripe Cloudflare Worker
-// Proxies and caches Open-Meteo and Flickr APIs
+// Proxies and caches Open-Meteo and Unsplash APIs
 
 import SunCalc from 'suncalc';
 
 const GEOCODE_CACHE_TTL = 24 * 60 * 60; // 24 hours
 const NWS_POINTS_CACHE_TTL = 24 * 60 * 60; // 24 hours
 const NWS_ZONE_CACHE_TTL = 30 * 24 * 60 * 60; // 30 days (zone boundaries rarely change)
-const FLICKR_CACHE_TTL = 24 * 60 * 60; // 24 hours
+const UNSPLASH_CACHE_TTL = 24 * 60 * 60; // 24 hours
 const LOCATION_CACHE_TTL = 5 * 60; // 5 minutes (limited by alerts)
 const WXSTORY_CACHE_TTL = 5 * 60; // 5 minutes
 const WXSTORY_IMAGE_CACHE_TTL = 30 * 60; // 30 minutes
@@ -48,37 +48,28 @@ const NOMINATIM_HEADERS = {
   'Accept': 'application/json'
 };
 
-// Encode a Flickr photo ID to a flic.kr short URL (base58)
-function flickrShortUrl(photoId) {
-  const alphabet = '123456789abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ';
-  let num = BigInt(photoId);
-  let encoded = '';
-  while (num > 0n) {
-    encoded = alphabet[Number(num % 58n)] + encoded;
-    num = num / 58n;
-  }
-  return `https://flic.kr/p/${encoded}`;
-}
-
-// Fallback images when Flickr API fails (all by @leoherzog)
+// Fallback images when Unsplash API fails (all by @leoherzog)
 const FALLBACK_IMAGES = {
-  rain: { id: '51041211498', server: '65535', secret: '0d1d8a47cb', owner: '7383145@N04', pathalias: 'leoherzog', ownername: 'Leo Herzog' },
-  'clear-warm': { id: '48569198497', server: '65535', secret: '7aaae3db79', owner: '7383145@N04', pathalias: 'leoherzog', ownername: 'Leo Herzog' },
-  'mostly-sunny': { id: '48569037931', server: '65535', secret: 'f6d0e7c7d3', owner: '7383145@N04', pathalias: 'leoherzog', ownername: 'Leo Herzog' },
-  'overcast-warm': { id: '48569198172', server: '65535', secret: 'e6cfb9bcfb', owner: '7383145@N04', pathalias: 'leoherzog', ownername: 'Leo Herzog' },
-  snow: { id: '48569037271', server: '65535', secret: '4f5e8cb1f2', owner: '7383145@N04', pathalias: 'leoherzog', ownername: 'Leo Herzog' },
-  'mostly-cloudy': { id: '48569197542', server: '65535', secret: '16b4e22ad2', owner: '7383145@N04', pathalias: 'leoherzog', ownername: 'Leo Herzog' },
-  'clear-cold': { id: '48569036671', server: '65535', secret: '5a4cc9f5be', owner: '7383145@N04', pathalias: 'leoherzog', ownername: 'Leo Herzog' },
-  overcast: { id: '48569197117', server: '65535', secret: '76fd5b921c', owner: '7383145@N04', pathalias: 'leoherzog', ownername: 'Leo Herzog' }
+  rain: 'photo-1617112896650-69a1be08ad10',
+  'clear-warm': 'photo-1519921264316-de3473991b99',
+  'mostly-sunny': 'photo-1519920600744-610bc64b7d57',
+  'overcast-warm': 'photo-1519921428872-dd80407bb5bb',
+  snow: 'photo-1519921336846-ff8bd0df94b4',
+  'mostly-cloudy': 'photo-1519921124984-411e6188efa3',
+  'clear-cold': 'photo-1519921386942-020e6e4a06f7',
+  overcast: 'photo-1519921191976-a438eba0ede8'
 };
 
-// Build a fallback photo object matching Flickr response format
-function getFallbackPhoto(fallback) {
+// Build a fallback photo object matching Unsplash API format
+function getFallbackPhoto(photoId) {
   return {
-    url: `https://live.staticflickr.com/${fallback.server}/${fallback.id}_${fallback.secret}_b.jpg`,
-    photographer: fallback.ownername,
-    photographerUrl: `https://www.flickr.com/photos/${fallback.pathalias || fallback.owner}/`,
-    flickrUrl: flickrShortUrl(fallback.id)
+    url: `https://images.unsplash.com/${photoId}?w=1080&q=80`,
+    thumb: `https://images.unsplash.com/${photoId}?w=200&q=80`,
+    photographer: 'Leo Herzog',
+    username: 'leoherzog',
+    photographerUrl: 'https://unsplash.com/@leoherzog',
+    unsplashUrl: `https://unsplash.com/photos/${photoId.replace('photo-', '')}`,
+    downloadLocation: null
   };
 }
 
@@ -1314,23 +1305,21 @@ async function handleGeocode(request, env, ctx) {
   return response;
 }
 
-// Handle Flickr photo search API proxy (hides API key)
-// Supports 2-tier cascading fallback:
-//   Tier 1: condition + geo (nearby photos)
-//   Tier 2: condition only (all Flickr, no geo)
-async function handleFlickrSearch(request, env, ctx) {
+// Handle Unsplash API proxy (hides API key)
+// Supports cascading fallback: location+condition -> region+condition -> condition only
+async function handleUnsplash(request, env, ctx) {
   const url = new URL(request.url);
   const query = url.searchParams.get('query');
-  const lat = url.searchParams.get('lat');
-  const lon = url.searchParams.get('lon');
+  const location = url.searchParams.get('location');
+  const region = url.searchParams.get('region');
   const skipCache = shouldSkipCache(request);
 
   if (!query) {
     return jsonResponse({ error: 'Missing query parameter' }, 400);
   }
 
-  if (!env.FLICKR_API_KEY) {
-    return jsonResponse({ error: 'Flickr API not configured' }, 503);
+  if (!env.UNSPLASH_ACCESS_KEY) {
+    return jsonResponse({ error: 'Unsplash API not configured' }, 503);
   }
 
   // Build cache key without the 'cache' parameter
@@ -1349,85 +1338,99 @@ async function handleFlickrSearch(request, env, ctx) {
     }
   }
 
-  // Build 2-tier cascade search: geo first, then global fallback
-  const LICENSE_FILTER = '4,5,7,9,10'; // CC-BY, CC-BY-SA, No known restrictions, Public Domain, PDM
-  const hasGeo = lat && lon && Number.isFinite(parseFloat(lat)) && Number.isFinite(parseFloat(lon));
-
-  const tiers = [];
-  if (hasGeo) {
-    // Tier 1: condition + geo (nearby photos)
-    tiers.push({ text: query, lat, lon });
+  // Build query variants for cascading fallback
+  const queries = [];
+  if (location && region) {
+    queries.push(`${location} ${region} ${query}`); // e.g., "Seattle Washington rain weather"
   }
-  // Tier 2: condition only (all Flickr, no geo)
-  tiers.push({ text: query });
+  if (location) {
+    queries.push(`${location} ${query}`); // e.g., "Seattle rain weather"
+  }
+  if (region) {
+    queries.push(`${region} ${query}`); // e.g., "Washington rain weather"
+  }
+  queries.push(query); // Base condition-only query as final fallback
 
+  // Try each query in order until we find results
   let result = null;
-  for (const tier of tiers) {
-    const flickrUrl = new URL('https://api.flickr.com/services/rest/');
-    flickrUrl.searchParams.set('method', 'flickr.photos.search');
-    flickrUrl.searchParams.set('api_key', env.FLICKR_API_KEY);
-    const exclusions = '-portrait -person -selfie -people -face -indoor -inside -macro -closeup -food' + (tier.lat ? '' : ' -building -architecture');
-    flickrUrl.searchParams.set('text', `${tier.text} ${exclusions}`);
-    flickrUrl.searchParams.set('license', LICENSE_FILTER);
-    flickrUrl.searchParams.set('extras', 'owner_name,url_l,license,path_alias');
-    flickrUrl.searchParams.set('per_page', '100');
-    flickrUrl.searchParams.set('content_type', '1'); // photos only
-    flickrUrl.searchParams.set('media', 'photos');
-    flickrUrl.searchParams.set('safe_search', '1');
-    flickrUrl.searchParams.set('sort', 'interestingness-desc');
-    flickrUrl.searchParams.set('min_taken_date', '2010-01-01');
-    flickrUrl.searchParams.set('format', 'json');
-    flickrUrl.searchParams.set('nojsoncallback', '1');
+  for (const searchQuery of queries) {
+    const unsplashUrl = new URL('https://api.unsplash.com/search/photos');
+    unsplashUrl.searchParams.set('query', searchQuery);
+    unsplashUrl.searchParams.set('per_page', '30');
+    unsplashUrl.searchParams.set('orientation', 'landscape');
 
-    if (tier.lat && tier.lon) {
-      flickrUrl.searchParams.set('lat', tier.lat);
-      flickrUrl.searchParams.set('lon', tier.lon);
-      flickrUrl.searchParams.set('radius', '32');
-      flickrUrl.searchParams.set('radius_units', 'km');
-    }
-
-    console.log(`[Flickr] Trying: text="${tier.text}", geo=${!!tier.lat}`);
-    const apiResponse = await fetch(flickrUrl.toString());
+    console.log(`[Unsplash] Trying query: "${searchQuery}"`);
+    const apiResponse = await fetch(unsplashUrl.toString(), {
+      headers: {
+        'Authorization': `Client-ID ${env.UNSPLASH_ACCESS_KEY}`
+      }
+    });
 
     if (!apiResponse.ok) {
-      console.log(`[Flickr] API error ${apiResponse.status}`);
-      continue;
+      console.log(`[Unsplash] API error ${apiResponse.status}: ${await apiResponse.text()}`);
+      continue; // Try next query variant
     }
 
     const data = await apiResponse.json();
-    if (data.stat !== 'ok') {
-      console.log(`[Flickr] API stat: ${data.stat}, message: ${data.message}`);
-      continue;
-    }
-
-    // Filter to photos that have url_l (large 1024px image)
-    const photosWithLarge = (data.photos?.photo || []).filter(p => p.url_l);
-    const isLastTier = tier === tiers[tiers.length - 1];
-    const MIN_PHOTOS = 5; // Require a decent pool for variety; fall through if too few
-    console.log(`[Flickr] Got ${photosWithLarge.length} photos with url_l (of ${data.photos?.photo?.length || 0} total)`);
-
-    if (photosWithLarge.length >= MIN_PHOTOS || (isLastTier && photosWithLarge.length > 0)) {
+    console.log(`[Unsplash] Got ${data.results?.length || 0} results for "${searchQuery}"`);
+    if (data.results && data.results.length > 0) {
+      // Return all photos so frontend can randomize (cache stores all, client picks)
       result = {
-        photos: photosWithLarge.map(photo => ({
-          url: photo.url_l,
-          photographer: photo.ownername,
-          photographerUrl: `https://www.flickr.com/photos/${photo.pathalias || photo.owner}/`,
-          flickrUrl: flickrShortUrl(photo.id)
+        photos: data.results.map(photo => ({
+          url: photo.urls.regular,
+          thumb: photo.urls.thumb,
+          photographer: photo.user.name,
+          username: photo.user.username,
+          photographerUrl: photo.user.links.html,
+          unsplashUrl: photo.links.html,
+          downloadLocation: photo.links.download_location
         }))
       };
-      break;
+      break; // Found a result, stop searching
     }
   }
 
-  // Use fallback image if Flickr returned no results
+  // Use fallback image if Unsplash failed or returned no results
   if (!result) {
-    console.log(`[Flickr] Using fallback for query: "${query}"`);
+    console.log(`[Unsplash] Using fallback for query: "${query}"`);
     result = { photos: [selectFallbackImage(query)] };
   }
 
-  const response = jsonResponse(result, 200, FLICKR_CACHE_TTL);
+  const response = jsonResponse(result, 200, UNSPLASH_CACHE_TTL);
   ctx.waitUntil(cache.put(cacheKey, response.clone()));
   return response;
+}
+
+// Handle Unsplash download tracking (for API compliance)
+async function handleUnsplashDownload(request, env) {
+  const url = new URL(request.url);
+  const downloadUrl = url.searchParams.get('url');
+
+  if (!downloadUrl) {
+    return jsonResponse({ error: 'Missing url parameter' }, 400);
+  }
+
+  // Validate it's an Unsplash URL
+  if (!downloadUrl.startsWith('https://api.unsplash.com/')) {
+    return jsonResponse({ error: 'Invalid download URL' }, 400);
+  }
+
+  if (!env.UNSPLASH_ACCESS_KEY) {
+    return jsonResponse({ error: 'Unsplash API not configured' }, 503);
+  }
+
+  try {
+    // Trigger the download tracking (fire-and-forget on Unsplash's side)
+    await fetch(downloadUrl, {
+      headers: {
+        'Authorization': `Client-ID ${env.UNSPLASH_ACCESS_KEY}`
+      }
+    });
+    return jsonResponse({ success: true });
+  } catch (e) {
+    console.error('Unsplash download tracking error:', e);
+    return jsonResponse({ error: 'Tracking failed' }, 500);
+  }
 }
 
 // HTMLRewriter handler to collect wxstory images
@@ -1830,8 +1833,11 @@ export default {
     if (path === '/api/geocode') {
       return handleGeocode(request, env, ctx);
     }
-    if (path === '/api/photos/search') {
-      return handleFlickrSearch(request, env, ctx);
+    if (path === '/api/unsplash') {
+      return handleUnsplash(request, env, ctx);
+    }
+    if (path === '/api/unsplash/download') {
+      return handleUnsplashDownload(request, env);
     }
     if (path === '/api/wxstory') {
       return handleWxStory(request, env, ctx);

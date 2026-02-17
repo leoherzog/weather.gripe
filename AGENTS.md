@@ -26,7 +26,8 @@ This is a Cloudflare Workers application that serves a weather website with shar
   - Returns `{ location, weather, alerts }`
   - Use `?cache=false` to bypass all caches
 - `/api/geocode` - Proxies Open-Meteo geocoding API for search autocomplete (24hr cache)
-- `/api/photos/search` - Proxies Flickr photo search, hides API key (24hr cache, 2-tier cascade: geo 32km → global, sorted by interestingness, min 5 results per tier, CC-licensed, post-2010, excludes portraits/indoor/macro)
+- `/api/unsplash` - Proxies Unsplash photo search, hides API key (24hr cache, cascading fallback: location+region+condition → location+condition → region+condition → condition only, landscape orientation, 30 results per page)
+- `/api/unsplash/download` - Tracks Unsplash downloads for API compliance (fire-and-forget)
 - `/api/wxstory` - Fetches NWS Weather Story images for a forecast office (5min cache)
 - `/api/cf-location` - Returns Cloudflare edge-detected geolocation
 - `/api/radar` - Returns radar metadata for a location (US only)
@@ -85,7 +86,7 @@ The radar card embeds a live MapLibre GL JS map (not canvas compositing):
 
 **MapLibre Cleanup:** The app calls `card._cleanup()` before removing radar cards to properly dispose of WebGL resources.
 
-**Photo Navigation Controls:** Canvas-based weather cards with Flickr background photos have prev/next buttons (`fa-angle-left` / `fa-angle-right`) to cycle through the photos array. Buttons are 25% opacity (100% on hover), no background, positioned absolutely within a `.card-media-wrapper` div that wraps the canvas in the `media` slot. `createCardContainer` accepts an optional `photoNav` config (`{ photos, currentIndex, rerender }`) — when the photos array has 2+ items, buttons are added. Clicking navigates the index (wrapping with modular arithmetic), calls the card-specific `rerender` async closure to repaint the canvas with the new photo, and updates the `.photo-attribution` element. A `isNavigating` guard prevents concurrent canvas renders from racing. `stopPropagation()` prevents lightbox activation.
+**Photo Navigation Controls:** Canvas-based weather cards with Unsplash background photos have prev/next buttons (`fa-angle-left` / `fa-angle-right`) to cycle through the photos array. Buttons are 25% opacity (100% on hover), no background, positioned absolutely within a `.card-media-wrapper` div that wraps the canvas in the `media` slot. `createCardContainer` accepts an optional `photoNav` config (`{ photos, currentIndex, rerender }`) — when the photos array has 2+ items, buttons are added. Clicking navigates the index (wrapping with modular arithmetic), calls the card-specific `rerender` async closure to repaint the canvas with the new photo, and updates the `.photo-attribution` element. A `isNavigating` guard prevents concurrent canvas renders from racing. `stopPropagation()` prevents lightbox activation.
 
 ### Unified Condition Code System
 
@@ -126,7 +127,7 @@ Multi-layer caching using Cloudflare Cache API:
 | NWS alerts | 60sec | `alerts:{lat},{lon}` |
 | Open-Meteo weather | 5min | `openmeteo:{lat},{lon}` |
 | Geocoding results | 24hr | Request URL |
-| Flickr photos | 24hr | Request URL |
+| Unsplash images | 24hr | Request URL |
 | Weather story | 5min | `wxstory:{office}` |
 | Radar timestamp | 1min | `radar-timestamp:{region}` |
 | Radar tiles | 2min | Constructed NOAA WMS URL |
@@ -344,7 +345,7 @@ Canvas-based weather cards use Web Awesome's color palette system for consistent
 | Urgency (immediate/expected/future/past) | bg, text | Alert urgency pills |
 | Temperature (high/low) | indicator colors | Forecast cards (arrows, lines) |
 | Radar | marker | Location pin on radar map |
-| Fallback | gradient | Card background when Flickr fails |
+| Fallback | gradient | Card background when Unsplash fails |
 
 **API Functions** (`frontend/modules/utils/palette-colors.js`):
 - `getSeverityColors(severity)` → `{ bg: [dark, light], pill, pillText, icon, stroke }`
@@ -373,7 +374,7 @@ Canvas-based weather cards use Web Awesome's color palette system for consistent
 - **NWS (weather.gov)** - US weather data, alerts, observations (no key required)
 - **Open-Meteo** - International weather, geocoding (no key required)
 - **Nominatim (OpenStreetMap)** - Reverse geocoding (no key required, requires User-Agent)
-- **Flickr** - Location background photos (requires `FLICKR_API_KEY`)
+- **Unsplash** - Location background photos (requires `UNSPLASH_ACCESS_KEY`)
 - **NOAA MRMS (opengeo.ncep.noaa.gov)** - US radar imagery via WMS (no key required)
 - **OpenFreeMap (tiles.openfreemap.org)** - Vector tile basemap for radar card (no key required)
 - **Google AdSense (pagead2.googlesyndication.com)** - Ad unit in support card (client ID: `ca-pub-9544720367752359`)
@@ -382,7 +383,7 @@ Canvas-based weather cards use Web Awesome's color palette system for consistent
 
 - `vite.config.js` - Vite build config (`root: 'frontend'`, `publicDir: 'static'`, `outDir: '../public'`)
 - `wrangler.toml` - Worker configuration, points to `src/index.js` as entry point
-- `.dev.vars` - Local environment secrets (FLICKR_API_KEY, FLICKR_SECRET, FONTAWESOME_NPM_TOKEN, WEBAWESOME_NPM_TOKEN)
+- `.dev.vars` - Local environment secrets (UNSPLASH_ACCESS_KEY, FONTAWESOME_NPM_TOKEN, WEBAWESOME_NPM_TOKEN)
 - `.npmrc` - Private npm registry configuration for `@fortawesome` and `@awesome.me` scoped packages
 - `package.json` - Build scripts and dependencies
 

@@ -22,8 +22,11 @@ export function createCardRenderer(app) {
       // Extract just the city name (before comma) for card labels
       const cityName = locationName?.split(',')[0]?.trim() || null;
 
-      // Pass coordinates for Flickr geo-based photo search
-      const bgLocationOpts = { lat: app.currentLocation?.lat, lon: app.currentLocation?.lon };
+      // Extract region (state/province) from location name for Unsplash fallback
+      // locationName format: "City, State, Country" or "City, Country"
+      const locationParts = locationName?.split(',').map(p => p.trim()) || [];
+      const regionName = locationParts.length > 1 ? locationParts[1] : null;
+      const bgLocationOpts = { location: cityName, region: regionName };
 
       // Get timezone from weather data for displaying location's local time
       const timezone = weather?.timezone || null;
@@ -135,9 +138,9 @@ export function createCardRenderer(app) {
         const startIndex = backgrounds.length > 0 ? Math.floor(Math.random() * backgrounds.length) : -1;
         const background = startIndex >= 0 ? backgrounds[startIndex] : null;
         const canvas = document.createElement('canvas');
-        await WeatherCards.renderCurrentConditions(canvas, weather, background?.url, background?.photographer, timezone);
+        await WeatherCards.renderCurrentConditions(canvas, weather, background?.url, background?.username, timezone);
         const rerender = async (photo) => {
-          await WeatherCards.renderCurrentConditions(canvas, weather, photo?.url, photo?.photographer, timezone);
+          await WeatherCards.renderCurrentConditions(canvas, weather, photo?.url, photo?.username, timezone);
         };
         const card = WeatherCards.createCardContainer(canvas, 'current', {
           photos: backgrounds, currentIndex: startIndex, rerender
@@ -158,11 +161,11 @@ export function createCardRenderer(app) {
               const detailedBg1 = startIdx1 >= 0 ? detailedBgs1[startIdx1] : null;
               const canvas = document.createElement('canvas');
               const result = await WeatherCards.renderDetailedForecast(
-                canvas, tonightForecast, detailedBg1?.url, detailedBg1?.photographer, cityName, timezone
+                canvas, tonightForecast, detailedBg1?.url, detailedBg1?.username, cityName, timezone
               );
               if (result) {
                 const rerender = async (photo) => {
-                  await WeatherCards.renderDetailedForecast(canvas, tonightForecast, photo?.url, photo?.photographer, cityName, timezone);
+                  await WeatherCards.renderDetailedForecast(canvas, tonightForecast, photo?.url, photo?.username, cityName, timezone);
                 };
                 const card = WeatherCards.createCardContainer(canvas, 'detailed-tonight', {
                   photos: detailedBgs1, currentIndex: startIdx1, rerender
@@ -183,11 +186,11 @@ export function createCardRenderer(app) {
               const detailedBg2 = startIdx2 >= 0 ? detailedBgs2[startIdx2] : null;
               const canvas = document.createElement('canvas');
               const result = await WeatherCards.renderDetailedForecast(
-                canvas, tomorrowForecast, detailedBg2?.url, detailedBg2?.photographer, cityName, timezone
+                canvas, tomorrowForecast, detailedBg2?.url, detailedBg2?.username, cityName, timezone
               );
               if (result) {
                 const rerender = async (photo) => {
-                  await WeatherCards.renderDetailedForecast(canvas, tomorrowForecast, photo?.url, photo?.photographer, cityName, timezone);
+                  await WeatherCards.renderDetailedForecast(canvas, tomorrowForecast, photo?.url, photo?.username, cityName, timezone);
                 };
                 const card = WeatherCards.createCardContainer(canvas, 'detailed-tomorrow', {
                   photos: detailedBgs2, currentIndex: startIdx2, rerender
@@ -208,11 +211,11 @@ export function createCardRenderer(app) {
               const detailedBg1 = startIdx1 >= 0 ? detailedBgs1[startIdx1] : null;
               const canvas = document.createElement('canvas');
               const result = await WeatherCards.renderDetailedForecast(
-                canvas, todayForecast, detailedBg1?.url, detailedBg1?.photographer, cityName, timezone
+                canvas, todayForecast, detailedBg1?.url, detailedBg1?.username, cityName, timezone
               );
               if (result) {
                 const rerender = async (photo) => {
-                  await WeatherCards.renderDetailedForecast(canvas, todayForecast, photo?.url, photo?.photographer, cityName, timezone);
+                  await WeatherCards.renderDetailedForecast(canvas, todayForecast, photo?.url, photo?.username, cityName, timezone);
                 };
                 const card = WeatherCards.createCardContainer(canvas, 'detailed-today', {
                   photos: detailedBgs1, currentIndex: startIdx1, rerender
@@ -233,11 +236,11 @@ export function createCardRenderer(app) {
               const detailedBg2 = startIdx2 >= 0 ? detailedBgs2[startIdx2] : null;
               const canvas = document.createElement('canvas');
               const result = await WeatherCards.renderDetailedForecast(
-                canvas, tonightForecast, detailedBg2?.url, detailedBg2?.photographer, cityName, timezone
+                canvas, tonightForecast, detailedBg2?.url, detailedBg2?.username, cityName, timezone
               );
               if (result) {
                 const rerender = async (photo) => {
-                  await WeatherCards.renderDetailedForecast(canvas, tonightForecast, photo?.url, photo?.photographer, cityName, timezone);
+                  await WeatherCards.renderDetailedForecast(canvas, tonightForecast, photo?.url, photo?.username, cityName, timezone);
                 };
                 const card = WeatherCards.createCardContainer(canvas, 'detailed-tonight', {
                   photos: detailedBgs2, currentIndex: startIdx2, rerender
@@ -257,9 +260,9 @@ export function createCardRenderer(app) {
         const startIndex = backgrounds.length > 0 ? Math.floor(Math.random() * backgrounds.length) : -1;
         const background = startIndex >= 0 ? backgrounds[startIndex] : null;
         const canvas = document.createElement('canvas');
-        await WeatherCards.renderDayForecast(canvas, weather, background?.url, background?.photographer, timezone);
+        await WeatherCards.renderDayForecast(canvas, weather, background?.url, background?.username, timezone);
         const rerender = async (photo) => {
-          await WeatherCards.renderDayForecast(canvas, weather, photo?.url, photo?.photographer, timezone);
+          await WeatherCards.renderDayForecast(canvas, weather, photo?.url, photo?.username, timezone);
         };
         const card = WeatherCards.createCardContainer(canvas, 'day', {
           photos: backgrounds, currentIndex: startIndex, rerender
@@ -275,9 +278,9 @@ export function createCardRenderer(app) {
           const startIndex = backgrounds.length > 0 ? Math.floor(Math.random() * backgrounds.length) : -1;
           const background = startIndex >= 0 ? backgrounds[startIndex] : null;
           const canvas = document.createElement('canvas');
-          await WeatherCards.renderHourlyForecast(canvas, weather, cityName, background?.url, background?.photographer, timezone);
+          await WeatherCards.renderHourlyForecast(canvas, weather, cityName, background?.url, background?.username, timezone);
           const rerender = async (photo) => {
-            await WeatherCards.renderHourlyForecast(canvas, weather, cityName, photo?.url, photo?.photographer, timezone);
+            await WeatherCards.renderHourlyForecast(canvas, weather, cityName, photo?.url, photo?.username, timezone);
           };
           const card = WeatherCards.createCardContainer(canvas, 'hourly', {
             photos: backgrounds, currentIndex: startIndex, rerender
@@ -302,9 +305,9 @@ export function createCardRenderer(app) {
         const startIndex = backgrounds.length > 0 ? Math.floor(Math.random() * backgrounds.length) : -1;
         const background = startIndex >= 0 ? backgrounds[startIndex] : null;
         const canvas = document.createElement('canvas');
-        await WeatherCards.renderForecastGraph(canvas, weather, cityName, background?.url, background?.photographer, timezone);
+        await WeatherCards.renderForecastGraph(canvas, weather, cityName, background?.url, background?.username, timezone);
         const rerender = async (photo) => {
-          await WeatherCards.renderForecastGraph(canvas, weather, cityName, photo?.url, photo?.photographer, timezone);
+          await WeatherCards.renderForecastGraph(canvas, weather, cityName, photo?.url, photo?.username, timezone);
         };
         const card = WeatherCards.createCardContainer(canvas, 'forecast', {
           photos: backgrounds, currentIndex: startIndex, rerender
@@ -410,6 +413,11 @@ export function createCardRenderer(app) {
     addPhotoAttribution(card, background) {
       if (!background) return;
 
+      // Trigger Unsplash download tracking (fire-and-forget, via our proxy)
+      if (background.downloadLocation) {
+        fetch(`/api/unsplash/download?url=${encodeURIComponent(background.downloadLocation)}`).catch(() => {});
+      }
+
       const attribution = document.createElement('small');
       attribution.className = 'photo-attribution';
 
@@ -417,22 +425,22 @@ export function createCardRenderer(app) {
       attribution.appendChild(document.createTextNode('Photo by '));
 
       const photographerLink = document.createElement('a');
-      photographerLink.href = background.photographerUrl;
+      photographerLink.href = `${background.photographerUrl}?utm_source=weather.gripe&utm_medium=referral`;
       photographerLink.target = '_blank';
       photographerLink.rel = 'noopener noreferrer';
       photographerLink.textContent = background.photographer;
-      photographerLink.setAttribute('aria-label', `${background.photographer} on Flickr (opens in new tab)`);
+      photographerLink.setAttribute('aria-label', `${background.photographer} on Unsplash (opens in new tab)`);
       attribution.appendChild(photographerLink);
 
       attribution.appendChild(document.createTextNode(' on '));
 
-      const flickrLink = document.createElement('a');
-      flickrLink.href = background.flickrUrl;
-      flickrLink.target = '_blank';
-      flickrLink.rel = 'noopener noreferrer';
-      flickrLink.textContent = 'Flickr';
-      flickrLink.setAttribute('aria-label', 'Flickr (opens in new tab)');
-      attribution.appendChild(flickrLink);
+      const unsplashLink = document.createElement('a');
+      unsplashLink.href = `${background.unsplashUrl}?utm_source=weather.gripe&utm_medium=referral`;
+      unsplashLink.target = '_blank';
+      unsplashLink.rel = 'noopener noreferrer';
+      unsplashLink.textContent = 'Unsplash';
+      unsplashLink.setAttribute('aria-label', 'Unsplash (opens in new tab)');
+      attribution.appendChild(unsplashLink);
 
       // Insert before footer (goes into body slot)
       const footer = card.querySelector('[slot="footer"]');

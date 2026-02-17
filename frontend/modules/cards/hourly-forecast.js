@@ -62,7 +62,7 @@ function getHourlyIcon(condition, time, daily, timezone) {
 
 // Create Hourly Forecast Card with temperature line graph
 // timezone: IANA timezone string for displaying location's local time
-export async function renderHourlyForecast(canvas, weatherData, cityName = '', backgroundUrl = null, flickrPhotographer = null, timezone = null) {
+export async function renderHourlyForecast(canvas, weatherData, cityName = '', backgroundUrl = null, unsplashUsername = null, timezone = null) {
   const ctx = canvas.getContext('2d');
   const width = CARD_WIDTH;
   const height = 500;
@@ -186,8 +186,8 @@ export async function renderHourlyForecast(canvas, weatherData, cityName = '', b
 
   // Watermark
   const dataSource = weatherData?.current?.observedAt ? 'NWS' : 'Open-Meteo';
-  const attribution = flickrPhotographer
-    ? `${dataSource} and ${flickrPhotographer} on Flickr`
+  const attribution = unsplashUsername
+    ? `${dataSource} and @${unsplashUsername} on Unsplash`
     : dataSource;
   drawWatermark(ctx, width, height, attribution, timezone);
 

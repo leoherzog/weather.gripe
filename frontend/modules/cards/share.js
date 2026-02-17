@@ -88,22 +88,22 @@ function updatePhotoAttribution(card, photo) {
   existing.appendChild(document.createTextNode('Photo by '));
 
   const photographerLink = document.createElement('a');
-  photographerLink.href = photo.photographerUrl;
+  photographerLink.href = `${photo.photographerUrl}?utm_source=weather.gripe&utm_medium=referral`;
   photographerLink.target = '_blank';
   photographerLink.rel = 'noopener noreferrer';
   photographerLink.textContent = photo.photographer;
-  photographerLink.setAttribute('aria-label', `${photo.photographer} on Flickr (opens in new tab)`);
+  photographerLink.setAttribute('aria-label', `${photo.photographer} on Unsplash (opens in new tab)`);
   existing.appendChild(photographerLink);
 
   existing.appendChild(document.createTextNode(' on '));
 
-  const flickrLink = document.createElement('a');
-  flickrLink.href = photo.flickrUrl;
-  flickrLink.target = '_blank';
-  flickrLink.rel = 'noopener noreferrer';
-  flickrLink.textContent = 'Flickr';
-  flickrLink.setAttribute('aria-label', 'Flickr (opens in new tab)');
-  existing.appendChild(flickrLink);
+  const unsplashLink = document.createElement('a');
+  unsplashLink.href = `${photo.unsplashUrl}?utm_source=weather.gripe&utm_medium=referral`;
+  unsplashLink.target = '_blank';
+  unsplashLink.rel = 'noopener noreferrer';
+  unsplashLink.textContent = 'Unsplash';
+  unsplashLink.setAttribute('aria-label', 'Unsplash (opens in new tab)');
+  existing.appendChild(unsplashLink);
 }
 
 // Create card container with share/download buttons

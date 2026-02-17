@@ -132,7 +132,7 @@ export function drawOverlay(ctx, width, height, opacity = 0.5) {
   ctx.fillRect(0, 0, width, height);
 }
 
-// Draw fallback gradient background when photo API fails
+// Draw fallback gradient background when Unsplash fails
 export function drawFallbackBackground(ctx, width, height) {
   const colors = getFallbackGradient();
   const gradient = ctx.createLinearGradient(0, 0, 0, height);
