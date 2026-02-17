@@ -53,26 +53,35 @@ export function createCardRenderer(app) {
       // For detailed cards, fetch backgrounds based on their specific conditions and temps
       let detailedBgs1Promise = null;
       let detailedBgs2Promise = null;
+      let detailedBgs3Promise = null;
       if (isNWS) {
         if (isNightMode) {
-          // Tonight + Tomorrow
+          // Tonight + Tomorrow + Tomorrow Night
           const tonightForecast = daily[0]?.nightForecast;
           const tomorrowForecast = daily[1]?.dayForecast;
+          const tomorrowNightForecast = daily[1]?.nightForecast;
           if (tonightForecast?.condition) {
             detailedBgs1Promise = app.weatherLoader.fetchBackgrounds(WeatherCards.getConditionQuery(tonightForecast.condition, daily[0]?.low), bgLocationOpts);
           }
           if (tomorrowForecast?.condition) {
             detailedBgs2Promise = app.weatherLoader.fetchBackgrounds(WeatherCards.getConditionQuery(tomorrowForecast.condition, daily[1]?.high), bgLocationOpts);
           }
+          if (tomorrowNightForecast?.condition) {
+            detailedBgs3Promise = app.weatherLoader.fetchBackgrounds(WeatherCards.getConditionQuery(tomorrowNightForecast.condition, daily[1]?.low), bgLocationOpts);
+          }
         } else {
-          // Today + Tonight
+          // Today + Tonight + Tomorrow
           const todayForecast = daily[0]?.dayForecast;
           const tonightForecast = daily[0]?.nightForecast;
+          const tomorrowForecast = daily[1]?.dayForecast;
           if (todayForecast?.condition) {
             detailedBgs1Promise = app.weatherLoader.fetchBackgrounds(WeatherCards.getConditionQuery(todayForecast.condition, daily[0]?.high), bgLocationOpts);
           }
           if (tonightForecast?.condition) {
             detailedBgs2Promise = app.weatherLoader.fetchBackgrounds(WeatherCards.getConditionQuery(tonightForecast.condition, daily[0]?.low), bgLocationOpts);
+          }
+          if (tomorrowForecast?.condition) {
+            detailedBgs3Promise = app.weatherLoader.fetchBackgrounds(WeatherCards.getConditionQuery(tomorrowForecast.condition, daily[1]?.high), bgLocationOpts);
           }
         }
       }
@@ -201,6 +210,31 @@ export function createCardRenderer(app) {
               return null;
             })());
           }
+
+          // Tomorrow Night card (order: 4)
+          const tomorrowNightForecast = daily[1]?.nightForecast;
+          if (tomorrowNightForecast?.detailedForecast) {
+            cardPromises.push((async () => {
+              const detailedBgs3 = detailedBgs3Promise ? await detailedBgs3Promise : [];
+              const startIdx3 = detailedBgs3.length > 0 ? Math.floor(Math.random() * detailedBgs3.length) : -1;
+              const detailedBg3 = startIdx3 >= 0 ? detailedBgs3[startIdx3] : null;
+              const canvas = document.createElement('canvas');
+              const result = await WeatherCards.renderDetailedForecast(
+                canvas, tomorrowNightForecast, detailedBg3?.url, detailedBg3?.username, cityName, timezone
+              );
+              if (result) {
+                const rerender = async (photo) => {
+                  await WeatherCards.renderDetailedForecast(canvas, tomorrowNightForecast, photo?.url, photo?.username, cityName, timezone);
+                };
+                const card = WeatherCards.createCardContainer(canvas, 'detailed-tomorrow-night', {
+                  photos: detailedBgs3, currentIndex: startIdx3, rerender
+                });
+                this.addPhotoAttribution(card, detailedBg3);
+                return { order: 4, card };
+              }
+              return null;
+            })());
+          }
         } else {
           // Today card (order: 2)
           const todayForecast = daily[0]?.dayForecast;
@@ -251,10 +285,35 @@ export function createCardRenderer(app) {
               return null;
             })());
           }
+
+          // Tomorrow card (order: 4)
+          const tomorrowForecast = daily[1]?.dayForecast;
+          if (tomorrowForecast?.detailedForecast) {
+            cardPromises.push((async () => {
+              const detailedBgs3 = detailedBgs3Promise ? await detailedBgs3Promise : [];
+              const startIdx3 = detailedBgs3.length > 0 ? Math.floor(Math.random() * detailedBgs3.length) : -1;
+              const detailedBg3 = startIdx3 >= 0 ? detailedBgs3[startIdx3] : null;
+              const canvas = document.createElement('canvas');
+              const result = await WeatherCards.renderDetailedForecast(
+                canvas, tomorrowForecast, detailedBg3?.url, detailedBg3?.username, cityName, timezone
+              );
+              if (result) {
+                const rerender = async (photo) => {
+                  await WeatherCards.renderDetailedForecast(canvas, tomorrowForecast, photo?.url, photo?.username, cityName, timezone);
+                };
+                const card = WeatherCards.createCardContainer(canvas, 'detailed-tomorrow', {
+                  photos: detailedBgs3, currentIndex: startIdx3, rerender
+                });
+                this.addPhotoAttribution(card, detailedBg3);
+                return { order: 4, card };
+              }
+              return null;
+            })());
+          }
         }
       }
 
-      // Day forecast card (order: 4, depends on background)
+      // Day forecast card (order: 5, depends on background)
       cardPromises.push((async () => {
         const backgrounds = await backgroundsPromise;
         const startIndex = backgrounds.length > 0 ? Math.floor(Math.random() * backgrounds.length) : -1;
@@ -268,10 +327,10 @@ export function createCardRenderer(app) {
           photos: backgrounds, currentIndex: startIndex, rerender
         });
         this.addPhotoAttribution(card, background);
-        return { order: 4, card };
+        return { order: 5, card };
       })());
 
-      // Hourly forecast card (order: 4.5, depends on background)
+      // Hourly forecast card (order: 5.5, depends on background)
       if (weather.hourly && weather.hourly.length > 0) {
         cardPromises.push((async () => {
           const backgrounds = await backgroundsPromise;
@@ -286,20 +345,20 @@ export function createCardRenderer(app) {
             photos: backgrounds, currentIndex: startIndex, rerender
           });
           this.addPhotoAttribution(card, background);
-          return { order: 4.5, card };
+          return { order: 5.5, card };
         })());
       }
 
-      // Radar card (order: 5, depends on radar data)
+      // Radar card (order: 6, depends on radar data)
       if (isNWS && radarPromise) {
         cardPromises.push((async () => {
           const radarData = await radarPromise;
           const card = await WeatherCards.createRadarCard(radarData, cityName, timezone);
-          return { order: 5, card };
+          return { order: 6, card };
         })());
       }
 
-      // Forecast graph card (order: 6, depends on background)
+      // Forecast graph card (order: 7, depends on background)
       cardPromises.push((async () => {
         const backgrounds = await backgroundsPromise;
         const startIndex = backgrounds.length > 0 ? Math.floor(Math.random() * backgrounds.length) : -1;
@@ -313,15 +372,15 @@ export function createCardRenderer(app) {
           photos: backgrounds, currentIndex: startIndex, rerender
         });
         this.addPhotoAttribution(card, background);
-        return { order: 6, card };
+        return { order: 7, card };
       })());
 
-      // Weather story cards (order: 7+)
+      // Weather story cards (order: 8+)
       if (wxStory && wxStory.images.length > 0) {
         wxStory.images.forEach((image, i) => {
           cardPromises.push((async () => {
             const card = this.createWxStoryCard(image, wxStory.office, i + 1);
-            return { order: 7 + i * 0.1, card };
+            return { order: 8 + i * 0.1, card };
           })());
         });
       }

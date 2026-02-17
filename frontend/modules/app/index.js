@@ -63,9 +63,13 @@ export const App = {
     // Track current search query for Enter key handler
     let currentQuery = '';
 
-    // Debounced input handler for autocomplete
+    // Debounced keyup handler for autocomplete (wa-combobox doesn't fire 'input' on typing)
     let searchTimeout;
-    combobox.addEventListener('input', () => {
+    const ignoreKeys = ['ArrowUp', 'ArrowDown', 'Enter', 'Escape', 'Tab', 'Shift', 'Control', 'Alt', 'Meta'];
+    combobox.addEventListener('keyup', (e) => {
+      // Ignore navigation and modifier keys
+      if (ignoreKeys.includes(e.key)) return;
+
       clearTimeout(searchTimeout);
       currentQuery = combobox.inputValue?.trim() || '';
 
@@ -171,21 +175,21 @@ export const App = {
     this.elements.weatherCards.innerHTML = `
       <wa-card class="weather-card" data-card-type="skeleton-current">
         <wa-skeleton slot="media" effect="sheen" class="skeleton-current"></wa-skeleton>
-        <div slot="footer" class="flex wa-gap-xs">
+        <div slot="footer" class="wa-cluster wa-gap-xs">
           <wa-skeleton effect="sheen" class="flex-1 h-9"></wa-skeleton>
           <wa-skeleton effect="sheen" class="flex-1 h-9"></wa-skeleton>
         </div>
       </wa-card>
       <wa-card class="weather-card" data-card-type="skeleton-day">
         <wa-skeleton slot="media" effect="sheen" class="skeleton-day"></wa-skeleton>
-        <div slot="footer" class="flex wa-gap-xs">
+        <div slot="footer" class="wa-cluster wa-gap-xs">
           <wa-skeleton effect="sheen" class="flex-1 h-9"></wa-skeleton>
           <wa-skeleton effect="sheen" class="flex-1 h-9"></wa-skeleton>
         </div>
       </wa-card>
       <wa-card class="weather-card" data-card-type="skeleton-forecast">
         <wa-skeleton slot="media" effect="sheen" class="skeleton-forecast"></wa-skeleton>
-        <div slot="footer" class="flex wa-gap-xs">
+        <div slot="footer" class="wa-cluster wa-gap-xs">
           <wa-skeleton effect="sheen" class="flex-1 h-9"></wa-skeleton>
           <wa-skeleton effect="sheen" class="flex-1 h-9"></wa-skeleton>
         </div>

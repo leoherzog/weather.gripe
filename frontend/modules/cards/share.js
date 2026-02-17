@@ -44,7 +44,7 @@ export function downloadCard(canvas, cardType) {
 export function createCardActions(onShare, onDownload) {
   const footer = document.createElement('div');
   footer.setAttribute('slot', 'footer');
-  footer.className = 'flex wa-gap-xs';
+  footer.className = 'wa-cluster wa-gap-xs';
 
   // Check if file sharing is supported (not just basic share)
   // Firefox lacks canShare() but supports share() with files, so fall back to checking share exists

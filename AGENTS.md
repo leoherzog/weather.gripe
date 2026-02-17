@@ -249,7 +249,7 @@ The frontend uses [Web Awesome](https://webawesome.com) v3.2, a web component li
 The location search uses `wa-combobox` with dynamically populated options from the geocoding API. Key implementation notes:
 
 - **Events:**
-  - `input` for input detection (fires only on actual value changes, no key filtering needed)
+  - `keyup` for input detection (wa-combobox stops native `input` event propagation from its shadow DOM input; `keyup` crosses the shadow boundary since keyboard events are composed)
   - `change` for selection (unprefixed, per docs)
   - `wa-hide` for dropdown close (wa-prefixed lifecycle event)
 - **Properties:**

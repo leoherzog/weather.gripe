@@ -44,11 +44,11 @@
 <body class="min-h-screen">
   <header class="site-header sticky top-0 z-50">
     <nav class="site-nav max-w-6xl mx-auto px-4 wa-split wa-align-items-center">
-      <div class="flex wa-align-items-center wa-gap-xs">
+      <div class="wa-cluster wa-gap-xs">
         <wa-icon library="duotone" name="poo-storm" class="header-logo-icon"></wa-icon>
         <h1 class="site-title">weather.gripe</h1>
       </div>
-      <div class="flex wa-align-items-center wa-gap-m">
+      <div class="wa-cluster wa-gap-m">
         <!-- Unit Toggle -->
         <wa-tooltip for="units-metric" placement="bottom">Celsius, km/h</wa-tooltip>
         <wa-tooltip for="units-imperial" placement="bottom">Fahrenheit, mph</wa-tooltip>
@@ -124,21 +124,21 @@
       <!-- Skeleton cards using wa-skeleton -->
       <wa-card class="weather-card" data-card-type="skeleton-current">
         <wa-skeleton slot="media" effect="sheen" class="skeleton-current"></wa-skeleton>
-        <div slot="footer" class="flex wa-gap-xs">
+        <div slot="footer" class="wa-cluster wa-gap-xs">
           <wa-skeleton effect="sheen" class="flex-1 h-9"></wa-skeleton>
           <wa-skeleton effect="sheen" class="flex-1 h-9"></wa-skeleton>
         </div>
       </wa-card>
       <wa-card class="weather-card" data-card-type="skeleton-day">
         <wa-skeleton slot="media" effect="sheen" class="skeleton-day"></wa-skeleton>
-        <div slot="footer" class="flex wa-gap-xs">
+        <div slot="footer" class="wa-cluster wa-gap-xs">
           <wa-skeleton effect="sheen" class="flex-1 h-9"></wa-skeleton>
           <wa-skeleton effect="sheen" class="flex-1 h-9"></wa-skeleton>
         </div>
       </wa-card>
       <wa-card class="weather-card" data-card-type="skeleton-forecast">
         <wa-skeleton slot="media" effect="sheen" class="skeleton-forecast"></wa-skeleton>
-        <div slot="footer" class="flex wa-gap-xs">
+        <div slot="footer" class="wa-cluster wa-gap-xs">
           <wa-skeleton effect="sheen" class="flex-1 h-9"></wa-skeleton>
           <wa-skeleton effect="sheen" class="flex-1 h-9"></wa-skeleton>
         </div>
