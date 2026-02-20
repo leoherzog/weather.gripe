@@ -1,34 +1,26 @@
-/* Layout utilities */
-.flex-1 { flex: 1 1 0%; }
-
-/* Site header */
-.site-header {
-  background: var(--wa-color-surface-raised);
-  border-bottom: 1px solid var(--wa-color-neutral-border-normal);
+/* Content width constraint for wa-page slots */
+.page-content-width {
+  max-width: 72rem;
+  margin-inline: auto;
+  width: 100%;
 }
 
-.site-nav {
-  padding-top: var(--wa-space-s);
-  padding-bottom: var(--wa-space-s);
+.site-heading {
+  margin: 0;
 }
 
 .site-title {
   font-size: var(--wa-font-size-l);
   font-weight: var(--wa-font-weight-bold);
   margin: 0;
+  line-height: 1.2;
 }
 
-/* Site main */
-.site-main {
-  padding-top: var(--wa-space-xl);
-  padding-bottom: var(--wa-space-xl);
-}
-
-/* Site footer */
-.site-footer {
-  border-top: 1px solid var(--wa-color-neutral-border-normal);
-  margin-top: var(--wa-space-3xl);
-  padding: var(--wa-space-l) 0;
+.site-subtitle {
+  font-size: var(--wa-font-size-xs);
+  color: var(--wa-color-text-quiet);
+  margin: 0;
+  line-height: 1.2;
 }
 
 .footer-text {
@@ -42,39 +34,25 @@
   font-weight: var(--wa-font-weight-bold);
 }
 
-/* Spacing utilities */
-.mt-s { margin-top: var(--wa-space-s); }
 
 /* Accent icon (uses temperature-based primary color) */
+/* Masonry layout for weather cards (CSS columns for tight vertical packing) */
+.card-masonry {
+  columns: 1;
+  column-gap: var(--wa-space-l);
+}
+@media (min-width: 768px) { .card-masonry { columns: 2; } }
+@media (min-width: 1024px) { .card-masonry { columns: 3; } }
+
+.weather-card {
+  break-inside: avoid;
+  margin-bottom: var(--wa-space-l);
+}
+
 .accent-icon {
   color: var(--color-primary);
 }
 
-/* Masonry layout for weather cards */
-.masonry-gap { gap: var(--wa-space-l); }
-.columns-1 { columns: 1; }
-@media (min-width: 768px) { .columns-2 { columns: 2; } }
-@media (min-width: 1024px) { .columns-3 { columns: 3; } }
-
-/* Positioning */
-.sticky { position: sticky; }
-.top-0 { top: 0; }
-.z-50 { z-index: 50; }
-.relative { position: relative; }
-
-/* Spacing */
-.mx-auto { margin-left: auto; margin-right: auto; }
-.mb-6 { margin-bottom: var(--wa-space-l); }
-.px-4 { padding-left: var(--wa-space-m); padding-right: var(--wa-space-m); }
-
-/* Width/Height */
-.max-w-6xl { max-width: 72rem; }
-.min-h-screen { min-height: 100vh; }
-.h-9 { height: 2.25rem; }
-
-/* Text utilities */
-.block { display: block; }
-.text-center { text-align: center; }
 
 /* Temperature-based color system */
 :root {
@@ -93,14 +71,6 @@
 }
 
 /* Unit toggle radio buttons - temperature gradient for checked state */
-#unit-toggle::part(form-control-label) {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-}
-
 wa-radio[appearance="button"]:state(checked) {
   background: var(--button-gradient);
   color: var(--gradient-text);
@@ -137,11 +107,6 @@ wa-button[appearance="outlined"][variant="brand"]:hover::part(base) {
 .skeleton-day { aspect-ratio: 1200 / 600; }
 .skeleton-forecast { aspect-ratio: 1200 / 700; }
 
-/* Weather card container */
-.weather-card {
-  margin-bottom: var(--wa-space-l);
-  break-inside: avoid;
-}
 
 /* Hide empty body slot in cards that only use media + footer */
 .weather-card:not(:has(.photo-attribution)):not([data-card-type="ad"])::part(body) {
@@ -249,7 +214,7 @@ wa-button[appearance="outlined"][variant="brand"]:hover::part(base) {
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  z-index: 10;
+  z-index: 1;
   background: none;
   color: white;
   border: none;
@@ -278,7 +243,7 @@ wa-button[appearance="outlined"][variant="brand"]:hover::part(base) {
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  z-index: 10;
+  z-index: 1;
   background: rgba(0, 0, 0, 0.6);
   color: white;
   border: 1px solid rgba(255, 255, 255, 0.3);

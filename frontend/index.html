@@ -41,18 +41,23 @@
     })();
   </script>
 </head>
-<body class="min-h-screen">
-  <header class="site-header sticky top-0 z-50">
-    <nav class="site-nav max-w-6xl mx-auto px-4 wa-split wa-align-items-center">
+<body>
+  <wa-page disable-navigation-toggle>
+
+    <!-- HEADER SLOT: logo + controls -->
+    <nav slot="header" class="page-content-width wa-split wa-align-items-center">
       <div class="wa-cluster wa-gap-xs">
         <wa-icon library="duotone" name="poo-storm" class="header-logo-icon"></wa-icon>
-        <h1 class="site-title">weather.gripe</h1>
+        <hgroup class="site-heading">
+          <h1 class="site-title">weather.gripe</h1>
+          <p class="site-subtitle">Shareable Weather Cards</p>
+        </hgroup>
       </div>
       <div class="wa-cluster wa-gap-m">
         <!-- Unit Toggle -->
         <wa-tooltip for="units-metric" placement="bottom">Celsius, km/h</wa-tooltip>
         <wa-tooltip for="units-imperial" placement="bottom">Fahrenheit, mph</wa-tooltip>
-        <wa-radio-group id="unit-toggle" label="Temperature unit selection" orientation="horizontal" size="small">
+        <wa-radio-group id="unit-toggle" label="Temperature unit selection" orientation="horizontal" size="small" class="wa-visually-hidden-label">
           <wa-radio id="units-metric" value="metric" appearance="button">Metric</wa-radio>
           <wa-radio id="units-imperial" value="imperial" appearance="button">Imperial</wa-radio>
         </wa-radio-group>
@@ -83,11 +88,9 @@
         </script>
       </div>
     </nav>
-  </header>
 
-  <main class="site-main max-w-6xl mx-auto px-4">
-    <!-- Search Section -->
-    <search id="search-section" class="relative mb-6">
+    <!-- SUBHEADER SLOT: sticky search bar -->
+    <search id="search-section" slot="subheader" class="page-content-width">
       <wa-tooltip for="location-reset-btn">Return to detected location</wa-tooltip>
       <wa-combobox
         id="search-combobox"
@@ -104,56 +107,61 @@
       </wa-combobox>
     </search>
 
-    <!-- Current Location Display -->
-    <section id="location-display" class="mb-6" hidden>
-      <h2 id="location-name" class="location-heading"></h2>
-    </section>
+    <!-- DEFAULT SLOT: main content -->
+    <main class="wa-stack wa-gap-l page-content-width">
+      <!-- Current Location Display -->
+      <section id="location-display" hidden>
+        <h2 id="location-name" class="location-heading"></h2>
+      </section>
 
-    <!-- Error State -->
-    <section id="error-state" hidden>
-      <wa-callout variant="danger">
-        <wa-icon slot="icon" name="triangle-exclamation"></wa-icon>
-        <strong>Error</strong>
-        <p id="error-message"></p>
-        <wa-button id="error-retry" variant="danger" size="small" class="mt-s" aria-label="Retry loading weather data">Try Again</wa-button>
-      </wa-callout>
-    </section>
+      <!-- Error State -->
+      <section id="error-state" hidden>
+        <wa-callout variant="danger">
+          <wa-icon slot="icon" name="triangle-exclamation"></wa-icon>
+          <strong>Error</strong>
+          <p id="error-message"></p>
+          <wa-button id="error-retry" variant="danger" size="small" style="margin-top: var(--wa-space-s);" aria-label="Retry loading weather data">Try Again</wa-button>
+        </wa-callout>
+      </section>
 
-    <!-- Weather Cards Masonry -->
-    <section id="weather-cards" class="columns-1 columns-2 columns-3 masonry-gap">
-      <!-- Skeleton cards using wa-skeleton -->
-      <wa-card class="weather-card" data-card-type="skeleton-current">
-        <wa-skeleton slot="media" effect="sheen" class="skeleton-current"></wa-skeleton>
-        <div slot="footer" class="wa-cluster wa-gap-xs">
-          <wa-skeleton effect="sheen" class="flex-1 h-9"></wa-skeleton>
-          <wa-skeleton effect="sheen" class="flex-1 h-9"></wa-skeleton>
-        </div>
-      </wa-card>
-      <wa-card class="weather-card" data-card-type="skeleton-day">
-        <wa-skeleton slot="media" effect="sheen" class="skeleton-day"></wa-skeleton>
-        <div slot="footer" class="wa-cluster wa-gap-xs">
-          <wa-skeleton effect="sheen" class="flex-1 h-9"></wa-skeleton>
-          <wa-skeleton effect="sheen" class="flex-1 h-9"></wa-skeleton>
-        </div>
-      </wa-card>
-      <wa-card class="weather-card" data-card-type="skeleton-forecast">
-        <wa-skeleton slot="media" effect="sheen" class="skeleton-forecast"></wa-skeleton>
-        <div slot="footer" class="wa-cluster wa-gap-xs">
-          <wa-skeleton effect="sheen" class="flex-1 h-9"></wa-skeleton>
-          <wa-skeleton effect="sheen" class="flex-1 h-9"></wa-skeleton>
-        </div>
-      </wa-card>
-    </section>
-  </main>
+      <!-- Weather Cards Masonry -->
+      <section id="weather-cards" class="card-masonry">
+        <!-- Skeleton cards using wa-skeleton -->
+        <wa-card class="weather-card" data-card-type="skeleton-current">
+          <wa-skeleton slot="media" effect="sheen" class="skeleton-current"></wa-skeleton>
+          <div slot="footer" class="wa-split wa-gap-xs">
+            <wa-skeleton effect="sheen" style="height: 2.25rem;"></wa-skeleton>
+            <wa-skeleton effect="sheen" style="height: 2.25rem;"></wa-skeleton>
+          </div>
+        </wa-card>
+        <wa-card class="weather-card" data-card-type="skeleton-day">
+          <wa-skeleton slot="media" effect="sheen" class="skeleton-day"></wa-skeleton>
+          <div slot="footer" class="wa-split wa-gap-xs">
+            <wa-skeleton effect="sheen" style="height: 2.25rem;"></wa-skeleton>
+            <wa-skeleton effect="sheen" style="height: 2.25rem;"></wa-skeleton>
+          </div>
+        </wa-card>
+        <wa-card class="weather-card" data-card-type="skeleton-forecast">
+          <wa-skeleton slot="media" effect="sheen" class="skeleton-forecast"></wa-skeleton>
+          <div slot="footer" class="wa-split wa-gap-xs">
+            <wa-skeleton effect="sheen" style="height: 2.25rem;"></wa-skeleton>
+            <wa-skeleton effect="sheen" style="height: 2.25rem;"></wa-skeleton>
+          </div>
+        </wa-card>
+      </section>
+    </main>
 
-  <footer id="site-footer" class="site-footer" hidden>
-    <small class="footer-text block max-w-6xl mx-auto px-4 text-center">
-      Weather via <span id="data-source"></span> |
-      Photos from <a href="https://unsplash.com/" target="_blank" rel="noopener noreferrer" class="footer-link" aria-label="Unsplash (opens in new tab)">Unsplash</a> |
-      <wa-icon name="heart" label="Made with love by" class="accent-icon"></wa-icon>
-      <a href="https://herzog.tech" target="_blank" rel="noopener noreferrer" class="footer-link" aria-label="herzog.tech (opens in new tab)">herzog.tech</a>
-    </small>
-  </footer>
+    <!-- FOOTER SLOT: attribution -->
+    <footer id="site-footer" slot="footer" hidden>
+      <small class="footer-text page-content-width" style="display: block; text-align: center;">
+        Weather via <span id="data-source"></span> |
+        Photos from <a href="https://unsplash.com/" target="_blank" rel="noopener noreferrer" class="footer-link" aria-label="Unsplash (opens in new tab)">Unsplash</a> |
+        <wa-icon name="heart" label="Made with love by" class="accent-icon"></wa-icon>
+        <a href="https://herzog.tech" target="_blank" rel="noopener noreferrer" class="footer-link" aria-label="herzog.tech (opens in new tab)">herzog.tech</a>
+      </small>
+    </footer>
+
+  </wa-page>
 
   <!-- PWA Install Prompt (controlled via JS, not auto-shown) -->
   <pwa-install

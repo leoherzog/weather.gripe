@@ -175,23 +175,23 @@ export const App = {
     this.elements.weatherCards.innerHTML = `
       <wa-card class="weather-card" data-card-type="skeleton-current">
         <wa-skeleton slot="media" effect="sheen" class="skeleton-current"></wa-skeleton>
-        <div slot="footer" class="wa-cluster wa-gap-xs">
-          <wa-skeleton effect="sheen" class="flex-1 h-9"></wa-skeleton>
-          <wa-skeleton effect="sheen" class="flex-1 h-9"></wa-skeleton>
+        <div slot="footer" class="wa-split wa-gap-xs">
+          <wa-skeleton effect="sheen" style="height: 2.25rem;"></wa-skeleton>
+          <wa-skeleton effect="sheen" style="height: 2.25rem;"></wa-skeleton>
         </div>
       </wa-card>
       <wa-card class="weather-card" data-card-type="skeleton-day">
         <wa-skeleton slot="media" effect="sheen" class="skeleton-day"></wa-skeleton>
-        <div slot="footer" class="wa-cluster wa-gap-xs">
-          <wa-skeleton effect="sheen" class="flex-1 h-9"></wa-skeleton>
-          <wa-skeleton effect="sheen" class="flex-1 h-9"></wa-skeleton>
+        <div slot="footer" class="wa-split wa-gap-xs">
+          <wa-skeleton effect="sheen" style="height: 2.25rem;"></wa-skeleton>
+          <wa-skeleton effect="sheen" style="height: 2.25rem;"></wa-skeleton>
         </div>
       </wa-card>
       <wa-card class="weather-card" data-card-type="skeleton-forecast">
         <wa-skeleton slot="media" effect="sheen" class="skeleton-forecast"></wa-skeleton>
-        <div slot="footer" class="wa-cluster wa-gap-xs">
-          <wa-skeleton effect="sheen" class="flex-1 h-9"></wa-skeleton>
-          <wa-skeleton effect="sheen" class="flex-1 h-9"></wa-skeleton>
+        <div slot="footer" class="wa-split wa-gap-xs">
+          <wa-skeleton effect="sheen" style="height: 2.25rem;"></wa-skeleton>
+          <wa-skeleton effect="sheen" style="height: 2.25rem;"></wa-skeleton>
         </div>
       </wa-card>`;
   },

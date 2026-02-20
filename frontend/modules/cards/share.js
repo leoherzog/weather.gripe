@@ -44,7 +44,7 @@ export function downloadCard(canvas, cardType) {
 export function createCardActions(onShare, onDownload) {
   const footer = document.createElement('div');
   footer.setAttribute('slot', 'footer');
-  footer.className = 'wa-cluster wa-gap-xs';
+  footer.className = 'wa-split wa-gap-xs';
 
   // Check if file sharing is supported (not just basic share)
   // Firefox lacks canShare() but supports share() with files, so fall back to checking share exists
@@ -57,7 +57,7 @@ export function createCardActions(onShare, onDownload) {
     shareBtn.setAttribute('appearance', 'outlined');
     shareBtn.setAttribute('size', 'small');
     shareBtn.setAttribute('aria-label', 'Share this weather card');
-    shareBtn.className = 'flex-1';
+    shareBtn.style.flex = '1';
     shareBtn.innerHTML = '<wa-icon slot="start" name="share-nodes"></wa-icon> Share';
     shareBtn.onclick = onShare;
     footer.appendChild(shareBtn);
@@ -68,7 +68,7 @@ export function createCardActions(onShare, onDownload) {
   downloadBtn.setAttribute('appearance', 'outlined');
   downloadBtn.setAttribute('size', 'small');
   downloadBtn.setAttribute('aria-label', 'Download this weather card as an image');
-  downloadBtn.className = 'flex-1';
+  downloadBtn.style.flex = '1';
   downloadBtn.innerHTML = '<wa-icon slot="start" name="download"></wa-icon> Download';
   downloadBtn.onclick = onDownload;
   footer.appendChild(downloadBtn);
