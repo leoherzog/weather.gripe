@@ -1,3 +1,8 @@
+/* Hide phantom navigation toggle button that takes up header space */
+wa-page::part(navigation-toggle) {
+  display: none;
+}
+
 /* Content width constraint for wa-page slots */
 .page-content-width {
   max-width: 72rem;

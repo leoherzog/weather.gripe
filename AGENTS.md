@@ -86,7 +86,7 @@ The radar card embeds a live MapLibre GL JS map (not canvas compositing):
 
 **MapLibre Cleanup:** The app calls `card._cleanup()` before removing radar cards to properly dispose of WebGL resources.
 
-**Photo Navigation Controls:** Canvas-based weather cards with Unsplash background photos have prev/next buttons (`fa-angle-left` / `fa-angle-right`) to cycle through the photos array. Buttons are 25% opacity (100% on hover), no background, positioned absolutely within a `.card-media-wrapper` div that wraps the canvas in the `media` slot. `createCardContainer` accepts an optional `photoNav` config (`{ photos, currentIndex, rerender }`) — when the photos array has 2+ items, buttons are added. Clicking navigates the index (wrapping with modular arithmetic), calls the card-specific `rerender` async closure to repaint the canvas with the new photo, and updates the `.photo-attribution` element. A `isNavigating` guard prevents concurrent canvas renders from racing. `stopPropagation()` prevents lightbox activation.
+**Photo Navigation Controls:** Canvas-based weather cards with Unsplash background photos have prev/next buttons (`fa-angle-left` / `fa-angle-right`) to cycle through the photos array. Buttons are 25% opacity (100% on hover), no background, positioned absolutely within a `.card-media-wrapper` div that wraps the canvas in the `media` slot. Uses `z-index: 1` (not higher) to stay within the card's stacking context and not overlap the sticky `wa-page` subheader. `createCardContainer` accepts an optional `photoNav` config (`{ photos, currentIndex, rerender }`) — when the photos array has 2+ items, buttons are added. Clicking navigates the index (wrapping with modular arithmetic), calls the card-specific `rerender` async closure to repaint the canvas with the new photo, and updates the `.photo-attribution` element. A `isNavigating` guard prevents concurrent canvas renders from racing. `stopPropagation()` prevents lightbox activation.
 
 ### Unified Condition Code System
 
@@ -162,7 +162,7 @@ Multi-layer caching using Cloudflare Cache API:
   - `offline.html` - Branded offline page
   - `icons/` - PWA icons (poo-storm icon), favicon
   - `robots.txt`, `sitemap.xml` - SEO files
-- **`style.css`** - Custom layout utilities and temperature theming CSS
+- **`style.css`** - Temperature theming CSS and card-specific styles (layout handled by `wa-page` and Web Awesome utilities)
 
 **Lazy-Loading Strategy:** Map-based cards (`radar.js`, `alert-map.js`) are dynamically imported via wrappers in `cards/index.js`. This keeps MapLibre GL JS (~200KB) out of the main bundle—users who never view a radar card don't download map code.
 
@@ -188,6 +188,24 @@ Injected as `<script>window.__defaultUnits="imperial";</script>` in `<head>`. Us
 ### UI Framework (Web Awesome)
 
 The frontend uses [Web Awesome](https://webawesome.com) v3.2, a web component library. Components use `wa-` prefixed custom elements (e.g., `wa-button`, `wa-card`, `wa-combobox`). The package ships an `llms.txt` reference at `node_modules/@awesome.me/webawesome-pro/dist/llms.txt` with full component API docs.
+
+**Page Layout (`wa-page`):** The entire page scaffold uses the `<wa-page>` Pro component with named slots:
+- `slot="header"` — Site logo (`<hgroup>` with title + subtitle), unit toggle, dark mode button. Uses `wa-split` for left/right distribution.
+- `slot="subheader"` — Location search combobox. Sticky below header.
+- Default slot — `<main>` with `wa-stack wa-gap-l` containing location display, error state, and weather cards masonry.
+- `slot="footer"` — Attribution line (hidden until first weather load via `hidden` attribute toggled by JS).
+- `disable-navigation-toggle` is set (no sidebar nav in this app). The attribute alone doesn't fully hide the internal hamburger button — `wa-page::part(navigation-toggle) { display: none; }` is also needed to prevent it from taking up header space.
+- Content width constrained via `.page-content-width { max-width: 72rem; margin-inline: auto; }` on slotted elements.
+- `<pwa-install>` sits outside `</wa-page>` (renders its own overlay).
+
+**Web Awesome Layout Utilities Used:**
+- `wa-split` — Header nav (logo vs controls), card footer buttons (share + download)
+- `wa-cluster` — Logo cluster (`wa-gap-xs`), controls cluster (`wa-gap-m`)
+- `wa-stack` — Main content vertical spacing (`wa-gap-l`)
+- `wa-visually-hidden-label` — On `wa-radio-group` to hide the label accessibly
+- `wa-gap-*` — Gap sizing on layout utility containers
+
+**Weather Card Masonry:** Uses CSS `columns` (not `wa-grid`) for tight vertical packing of variable-height cards. `wa-grid` forces equal row heights which creates whitespace. The `.card-masonry` class handles responsive columns (1 → 2 → 3 at 768px/1024px breakpoints) with `break-inside: avoid` on `.weather-card`.
 
 **Font Awesome Icons:** Icons are imported at build time from npm packages (not via Kit CDN). The `frontend/modules/ui/icons.js` module handles icon registration and exports.
 
@@ -268,6 +286,7 @@ The location search uses `wa-combobox` with dynamically populated options from t
 - **Radio Properties:** `appearance` (`'default'|'button'`), `value`, `disabled`
 - **Radio CSS States:** `:state(checked)` for selected radio (uses `customStates` API)
 - **Events:** `change` on `wa-radio-group` (unprefixed)
+- **Label hidden** via `wa-visually-hidden-label` class on the radio group (accessible to screen readers, not rendered visually)
 
 ### Progressive Web App (PWA)
 
