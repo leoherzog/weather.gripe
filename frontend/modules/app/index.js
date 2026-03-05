@@ -52,6 +52,7 @@ export const App = {
       weatherCards: document.getElementById('weather-cards'),
       unitToggle: document.getElementById('unit-toggle'),
       siteFooter: document.getElementById('site-footer'),
+      footerAttribution: document.getElementById('footer-attribution'),
       dataSource: document.getElementById('data-source')
     };
   },
@@ -164,6 +165,10 @@ export const App = {
   showLoading() {
     this.elements.errorState.hidden = true;
     this.elements.locationDisplay.hidden = true;
+
+    if (this.elements.footerAttribution) {
+      this.elements.footerAttribution.hidden = true;
+    }
 
     // Skip if skeletons already showing (e.g., initial page load)
     if (this.elements.weatherCards.querySelector('[data-card-type^="skeleton-"]')) {

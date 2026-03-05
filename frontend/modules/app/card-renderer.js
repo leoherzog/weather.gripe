@@ -524,8 +524,8 @@ export function createCardRenderer(app) {
       } else {
         app.elements.dataSource.innerHTML = '<a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer" class="footer-link" aria-label="Open-Meteo weather API (opens in new tab)">Open-Meteo</a>';
       }
-      if (app.elements.siteFooter) {
-        app.elements.siteFooter.hidden = false;
+      if (app.elements.footerAttribution) {
+        app.elements.footerAttribution.hidden = false;
       }
     },
 
