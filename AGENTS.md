@@ -187,14 +187,14 @@ Injected as `<script>window.__defaultUnits="imperial";</script>` in `<head>`. Us
 
 ### UI Framework (Web Awesome)
 
-The frontend uses [Web Awesome](https://webawesome.com) v3.2, a web component library. Components use `wa-` prefixed custom elements (e.g., `wa-button`, `wa-card`, `wa-combobox`). The package ships an `llms.txt` reference at `node_modules/@awesome.me/webawesome-pro/dist/llms.txt` with full component API docs.
+The frontend uses [Web Awesome](https://webawesome.com) v3.3, a web component library. Components use `wa-` prefixed custom elements (e.g., `wa-button`, `wa-card`, `wa-combobox`). The package ships an `llms.txt` reference at `node_modules/@awesome.me/webawesome-pro/dist/llms.txt` with full component API docs.
 
 **Page Layout (`wa-page`):** The entire page scaffold uses the `<wa-page>` Pro component with named slots:
 - `slot="header"` — Site logo (`<hgroup>` with title + subtitle), unit toggle, dark mode button. Uses `wa-split` for left/right distribution.
 - `slot="subheader"` — Location search combobox. Sticky below header.
 - Default slot — `<main>` with `wa-stack wa-gap-l` containing location display, error state, and weather cards masonry.
 - `slot="footer"` — Attribution line (hidden until first weather load via `hidden` attribute toggled by JS).
-- `disable-navigation-toggle` is set (no sidebar nav in this app). The attribute alone doesn't fully hide the internal hamburger button — `wa-page::part(navigation-toggle) { display: none; }` is also needed to prevent it from taking up header space.
+- `disable-navigation-toggle` is set (no sidebar nav in this app). As of v3.3, the component auto-detects absence of navigation content and fully hides the toggle.
 - Content width constrained via `.page-content-width { max-width: 72rem; margin-inline: auto; }` on slotted elements.
 - `<pwa-install>` sits outside `</wa-page>` (renders its own overlay).
 
@@ -261,7 +261,7 @@ The frontend uses [Web Awesome](https://webawesome.com) v3.2, a web component li
 - **Properties:** `name`, `library`, `label`, `src`, `family`, `variant`, `autoWidth` (attr: `auto-width`), `swapOpacity` (attr: `swap-opacity`), `rotate` (degrees), `flip` (`'x'|'y'|'both'`), `animation` (beat, bounce, fade, flip, shake, spin, etc.)
 - **CSS Custom Properties:** Duotone: `--primary-color`, `--primary-opacity`, `--secondary-color`, `--secondary-opacity`. Animation: `--animation-duration`, `--beat-scale`, `--bounce-height`, `--fade-opacity`, `--flip-angle`, etc.
 - **Events:** `wa-load`, `wa-error`
-- **Note:** `rotate`, `flip`, and `animation` are new in 3.2.
+- **Note:** `rotate`, `flip`, and `animation` were added in 3.2.
 
 **Search Combobox (`wa-combobox`):**
 The location search uses `wa-combobox` with dynamically populated options from the geocoding API. Key implementation notes:
