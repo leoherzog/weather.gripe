@@ -234,14 +234,27 @@ export async function createRadarCard(radarData, locationName, timezone = null) 
       preserveDrawingBuffer: true,
       interactive: false,
       attributionControl: false,
+      minZoom: 2,
+      maxZoom: 9,
       fitBoundsOptions: { padding: 0 },
       pixelRatio
     });
+
+    // Update canvas with current zoom level
+    const updateZoomAttribute = () => {
+      const canvas = map.getCanvas();
+      if (canvas) canvas.setAttribute('data-zoom', map.getZoom().toFixed());
+    };
+    map.on('zoom', updateZoomAttribute);
+    map.once('load', updateZoomAttribute);
 
     // Ignore missing sprite images
     map.on('styleimagemissing', () => {});
 
     map.on('load', () => {
+      // Enable 3D Globe Projection
+      map.setProjection({ type: 'globe' });
+
       // Ensure map size/center are correct after slot layout settles
       requestAnimationFrame(syncMapToBounds);
       if (typeof ResizeObserver !== 'undefined') {

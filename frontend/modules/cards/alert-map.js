@@ -168,6 +168,9 @@ export async function createAlertMapCard(alertData, userLocation, timezone = nul
     map.once('load', () => map.resize());
 
     map.on('load', () => {
+      // Enable 3D Globe Projection
+      map.setProjection({ type: 'globe' });
+
       // Add alert polygon source
       map.addSource('alert-polygon', {
         type: 'geojson',
