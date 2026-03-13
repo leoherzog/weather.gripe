@@ -2,7 +2,7 @@
 // Replaces runtime Kit CDN loading
 
 import { library } from '@fortawesome/fontawesome-svg-core';
-import { registerIconLibrary } from '@awesome.me/webawesome-pro/dist/webawesome.js';
+import { registerIconLibrary } from '@web.awesome.me/webawesome-pro/dist/webawesome.js';
 
 // Import all needed icons (27 total)
 import {

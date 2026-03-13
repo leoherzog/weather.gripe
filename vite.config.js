@@ -6,31 +6,13 @@ export default defineConfig({
   build: {
     outDir: '../public',
     emptyOutDir: true,
-    rollupOptions: {
+    rolldownOptions: {
       output: {
-        manualChunks: {
-          'vendor-maplibre': ['maplibre-gl'],
-          'vendor-chroma': ['chroma-js'],
-          'vendor-fontawesome': [
-            '@fortawesome/fontawesome-svg-core',
-            '@fortawesome/pro-solid-svg-icons'
-          ],
-          'vendor-webawesome': [
-            '@awesome.me/webawesome-pro/dist/webawesome.js',
-            '@awesome.me/webawesome-pro/dist/styles/webawesome.css',
-            '@awesome.me/webawesome-pro/dist/components/button/button.js',
-            '@awesome.me/webawesome-pro/dist/components/radio-group/radio-group.js',
-            '@awesome.me/webawesome-pro/dist/components/radio/radio.js',
-            '@awesome.me/webawesome-pro/dist/components/input/input.js',
-            '@awesome.me/webawesome-pro/dist/components/icon/icon.js',
-            '@awesome.me/webawesome-pro/dist/components/card/card.js',
-            '@awesome.me/webawesome-pro/dist/components/skeleton/skeleton.js',
-            '@awesome.me/webawesome-pro/dist/components/callout/callout.js',
-            '@awesome.me/webawesome-pro/dist/components/tooltip/tooltip.js',
-            '@awesome.me/webawesome-pro/dist/components/combobox/combobox.js',
-            '@awesome.me/webawesome-pro/dist/components/option/option.js',
-            '@awesome.me/webawesome-pro/dist/components/dialog/dialog.js'
-          ],
+        manualChunks(id) {
+          if (id.includes('maplibre-gl')) return 'vendor-maplibre';
+          if (id.includes('chroma-js')) return 'vendor-chroma';
+          if (id.includes('@fortawesome')) return 'vendor-fontawesome';
+          if (id.includes('@web.awesome.me')) return 'vendor-webawesome';
         },
       },
     },

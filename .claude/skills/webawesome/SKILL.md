@@ -1,0 +1,1 @@
+/home/herzog/Projects/weather.gripe/node_modules/@web.awesome.me/webawesome-pro/dist/skills/webawesome/SKILL.md
