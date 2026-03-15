@@ -9,7 +9,6 @@ export default defineConfig({
     rolldownOptions: {
       output: {
         manualChunks(id) {
-          if (id.includes('maplibre-gl')) return 'vendor-maplibre';
           if (id.includes('chroma-js')) return 'vendor-chroma';
           if (id.includes('@fortawesome')) return 'vendor-fontawesome';
           if (id.includes('@web.awesome.me')) return 'vendor-webawesome';
