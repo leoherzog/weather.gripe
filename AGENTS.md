@@ -187,7 +187,7 @@ Injected as `<script>window.__defaultUnits="imperial";</script>` in `<head>`. Us
 
 ### UI Framework (Web Awesome)
 
-The frontend uses [Web Awesome](https://webawesome.com) v3.3, a web component library. Components use `wa-` prefixed custom elements (e.g., `wa-button`, `wa-card`, `wa-combobox`). The package ships an `llms.txt` reference at `node_modules/@web.awesome.me/webawesome-pro/dist/llms.txt` with full component API docs.
+The frontend uses [Web Awesome](https://webawesome.com) v3.4, a web component library. Components use `wa-` prefixed custom elements (e.g., `wa-button`, `wa-card`, `wa-combobox`). The package ships an `llms.txt` reference at `node_modules/@web.awesome.me/webawesome-pro/dist/llms.txt` with full component API docs.
 
 **Page Layout (`wa-page`):** The entire page scaffold uses the `<wa-page>` Pro component with named slots:
 - `slot="header"` — Site logo (`<hgroup>` with title + subtitle), unit toggle, dark mode button. Uses `wa-split` for left/right distribution.
