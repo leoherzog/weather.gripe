@@ -406,6 +406,20 @@ Canvas-based weather cards use Web Awesome's color palette system for consistent
 - `.npmrc` - Private npm registry configuration for `@fortawesome` and `@awesome.me` scoped packages
 - `package.json` - Build scripts and dependencies
 
+**Running npm with `.dev.vars` secrets:** The `.npmrc` references `${FONTAWESOME_NPM_TOKEN}` and `${WEBAWESOME_NPM_TOKEN}` from the environment. To run `npm install` (or any npm command that touches the private registries), export the vars from `.dev.vars` first:
+
+```bash
+export $(cat .dev.vars | xargs) && npm install
+```
+
+Or, to scope the env to a single command without polluting the shell:
+
+```bash
+env $(cat .dev.vars | xargs) npm install
+```
+
+Note: this pattern assumes `.dev.vars` values contain no spaces or shell metacharacters (which is true for the tokens in this repo). Do not commit the exported env or log it.
+
 ### API Response Structure
 
 **`/api/location` Response:**
