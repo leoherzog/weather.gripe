@@ -50,33 +50,45 @@ export function createLocationManager(app) {
         const browserGeoPromise = this.requestBrowserGeolocation();
 
         // Use Cloudflare location detection while waiting for browser geolocation
-        await this.loadFromCloudflareLocation();
+        const cfLocation = await this.loadFromCloudflareLocation();
 
         // Wait for browser geolocation result
         const browserLocation = await browserGeoPromise;
         if (browserLocation) {
           // Save precise mode for future visits
           this._savePreciseLocation(browserLocation.latitude, browserLocation.longitude);
+          // Skip the re-fetch (and the disruptive re-render) if the precise location
+          // is essentially the same as the CF estimate — the forecast won't change.
+          if (cfLocation && this._isWithinKm(
+            cfLocation.lat, cfLocation.lon,
+            browserLocation.latitude, browserLocation.longitude,
+            5
+          )) {
+            return;
+          }
           // Update with more precise browser location (don't save to lastLocation)
           await app.loadWeather(browserLocation.latitude, browserLocation.longitude, null, false);
         }
       }
     },
 
-    // Fetch and load weather from Cloudflare-detected location
+    // Fetch and load weather from Cloudflare-detected location.
+    // Returns { lat, lon } on success so callers can compare against a later precise fix.
     async loadFromCloudflareLocation() {
       try {
         const response = await fetch('/api/cf-location');
         if (!response.ok) {
           app.hideLoading();
-          return;
+          return null;
         }
         const cfLocation = await response.json();
         // Let API provide name + region via reverse geocode (don't save auto-detected)
         await app.loadWeather(cfLocation.latitude, cfLocation.longitude, null, false);
+        return { lat: cfLocation.latitude, lon: cfLocation.longitude };
       } catch (e) {
         console.error('Cloudflare location detection failed:', e);
         app.hideLoading();
+        return null;
       }
     },
 
@@ -171,6 +183,15 @@ export function createLocationManager(app) {
       const truncate = (v) => Math.round(v * 1000) / 1000;
       return truncate(cached.lat) !== truncate(fresh.latitude) ||
              truncate(cached.lon) !== truncate(fresh.longitude);
+    },
+
+    // Approximate equirectangular distance check — accurate enough to decide whether
+    // two nearby coordinates would yield the same weather forecast.
+    _isWithinKm(lat1, lon1, lat2, lon2, km) {
+      const KM_PER_DEG = 111;
+      const dLat = (lat1 - lat2) * KM_PER_DEG;
+      const dLon = (lon1 - lon2) * KM_PER_DEG * Math.cos((lat1 + lat2) / 2 * Math.PI / 180);
+      return Math.sqrt(dLat * dLat + dLon * dLon) < km;
     }
   };
 }
