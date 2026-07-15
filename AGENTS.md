@@ -168,7 +168,7 @@ Two layers:
   - `alert.js` / `alert-map.js` - Alert cards (text-only and map-overlay variants)
   - `alert-renderer.js` - Shared alert drawing utilities (colors, layout, text/icon rendering)
   - `radar.js` - Radar card with embedded MapLibre map
-  - `sun-times.js` - Sunrise & sunset card (side-by-side `fa-sunrise`/`fa-sunset` icons with times; skipped when both are missing, e.g. polar day/night)
+  - `sun-times.js` - Sunrise & sunset card (side-by-side `fa-sunrise`/`fa-sunset` icons with times; skipped when both are missing, e.g. polar day/night). Titled with today's full locale date (e.g. "Wednesday, July 15, 2026 in Holland") next to a `fa-clock` header icon; its watermark omits the bottom-right timestamp (`drawWatermark(..., showTimestamp = false)`)
   - `core.js` - Shared canvas utilities (watermark, icons, text wrapping)
 - **`modules/utils/`** - Shared utilities
   - `temperature-colors.js` - Dynamic color system based on windy.com scale, favicon & theme-color updates

@@ -79,7 +79,8 @@ export function drawWeatherIcon(ctx, iconClass, x, y, size, color) {
 
 // Draw watermark and timestamp on canvas
 // timezone: IANA timezone string (e.g., 'America/New_York') for displaying location's local time
-export function drawWatermark(ctx, width, height, suffix = null, timezone = null) {
+// showTimestamp: pass false to skip the bottom-right datetime (e.g. sun times card, which is date-titled)
+export function drawWatermark(ctx, width, height, suffix = null, timezone = null, showTimestamp = true) {
   ctx.save();
   const wmColor = cardText(0.7);
   ctx.font = '24px system-ui, sans-serif';
@@ -117,10 +118,12 @@ export function drawWatermark(ctx, width, height, suffix = null, timezone = null
   }
 
   // Timestamp (bottom-right) - use location's timezone if provided
-  ctx.textAlign = 'right';
-  const formatOpts = timezone ? { timeZone: timezone } : {};
-  const timestamp = new Date().toLocaleString(undefined, formatOpts);
-  ctx.fillText(timestamp, width - 20, height - 20);
+  if (showTimestamp) {
+    ctx.textAlign = 'right';
+    const formatOpts = timezone ? { timeZone: timezone } : {};
+    const timestamp = new Date().toLocaleString(undefined, formatOpts);
+    ctx.fillText(timestamp, width - 20, height - 20);
+  }
 
   ctx.restore();
 }

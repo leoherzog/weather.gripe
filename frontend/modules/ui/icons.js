@@ -4,13 +4,16 @@
 import { library } from '@fortawesome/fontawesome-svg-core';
 import { registerIconLibrary } from '@web.awesome.me/webawesome-pro/dist/webawesome.js';
 
-// Import all needed icons (29 total)
+// Import all needed icons (32 total)
 import {
   faAngleLeft,
   faAngleRight,
   faArrowDown,
   faArrowUp,
   faBars,
+  faCalendarDay,
+  faCalendarWeek,
+  faClock,
   faCloud,
   faCloudBolt,
   faCloudMoon,
@@ -49,6 +52,9 @@ library.add(
   faArrowDown,
   faArrowUp,
   faBars,
+  faCalendarDay,
+  faCalendarWeek,
+  faClock,
   faCloud,
   faCloudBolt,
   faCloudMoon,
@@ -82,6 +88,9 @@ const iconDefinitions = {
   'arrow-down': faArrowDown,
   'arrow-up': faArrowUp,
   'bars': faBars,
+  'calendar-day': faCalendarDay,
+  'calendar-week': faCalendarWeek,
+  'clock': faClock,
   'cloud': faCloud,
   'cloud-bolt': faCloudBolt,
   'cloud-moon': faCloudMoon,

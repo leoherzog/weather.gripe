@@ -99,12 +99,13 @@ export async function renderHourlyForecast(canvas, weatherData, cityName = '', b
   const graphWidth = width - padding.left - padding.right;
   const graphHeight = height - padding.top - padding.bottom;
 
-  // Title
+  // Header: calendar icon + title
+  drawWeatherIcon(ctx, 'fa-calendar-day', 80, 54, 64);
   ctx.fillStyle = cardText();
   ctx.font = 'bold 48px system-ui, sans-serif';
   ctx.textAlign = 'left';
-  ctx.textBaseline = 'top';
-  ctx.fillText(cityName ? `Next 24 Hours in ${cityName}` : 'Next 24 Hours', padding.left - 10, 30);
+  ctx.textBaseline = 'middle';
+  ctx.fillText(cityName ? `Next 24 Hours in ${cityName}` : 'Next 24 Hours', 130, 54);
 
   // Get temperature range
   const temps = hours.map(h => h.temperature);

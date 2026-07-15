@@ -44,12 +44,13 @@ export async function renderForecastGraph(canvas, weatherData, locationName = '5
   const graphWidth = width - padding.left - padding.right;
   const graphHeight = height - padding.top - padding.bottom;
 
-  // Title (location name) - offset to align with centered temp labels on first data point
+  // Header: calendar icon + title (location name)
+  drawWeatherIcon(ctx, 'fa-calendar-week', 80, 64, 64);
   ctx.fillStyle = cardText();
   ctx.font = 'bold 48px system-ui, sans-serif';
   ctx.textAlign = 'left';
-  ctx.textBaseline = 'top';
-  ctx.fillText(locationName ? `Coming Up in ${locationName}` : 'Coming Up', padding.left - 35, 40);
+  ctx.textBaseline = 'middle';
+  ctx.fillText(locationName ? `Coming Up in ${locationName}` : 'Coming Up', 130, 64);
 
   // Get temperature range
   const temps = completeDays.flatMap(d => [d.high, d.low]);

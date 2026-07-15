@@ -48,12 +48,23 @@ export async function renderSunTimes(canvas, weatherData, cityName = '', backgro
     drawFallbackBackground(ctx, width, height);
   }
 
-  // Title
+  // Header: clock icon + full date title (e.g. "Wednesday, July 15, 2026 in Holland")
+  const headerCenterY = 54;
+  drawWeatherIcon(ctx, 'fa-clock', 80, headerCenterY, 64);
+
+  const titleDate = today.date ? new Date(`${today.date}T00:00:00`) : new Date();
+  const dateStr = titleDate.toLocaleDateString(undefined, { dateStyle: 'full' });
+  const title = cityName ? `${dateStr} in ${cityName}` : dateStr;
   ctx.fillStyle = cardText();
-  ctx.font = 'bold 48px system-ui, sans-serif';
   ctx.textAlign = 'left';
-  ctx.textBaseline = 'top';
-  ctx.fillText(cityName ? `Sunrise & Sunset in ${cityName}` : 'Sunrise & Sunset', 70, 30);
+  ctx.textBaseline = 'middle';
+  // Shrink to fit - the full date plus a long city name can outgrow the card
+  let titleSize = 48;
+  do {
+    ctx.font = `bold ${titleSize}px system-ui, sans-serif`;
+    titleSize -= 2;
+  } while (titleSize > 30 && ctx.measureText(title).width > width - 130 - 40);
+  ctx.fillText(title, 130, headerCenterY);
 
   // Vertical divider between the two columns
   ctx.strokeStyle = cardDivider(0.3);
@@ -84,7 +95,7 @@ export async function renderSunTimes(canvas, weatherData, cityName = '', backgro
   const attribution = unsplashUsername
     ? `${dataSource} and @${unsplashUsername} on Unsplash`
     : dataSource;
-  drawWatermark(ctx, width, height, attribution, timezone);
+  drawWatermark(ctx, width, height, attribution, timezone, false);
 
   return canvas;
 }
