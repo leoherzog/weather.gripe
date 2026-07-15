@@ -4,7 +4,7 @@
 import { library } from '@fortawesome/fontawesome-svg-core';
 import { registerIconLibrary } from '@web.awesome.me/webawesome-pro/dist/webawesome.js';
 
-// Import all needed icons (32 total)
+// Import all needed icons (36 total)
 import {
   faAngleLeft,
   faAngleRight,
@@ -13,7 +13,6 @@ import {
   faBars,
   faCalendarDay,
   faCalendarWeek,
-  faClock,
   faCloud,
   faCloudBolt,
   faCloudMoon,
@@ -22,6 +21,11 @@ import {
   faCloudSun,
   faCloudSunRain,
   faDownload,
+  faEarthAfrica,
+  faEarthAmericas,
+  faEarthAsia,
+  faEarthEurope,
+  faEarthOceania,
   faEye,
   faHeart,
   faLocationCrosshairs,
@@ -54,7 +58,6 @@ library.add(
   faBars,
   faCalendarDay,
   faCalendarWeek,
-  faClock,
   faCloud,
   faCloudBolt,
   faCloudMoon,
@@ -63,6 +66,11 @@ library.add(
   faCloudSun,
   faCloudSunRain,
   faDownload,
+  faEarthAfrica,
+  faEarthAmericas,
+  faEarthAsia,
+  faEarthEurope,
+  faEarthOceania,
   faEye,
   faHeart,
   faLocationCrosshairs,
@@ -90,7 +98,6 @@ const iconDefinitions = {
   'bars': faBars,
   'calendar-day': faCalendarDay,
   'calendar-week': faCalendarWeek,
-  'clock': faClock,
   'cloud': faCloud,
   'cloud-bolt': faCloudBolt,
   'cloud-moon': faCloudMoon,
@@ -99,6 +106,11 @@ const iconDefinitions = {
   'cloud-sun': faCloudSun,
   'cloud-sun-rain': faCloudSunRain,
   'download': faDownload,
+  'earth-africa': faEarthAfrica,
+  'earth-americas': faEarthAmericas,
+  'earth-asia': faEarthAsia,
+  'earth-europe': faEarthEurope,
+  'earth-oceania': faEarthOceania,
   'eye': faEye,
   'heart': faHeart,
   'location-crosshairs': faLocationCrosshairs,

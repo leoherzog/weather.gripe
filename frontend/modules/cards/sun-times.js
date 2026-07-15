@@ -17,6 +17,23 @@ function formatSunTime(iso, timezone) {
   return date.toLocaleTimeString('en-US', opts);
 }
 
+// Pick the earth globe icon showing the location's part of the world,
+// keyed off the IANA timezone's continent/ocean prefix
+function earthIcon(timezone) {
+  switch (timezone?.split('/')[0]) {
+    case 'Africa': return 'fa-earth-africa';
+    case 'Asia':
+    case 'Indian': return 'fa-earth-asia';
+    case 'Europe':
+    case 'Arctic':
+    case 'Atlantic': return 'fa-earth-europe';
+    case 'Australia':
+    case 'Pacific':
+    case 'Antarctica': return 'fa-earth-oceania';
+    default: return 'fa-earth-americas';
+  }
+}
+
 // Create Sunrise & Sunset Card
 // timezone: IANA timezone string for displaying location's local time
 export async function renderSunTimes(canvas, weatherData, cityName = '', backgroundUrl = null, unsplashUsername = null, timezone = null) {
@@ -48,9 +65,9 @@ export async function renderSunTimes(canvas, weatherData, cityName = '', backgro
     drawFallbackBackground(ctx, width, height);
   }
 
-  // Header: clock icon + full date title (e.g. "Wednesday, July 15, 2026 in Holland")
+  // Header: regional earth globe icon + full date title (e.g. "Wednesday, July 15, 2026 in Holland")
   const headerCenterY = 54;
-  drawWeatherIcon(ctx, 'fa-clock', 80, headerCenterY, 64);
+  drawWeatherIcon(ctx, earthIcon(timezone), 80, headerCenterY, 64);
 
   const titleDate = today.date ? new Date(`${today.date}T00:00:00`) : new Date();
   const dateStr = titleDate.toLocaleDateString(undefined, { dateStyle: 'full' });
