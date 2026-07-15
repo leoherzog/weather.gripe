@@ -50,6 +50,9 @@ export function createCardRenderer(app) {
       // Start radar fetch early for US locations (parallel with background)
       const radarPromise = isNWS ? app.weatherLoader.fetchRadar(app.currentLocation?.lat, app.currentLocation?.lon) : null;
 
+      // Start satellite fetch early (near-global coverage, all locations)
+      const satellitePromise = app.weatherLoader.fetchSatellite(app.currentLocation?.lat, app.currentLocation?.lon);
+
       // For detailed cards, fetch backgrounds based on their specific conditions and temps
       let detailedBgs1Promise = null;
       let detailedBgs2Promise = null;
@@ -376,6 +379,15 @@ export function createCardRenderer(app) {
         })());
       }
 
+      // Satellite card (order: 6.5, depends on satellite data)
+      // Skipped entirely when the location is outside imagery coverage
+      cardPromises.push((async () => {
+        const satelliteData = await satellitePromise;
+        if (!satelliteData?.coverage) return null;
+        const card = await WeatherCards.createSatelliteCard(satelliteData, cityName, timezone);
+        return { order: 6.5, card };
+      })());
+
       // Forecast graph card (order: 7, depends on background)
       cardPromises.push((async () => {
         const backgrounds = await backgroundsPromise;
@@ -600,9 +612,9 @@ export function createCardRenderer(app) {
       notifyEngagement(); // Triggers PWA install prompt after first engagement
     },
 
-    // Clean up MapLibre maps in radar and alert-map cards before removing them
+    // Clean up MapLibre maps in radar, satellite, and alert-map cards before removing them
     cleanupMapCards() {
-      const mapCards = app.elements.weatherCards.querySelectorAll('[data-card-type="radar"], [data-card-type="alert-map"]');
+      const mapCards = app.elements.weatherCards.querySelectorAll('[data-card-type="radar"], [data-card-type="satellite"], [data-card-type="alert-map"]');
       mapCards.forEach(card => {
         if (card._cleanup) {
           card._cleanup();

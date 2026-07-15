@@ -139,6 +139,18 @@ export function createWeatherLoader(app) {
         console.warn('Radar fetch failed:', e);
         return null;
       }
+    },
+
+    // Fetch satellite imagery data for a location
+    async fetchSatellite(lat, lon) {
+      try {
+        const response = await fetch(`/api/satellite?lat=${truncateCoord(lat)}&lon=${truncateCoord(lon)}`);
+        if (!response.ok) return null;
+        return response.json();
+      } catch (e) {
+        console.warn('Satellite fetch failed:', e);
+        return null;
+      }
     }
   };
 }

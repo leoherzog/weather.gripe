@@ -35,6 +35,11 @@ async function renderRadarError(...args) {
   return render(...args);
 }
 
+async function createSatelliteCard(...args) {
+  const { createSatelliteCard: create } = await import('./satellite.js');
+  return create(...args);
+}
+
 // WeatherCards API - maintains backward compatibility with the original global object
 export const WeatherCards = {
   // Card dimensions
@@ -57,6 +62,7 @@ export const WeatherCards = {
   createRadarCard,
   renderRadarUnavailable,
   renderRadarError,
+  createSatelliteCard,
 
   // Share/download utilities
   shareCard,
@@ -80,6 +86,7 @@ export {
   createRadarCard,
   renderRadarUnavailable,
   renderRadarError,
+  createSatelliteCard,
   shareCard,
   downloadCard,
   createCardActions,

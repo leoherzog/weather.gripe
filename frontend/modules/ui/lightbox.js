@@ -40,8 +40,8 @@ function ensureLightboxDialog() {
 async function getCardCanvas(card) {
   const cardType = card.dataset.cardType;
 
-  // Handle map-based cards (radar, alert-map) with async export
-  if (cardType === 'radar' || cardType === 'alert-map') {
+  // Handle map-based cards (radar, satellite, alert-map) with async export
+  if (cardType === 'radar' || cardType === 'satellite' || cardType === 'alert-map') {
     if (card._exportToCanvas) {
       return await card._exportToCanvas();
     }

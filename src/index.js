@@ -12,12 +12,15 @@ const WXSTORY_CACHE_TTL = 5 * 60; // 5 minutes
 const WXSTORY_IMAGE_CACHE_TTL = 30 * 60; // 30 minutes
 const RADAR_TIMESTAMP_CACHE_TTL = 60; // 1 minute
 const RADAR_TILE_CACHE_TTL = 120; // 2 minutes
+const SATELLITE_TIMESTAMP_CACHE_TTL = 120; // 2 minutes (GOES imagery updates every ~5 minutes)
+const SATELLITE_TILE_CACHE_TTL = 300; // 5 minutes
 const BASEMAP_TILE_CACHE_TTL = 86400; // 24 hours
 
 // stale-while-revalidate windows (RFC 5861) for the front Workers Cache
 const LOCATION_SWR_TTL = 10 * 60; // 10 minutes
 const WXSTORY_SWR_TTL = 10 * 60; // 10 minutes
 const RADAR_METADATA_SWR_TTL = 120; // 2 minutes
+const SATELLITE_METADATA_SWR_TTL = 240; // 4 minutes
 const GEOCODE_SWR_TTL = 24 * 60 * 60; // 24 hours
 const UNSPLASH_SWR_TTL = 24 * 60 * 60; // 24 hours
 
@@ -42,6 +45,21 @@ const NOAA_RADAR_CONFIG = {
   guam: {
     bounds: { minLat: 12, maxLat: 15, minLon: 144, maxLon: 146 },
     layer: 'guam_bref_qcd'
+  }
+};
+
+// NOAA nowCOAST satellite imagery configurations
+// Regions are checked in order: GOES East/West composite (5-min updates, higher
+// resolution) where available, then the global GMGSI mosaic (hourly, ~3km)
+// Bounds come from the layers' LatLonBoundingBox in the WMS capabilities
+const NOAA_SATELLITE_CONFIG = {
+  goes: {
+    bounds: { minLat: 11, maxLat: 50.5, minLon: -179.5, maxLon: -50.8 },
+    layers: { visible: 'goes_visible_imagery', infrared: 'goes_longwave_imagery' }
+  },
+  global: {
+    bounds: { minLat: -72.7, maxLat: 72.7, minLon: -180, maxLon: 180 },
+    layers: { visible: 'global_visible_imagery_mosaic', infrared: 'global_longwave_imagery_mosaic' }
   }
 };
 
@@ -799,6 +817,18 @@ function getRadarRegion(lat, lon) {
   return null;
 }
 
+// Helper: Determine nowCOAST satellite region from coordinates
+function getSatelliteRegion(lat, lon) {
+  for (const [region, config] of Object.entries(NOAA_SATELLITE_CONFIG)) {
+    const { bounds } = config;
+    if (lat >= bounds.minLat && lat <= bounds.maxLat &&
+        lon >= bounds.minLon && lon <= bounds.maxLon) {
+      return region;
+    }
+  }
+  return null;
+}
+
 // Helper: Convert lat/lon to Web Mercator coordinates
 function latLonToWebMercator(lat, lon) {
   const x = lon * 20037508.34 / 180;
@@ -812,6 +842,21 @@ function calculateRadarBbox(lat, lon) {
   const { x, y } = latLonToWebMercator(lat, lon);
   const halfWidth = 300000; // ~186 miles total width
   const halfHeight = 200000; // ~124 miles total height (card aspect ratio)
+  return {
+    minX: x - halfWidth,
+    minY: y - halfHeight,
+    maxX: x + halfWidth,
+    maxY: y + halfHeight
+  };
+}
+
+// Helper: Calculate BBOX for satellite tile request
+// Fixed ~2400x1600 km viewport centered on the location (wider than radar -
+// satellite imagery reads best at synoptic scale)
+function calculateSatelliteBbox(lat, lon) {
+  const { x, y } = latLonToWebMercator(lat, lon);
+  const halfWidth = 1200000;
+  const halfHeight = 800000; // card aspect ratio (3:2)
   return {
     minX: x - halfWidth,
     minY: y - halfHeight,
@@ -1659,6 +1704,160 @@ async function handleRadarTile(request, env) {
   }
 }
 
+// Handle satellite API - returns satellite imagery metadata for a location
+async function handleSatellite(request, env, ctx) {
+  const url = new URL(request.url);
+  const lat = parseFloat(url.searchParams.get('lat'));
+  const lon = parseFloat(url.searchParams.get('lon'));
+
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+    return jsonResponse({ error: 'Invalid lat/lon parameters' }, 400);
+  }
+
+  // Determine satellite region (GOES composite preferred, global mosaic fallback)
+  const region = getSatelliteRegion(lat, lon);
+  if (!region) {
+    return jsonResponse({
+      coverage: false,
+      error: 'Location outside NOAA satellite imagery coverage'
+    });
+  }
+
+  const config = NOAA_SATELLITE_CONFIG[region];
+
+  // Pick band by sun position at the location: visible imagery is black at
+  // night, so switch to longwave infrared when the sun is below ~10 degrees
+  const sunAltitude = SunCalc.getPosition(new Date(), lat, lon).altitude;
+  const band = sunAltitude > (10 * Math.PI / 180) ? 'visible' : 'infrared';
+  const layer = config.layers[band];
+
+  const cache = caches.default;
+
+  // Check for cached timestamp
+  const timestampCacheKey = `satellite-timestamp:${layer}`;
+  const timestampCacheUrl = `https://weather.gripe/api/satellite-cache/${timestampCacheKey}`;
+  const timestampCacheRequest = new Request(timestampCacheUrl);
+
+  let timestamp = null;
+  const cached = await cache.match(timestampCacheRequest);
+  if (cached) {
+    const data = await cached.json();
+    timestamp = data.timestamp;
+  } else {
+    // Fetch GetCapabilities to get latest timestamp
+    // nowCOAST's WMS 1.1.1 capabilities list times in <Extent name="time">
+    // with the latest as the default attribute
+    try {
+      const capabilitiesUrl = 'https://nowcoast.noaa.gov/geoserver/satellite/wms?service=WMS&version=1.1.1&request=GetCapabilities';
+      const capResponse = await fetch(capabilitiesUrl, {
+        headers: { 'User-Agent': 'weather.gripe (https://weather.gripe)' }
+      });
+      if (capResponse.ok) {
+        const capText = await capResponse.text();
+        const layerRegex = new RegExp(`<Name>(?:satellite:)?${layer}</Name>[\\s\\S]*?<Extent[^>]*name="time"[^>]*default="([^"]+)"`, 'i');
+        const timeMatch = capText.match(layerRegex);
+        if (timeMatch) {
+          timestamp = timeMatch[1].trim();
+        }
+      }
+    } catch (e) {
+      console.error('Failed to fetch satellite capabilities:', e);
+    }
+
+    // Cache timestamp
+    if (timestamp) {
+      const timestampResponse = new Response(JSON.stringify({ timestamp }), {
+        headers: { 'Cache-Control': `public, max-age=${SATELLITE_TIMESTAMP_CACHE_TTL}` }
+      });
+      ctx.waitUntil(cache.put(timestampCacheRequest, timestampResponse));
+    }
+  }
+
+  // Calculate BBOX for this location
+  const bbox = calculateSatelliteBbox(lat, lon);
+  const bboxStr = `${bbox.minX},${bbox.minY},${bbox.maxX},${bbox.maxY}`;
+
+  // Return satellite metadata for client-side MapLibre rendering
+  // Client builds WMS URLs dynamically with {bbox-epsg-3857} placeholder
+  // Degraded (timestamp: null) responses must not be pinned in the front
+  // cache — leave them uncacheable so recovery is immediate
+  return jsonResponse({
+    coverage: true,
+    region,
+    band,
+    layer,
+    timestamp,
+    bbox: bboxStr
+  }, 200, timestamp ? SATELLITE_TIMESTAMP_CACHE_TTL : null, SATELLITE_METADATA_SWR_TTL);
+}
+
+// Handle satellite tile proxy - proxies nowCOAST satellite tiles to handle CORS
+// Accepts region, layer, time, bbox params and constructs WMS URL server-side
+async function handleSatelliteTile(request, env) {
+  const url = new URL(request.url);
+
+  // Get parameters - bbox is substituted by MapLibre at request time
+  const region = url.searchParams.get('region');
+  const layer = url.searchParams.get('layer');
+  const time = url.searchParams.get('time');
+  const bbox = url.searchParams.get('bbox');
+
+  if (!region || !layer || !bbox) {
+    return jsonResponse({ error: 'Missing required parameters (region, layer, bbox)' }, 400);
+  }
+
+  // Validate region is one of our known regions
+  if (!NOAA_SATELLITE_CONFIG[region]) {
+    return jsonResponse({ error: 'Invalid satellite region' }, 400);
+  }
+
+  // Validate layer matches a configured layer for this region
+  if (!Object.values(NOAA_SATELLITE_CONFIG[region].layers).includes(layer)) {
+    return jsonResponse({ error: 'Invalid layer for region' }, 400);
+  }
+
+  // Build the nowCOAST WMS URL server-side
+  const wmsParams = new URLSearchParams({
+    service: 'WMS',
+    version: '1.1.1',
+    request: 'GetMap',
+    layers: layer,
+    styles: '',
+    format: 'image/png',
+    transparent: 'true',
+    width: '256',
+    height: '256',
+    srs: 'EPSG:3857',
+    bbox: bbox
+  });
+  if (time) {
+    wmsParams.set('time', time);
+  }
+  const tileUrl = `https://nowcoast.noaa.gov/geoserver/satellite/wms?${wmsParams.toString()}`;
+
+  // Tile responses are cached by the front Workers Cache (keyed by request URL)
+  try {
+    const response = await fetch(tileUrl, {
+      headers: { 'User-Agent': 'weather.gripe (https://weather.gripe)' }
+    });
+
+    if (!response.ok) {
+      return jsonResponse({ error: 'Failed to fetch satellite tile' }, 502);
+    }
+
+    return new Response(response.body, {
+      headers: {
+        'Content-Type': response.headers.get('Content-Type') || 'image/png',
+        'Cache-Control': `public, max-age=${SATELLITE_TILE_CACHE_TTL}`,
+        'Access-Control-Allow-Origin': '*'
+      }
+    });
+  } catch (e) {
+    console.error('Satellite tile fetch error:', e);
+    return jsonResponse({ error: 'Failed to fetch satellite tile' }, 500);
+  }
+}
+
 // Handle basemap tile proxy - proxies CARTO basemap tiles to handle CORS
 async function handleBasemapTile(request, env) {
   const url = new URL(request.url);
@@ -1728,6 +1927,12 @@ export default {
     }
     if (path === '/api/radar/tile') {
       return handleRadarTile(request, env);
+    }
+    if (path === '/api/satellite') {
+      return handleSatellite(request, env, ctx);
+    }
+    if (path === '/api/satellite/tile') {
+      return handleSatelliteTile(request, env);
     }
     if (path === '/api/basemap/tile') {
       return handleBasemapTile(request, env);

@@ -37,6 +37,12 @@ This is a Cloudflare Workers application that serves a weather website with shar
 - `/api/radar/tile` - Proxies NOAA radar WMS tiles (2min cache, handles CORS)
   - Accepts `region`, `layer`, `time`, `bbox` parameters
   - Constructs NOAA WMS URL server-side (allows MapLibre `{bbox-epsg-3857}` substitution)
+- `/api/satellite` - Returns satellite imagery metadata for a location (near-global)
+  - Accepts `lat`+`lon` coordinates
+  - Returns `{ coverage, region, band, layer, timestamp, bbox }`
+  - Returns `{ coverage: false }` poleward of ~72° latitude
+- `/api/satellite/tile` - Proxies NOAA nowCOAST satellite WMS tiles (5min cache, handles CORS)
+  - Accepts `region`, `layer`, `time`, `bbox` parameters (same pattern as `/api/radar/tile`)
 - All other routes served via Cloudflare static assets from `public/`
 
 Coordinates are truncated to 3 decimal places (~111m precision) for cache efficiency.
@@ -68,6 +74,19 @@ Coordinates are truncated to 3 decimal places (~111m precision) for cache effici
 - Dark/Fiord style basemap via MapLibre GL JS
 - OpenMapTiles schema for vector data
 - No API key required
+
+### Satellite Data Sources (Near-Global)
+
+**NOAA nowCOAST Satellite Imagery (nowcoast.noaa.gov):**
+- Endpoint: `/geoserver/satellite/wms` (WMS 1.1.1)
+- Two regions, checked in order:
+  - `goes` - GOES-East/West composite (lat 11–50.5, lon -179.5 – -50.8), ~0.5-2km resolution, updates every 5 minutes
+  - `global` - GMGSI 5-satellite mosaic (±72.7° latitude, all longitudes), ~3km resolution, updates hourly
+- Band selected server-side by sun position (SunCalc): `visible` when the sun is above 10°, `infrared` (longwave) otherwise
+- Latest timestamp parsed from the capabilities `<Extent name="time" default="...">` attribute (nowCOAST format differs from opengeo's `<Dimension>`)
+
+**Satellite Card Architecture:**
+Same structure as the radar card (MapLibre + canvas overlay + zoom controls), with these differences: ~2400x1600 km viewport (vs 600x400), country/state boundary lines overlay instead of highways, header shows only the "{City} Satellite" title (no timestamp), no dBZ legend, and it renders for all locations within imagery coverage (not just US/NWS). Card is skipped entirely (no "unavailable" card) outside coverage.
 
 **Radar Card Architecture:**
 The radar card embeds a live MapLibre GL JS map (not canvas compositing):

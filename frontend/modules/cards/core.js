@@ -80,9 +80,10 @@ export function drawWeatherIcon(ctx, iconClass, x, y, size, color) {
 // Draw watermark and timestamp on canvas
 // timezone: IANA timezone string (e.g., 'America/New_York') for displaying location's local time
 // showTimestamp: pass false to skip the bottom-right datetime (e.g. sun times card, which is date-titled)
-export function drawWatermark(ctx, width, height, suffix = null, timezone = null, showTimestamp = true) {
+// forceLight: always use light text regardless of theme (for cards over dark map tiles)
+export function drawWatermark(ctx, width, height, suffix = null, timezone = null, showTimestamp = true, forceLight = false) {
   ctx.save();
-  const wmColor = cardText(0.7);
+  const wmColor = forceLight ? `rgba(${DARK_TEXT}, 0.7)` : cardText(0.7);
   ctx.font = '24px system-ui, sans-serif';
   ctx.fillStyle = wmColor;
   ctx.textBaseline = 'bottom';
