@@ -2,6 +2,11 @@
 
 import { TemperatureColors } from '../utils/temperature-colors.js';
 
+// Truncate coordinates to 3 decimal places (~111m) to match the server's
+// normalization — keeps request URLs identical across nearby users so the
+// front Workers Cache can actually share entries
+const truncateCoord = (v) => Math.round(v * 1000) / 1000;
+
 // Create weather loader with dependency injection
 export function createWeatherLoader(app) {
   // Request versioning to prevent race conditions
@@ -16,7 +21,7 @@ export function createWeatherLoader(app) {
       app.showLoading();
 
       try {
-        const response = await fetch(`/api/location?lat=${lat}&lon=${lon}`);
+        const response = await fetch(`/api/location?lat=${truncateCoord(lat)}&lon=${truncateCoord(lon)}`);
 
         // Check if a newer request has started - if so, abandon this one
         if (thisRequest !== currentRequestVersion) return;
@@ -127,7 +132,7 @@ export function createWeatherLoader(app) {
     // Fetch radar data for a location
     async fetchRadar(lat, lon) {
       try {
-        const response = await fetch(`/api/radar?lat=${lat}&lon=${lon}`);
+        const response = await fetch(`/api/radar?lat=${truncateCoord(lat)}&lon=${truncateCoord(lon)}`);
         if (!response.ok) return null;
         return response.json();
       } catch (e) {

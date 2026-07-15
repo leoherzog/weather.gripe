@@ -14,6 +14,13 @@ const RADAR_TIMESTAMP_CACHE_TTL = 60; // 1 minute
 const RADAR_TILE_CACHE_TTL = 120; // 2 minutes
 const BASEMAP_TILE_CACHE_TTL = 86400; // 24 hours
 
+// stale-while-revalidate windows (RFC 5861) for the front Workers Cache
+const LOCATION_SWR_TTL = 10 * 60; // 10 minutes
+const WXSTORY_SWR_TTL = 10 * 60; // 10 minutes
+const RADAR_METADATA_SWR_TTL = 120; // 2 minutes
+const GEOCODE_SWR_TTL = 24 * 60 * 60; // 24 hours
+const UNSPLASH_SWR_TTL = 24 * 60 * 60; // 24 hours
+
 // NOAA radar region configurations
 const NOAA_RADAR_CONFIG = {
   conus: {
@@ -414,13 +421,20 @@ function shouldSkipCache(request) {
 }
 
 // Create JSON response with standard headers
-function jsonResponse(data, status = 200, cacheTTL = null) {
+// cacheTTL: seconds for "public, max-age=N", or the string 'no-store' to forbid
+// caching entirely (front Workers Cache and browsers). swrTTL: optional
+// stale-while-revalidate window in seconds (ignored when cacheTTL is 'no-store').
+function jsonResponse(data, status = 200, cacheTTL = null, swrTTL = null) {
   const headers = {
     'Content-Type': 'application/json',
     'Access-Control-Allow-Origin': '*'
   };
-  if (cacheTTL) {
-    headers['Cache-Control'] = `public, max-age=${cacheTTL}`;
+  if (cacheTTL === 'no-store') {
+    headers['Cache-Control'] = 'no-store';
+  } else if (cacheTTL) {
+    headers['Cache-Control'] = swrTTL
+      ? `public, max-age=${cacheTTL}, stale-while-revalidate=${swrTTL}`
+      : `public, max-age=${cacheTTL}`;
   }
   return new Response(JSON.stringify(data), { status, headers });
 }
@@ -1150,24 +1164,10 @@ async function handleLocation(request, env, ctx) {
     }
   }
 
-  // Check cache
+  // Whole-response caching is handled by the front Workers Cache; the Cache API
+  // here is only used for sub-resource caches shared across response URLs
+  // (reverse-geocode, nws-points, alerts, openmeteo).
   const cache = caches.default;
-  const cacheKey = lat && lon
-    ? `location:${truncateCoord(lat)},${truncateCoord(lon)}`
-    : `location:q:${encodeURIComponent(query)}`;
-  const cacheUrl = new URL(request.url);
-  cacheUrl.pathname = `/api/location-cache/${cacheKey}`;
-  const cacheRequest = new Request(cacheUrl.toString());
-
-  // Delete existing cache if bypassing
-  if (skipCache) {
-    ctx.waitUntil(cache.delete(cacheRequest));
-  } else {
-    const cached = await cache.match(cacheRequest);
-    if (cached) {
-      return cached;
-    }
-  }
 
   try {
     // Get location info
@@ -1252,9 +1252,10 @@ async function handleLocation(request, env, ctx) {
       alerts
     };
 
-    const response = jsonResponse(result, 200, LOCATION_CACHE_TTL);
-    ctx.waitUntil(cache.put(cacheRequest, response.clone()));
-    return response;
+    if (skipCache) {
+      return jsonResponse(result, 200, 'no-store');
+    }
+    return jsonResponse(result, 200, LOCATION_CACHE_TTL, LOCATION_SWR_TTL);
   } catch (e) {
     console.error('Location API error:', e);
     return jsonResponse({ error: e.message || 'Failed to fetch location data' }, 500);
@@ -1262,29 +1263,14 @@ async function handleLocation(request, env, ctx) {
 }
 
 // Handle geocoding API proxy
-async function handleGeocode(request, env, ctx) {
+// Whole-response caching is handled by the front Workers Cache (keyed by URL)
+async function handleGeocode(request, env) {
   const url = new URL(request.url);
   const query = url.searchParams.get('q');
   const skipCache = shouldSkipCache(request);
 
   if (!query) {
     return jsonResponse({ error: 'Missing q parameter' }, 400);
-  }
-
-  // Build cache key without the 'cache' parameter
-  const cacheUrl = new URL(request.url);
-  cacheUrl.searchParams.delete('cache');
-  const cacheKey = new Request(cacheUrl.toString());
-
-  // Check cache
-  const cache = caches.default;
-  if (skipCache) {
-    ctx.waitUntil(cache.delete(cacheKey));
-  } else {
-    const response = await cache.match(cacheKey);
-    if (response) {
-      return response;
-    }
   }
 
   // Fetch from Open-Meteo geocoding
@@ -1300,14 +1286,16 @@ async function handleGeocode(request, env, ctx) {
   }
   const data = await apiResponse.json();
 
-  const response = jsonResponse(data, 200, GEOCODE_CACHE_TTL);
-  ctx.waitUntil(cache.put(cacheKey, response.clone()));
-  return response;
+  if (skipCache) {
+    return jsonResponse(data, 200, 'no-store');
+  }
+  return jsonResponse(data, 200, GEOCODE_CACHE_TTL, GEOCODE_SWR_TTL);
 }
 
 // Handle Unsplash API proxy (hides API key)
 // Supports cascading fallback: location+condition -> region+condition -> condition only
-async function handleUnsplash(request, env, ctx) {
+// Whole-response caching is handled by the front Workers Cache (keyed by URL)
+async function handleUnsplash(request, env) {
   const url = new URL(request.url);
   const query = url.searchParams.get('query');
   const location = url.searchParams.get('location');
@@ -1320,22 +1308,6 @@ async function handleUnsplash(request, env, ctx) {
 
   if (!env.UNSPLASH_ACCESS_KEY) {
     return jsonResponse({ error: 'Unsplash API not configured' }, 503);
-  }
-
-  // Build cache key without the 'cache' parameter
-  const cacheUrl = new URL(request.url);
-  cacheUrl.searchParams.delete('cache');
-  const cacheKey = new Request(cacheUrl.toString());
-
-  // Check cache
-  const cache = caches.default;
-  if (skipCache) {
-    ctx.waitUntil(cache.delete(cacheKey));
-  } else {
-    const response = await cache.match(cacheKey);
-    if (response) {
-      return response;
-    }
   }
 
   // Build query variants for cascading fallback
@@ -1396,9 +1368,10 @@ async function handleUnsplash(request, env, ctx) {
     result = { photos: [selectFallbackImage(query)] };
   }
 
-  const response = jsonResponse(result, 200, UNSPLASH_CACHE_TTL);
-  ctx.waitUntil(cache.put(cacheKey, response.clone()));
-  return response;
+  if (skipCache) {
+    return jsonResponse(result, 200, 'no-store');
+  }
+  return jsonResponse(result, 200, UNSPLASH_CACHE_TTL, UNSPLASH_SWR_TTL);
 }
 
 // Handle Unsplash download tracking (for API compliance)
@@ -1426,7 +1399,8 @@ async function handleUnsplashDownload(request, env) {
         'Authorization': `Client-ID ${env.UNSPLASH_ACCESS_KEY}`
       }
     });
-    return jsonResponse({ success: true });
+    // Side-effecting endpoint - must never be cached by the front Workers Cache
+    return jsonResponse({ success: true }, 200, 'no-store');
   } catch (e) {
     console.error('Unsplash download tracking error:', e);
     return jsonResponse({ error: 'Tracking failed' }, 500);
@@ -1475,11 +1449,13 @@ class DefaultUnitsInjector {
 }
 
 // Handle Cloudflare location detection API
+// Same URL for every user but per-user body (edge geolocation) - must be
+// no-store so the front Workers Cache never serves one user's location to another
 async function handleCfLocation(request) {
   const cf = request.cf || {};
 
   if (!cf.latitude || !cf.longitude) {
-    return jsonResponse({ error: 'Location not available' }, 404);
+    return jsonResponse({ error: 'Location not available' }, 404, 'no-store');
   }
 
   return jsonResponse({
@@ -1488,12 +1464,13 @@ async function handleCfLocation(request) {
     city: cf.city || null,
     region: cf.region || null,
     country: cf.country || null
-  });
+  }, 200, 'no-store');
 }
 
 
 // Handle weather story API
-async function handleWxStory(request, env, ctx) {
+// Whole-response caching is handled by the front Workers Cache (keyed by URL)
+async function handleWxStory(request, env) {
   const url = new URL(request.url);
   const office = url.searchParams.get('office');
   const skipCache = shouldSkipCache(request);
@@ -1502,19 +1479,8 @@ async function handleWxStory(request, env, ctx) {
     return jsonResponse({ error: 'Invalid office code. Please provide a 3-letter NWS office code.' }, 400);
   }
 
-  // Check cache
-  const cache = caches.default;
-  const cacheKey = `wxstory:${office.toUpperCase()}`;
-  const cacheUrl = new URL(request.url);
-  cacheUrl.pathname = `/api/wxstory-cache/${cacheKey}`;
-  const cacheRequest = new Request(cacheUrl.toString());
-
-  if (skipCache) {
-    ctx.waitUntil(cache.delete(cacheRequest));
-  } else {
-    const cached = await cache.match(cacheRequest);
-    if (cached) return cached;
-  }
+  // 'no-store' when bypassing so the front cache never stores bypass responses
+  const cacheTTL = skipCache ? 'no-store' : WXSTORY_CACHE_TTL;
 
   try {
     const storyResponse = await fetch(
@@ -1527,7 +1493,7 @@ async function handleWxStory(request, env, ctx) {
     );
 
     if (!storyResponse.ok) {
-      return jsonResponse({ office: office.toUpperCase(), images: [] }, 200, WXSTORY_CACHE_TTL);
+      return jsonResponse({ office: office.toUpperCase(), images: [] }, 200, cacheTTL, WXSTORY_SWR_TTL);
     }
 
     const collector = new ImageCollector();
@@ -1542,9 +1508,7 @@ async function handleWxStory(request, env, ctx) {
       return `/api/wxstory/image?url=${encodeURIComponent(cleanUrl)}`;
     });
 
-    const response = jsonResponse({ office: office.toUpperCase(), images }, 200, WXSTORY_CACHE_TTL);
-    ctx.waitUntil(cache.put(cacheRequest, response.clone()));
-    return response;
+    return jsonResponse({ office: office.toUpperCase(), images }, 200, cacheTTL, WXSTORY_SWR_TTL);
   } catch (e) {
     console.error('Weather story fetch error:', e);
     return jsonResponse({ error: 'Failed to fetch weather story', details: e.message }, 500);
@@ -1674,18 +1638,20 @@ async function handleRadar(request, env, ctx) {
 
   // Return radar metadata for client-side MapLibre rendering
   // Client builds WMS URLs dynamically with {bbox-epsg-3857} placeholder
+  // Degraded (timestamp: null) responses must not be pinned in the front
+  // cache — leave them uncacheable so recovery is immediate
   return jsonResponse({
     coverage: true,
     region,
     timestamp,
     bbox: bboxStr,
     center: { lat, lon }
-  });
+  }, 200, timestamp ? RADAR_TIMESTAMP_CACHE_TTL : null, RADAR_METADATA_SWR_TTL);
 }
 
 // Handle radar tile proxy - proxies NOAA radar tiles to handle CORS
 // Accepts region, layer, time, bbox params and constructs WMS URL server-side
-async function handleRadarTile(request, env, ctx) {
+async function handleRadarTile(request, env) {
   const url = new URL(request.url);
 
   // Get parameters - bbox is substituted by MapLibre at request time
@@ -1727,21 +1693,7 @@ async function handleRadarTile(request, env, ctx) {
   }
   const tileUrl = `https://opengeo.ncep.noaa.gov/geoserver/${region}/${layer}/ows?${wmsParams.toString()}`;
 
-  const cache = caches.default;
-  const cacheRequest = new Request(tileUrl);
-
-  // Check cache
-  const cached = await cache.match(cacheRequest);
-  if (cached) {
-    return new Response(cached.body, {
-      headers: {
-        'Content-Type': 'image/png',
-        'Cache-Control': `public, max-age=${RADAR_TILE_CACHE_TTL}`,
-        'Access-Control-Allow-Origin': '*'
-      }
-    });
-  }
-
+  // Tile responses are cached by the front Workers Cache (keyed by request URL)
   try {
     const response = await fetch(tileUrl, {
       headers: { 'User-Agent': 'weather.gripe (https://weather.gripe)' }
@@ -1751,16 +1703,13 @@ async function handleRadarTile(request, env, ctx) {
       return jsonResponse({ error: 'Failed to fetch radar tile' }, 502);
     }
 
-    const proxyResponse = new Response(response.body, {
+    return new Response(response.body, {
       headers: {
         'Content-Type': response.headers.get('Content-Type') || 'image/png',
         'Cache-Control': `public, max-age=${RADAR_TILE_CACHE_TTL}`,
         'Access-Control-Allow-Origin': '*'
       }
     });
-
-    ctx.waitUntil(cache.put(cacheRequest, proxyResponse.clone()));
-    return proxyResponse;
   } catch (e) {
     console.error('Radar tile fetch error:', e);
     return jsonResponse({ error: 'Failed to fetch radar tile' }, 500);
@@ -1768,7 +1717,7 @@ async function handleRadarTile(request, env, ctx) {
 }
 
 // Handle basemap tile proxy - proxies CARTO basemap tiles to handle CORS
-async function handleBasemapTile(request, env, ctx) {
+async function handleBasemapTile(request, env) {
   const url = new URL(request.url);
   const tileUrl = url.searchParams.get('url');
 
@@ -1781,21 +1730,7 @@ async function handleBasemapTile(request, env, ctx) {
     return jsonResponse({ error: 'Invalid basemap tile URL' }, 400);
   }
 
-  const cache = caches.default;
-  const cacheRequest = new Request(tileUrl);
-
-  // Check cache
-  const cached = await cache.match(cacheRequest);
-  if (cached) {
-    return new Response(cached.body, {
-      headers: {
-        'Content-Type': 'image/png',
-        'Cache-Control': `public, max-age=${BASEMAP_TILE_CACHE_TTL}`,
-        'Access-Control-Allow-Origin': '*'
-      }
-    });
-  }
-
+  // Tile responses are cached by the front Workers Cache (keyed by request URL)
   try {
     const response = await fetch(tileUrl, {
       headers: { 'User-Agent': 'weather.gripe (https://weather.gripe)' }
@@ -1805,16 +1740,13 @@ async function handleBasemapTile(request, env, ctx) {
       return jsonResponse({ error: 'Failed to fetch basemap tile' }, 502);
     }
 
-    const proxyResponse = new Response(response.body, {
+    return new Response(response.body, {
       headers: {
         'Content-Type': response.headers.get('Content-Type') || 'image/png',
         'Cache-Control': `public, max-age=${BASEMAP_TILE_CACHE_TTL}`,
         'Access-Control-Allow-Origin': '*'
       }
     });
-
-    ctx.waitUntil(cache.put(cacheRequest, proxyResponse.clone()));
-    return proxyResponse;
   } catch (e) {
     console.error('Basemap tile fetch error:', e);
     return jsonResponse({ error: 'Failed to fetch basemap tile' }, 500);
@@ -1831,16 +1763,16 @@ export default {
       return handleLocation(request, env, ctx);
     }
     if (path === '/api/geocode') {
-      return handleGeocode(request, env, ctx);
+      return handleGeocode(request, env);
     }
     if (path === '/api/unsplash') {
-      return handleUnsplash(request, env, ctx);
+      return handleUnsplash(request, env);
     }
     if (path === '/api/unsplash/download') {
       return handleUnsplashDownload(request, env);
     }
     if (path === '/api/wxstory') {
-      return handleWxStory(request, env, ctx);
+      return handleWxStory(request, env);
     }
     if (path === '/api/wxstory/image') {
       return handleWxStoryImage(request, env, ctx);
@@ -1852,10 +1784,10 @@ export default {
       return handleRadar(request, env, ctx);
     }
     if (path === '/api/radar/tile') {
-      return handleRadarTile(request, env, ctx);
+      return handleRadarTile(request, env);
     }
     if (path === '/api/basemap/tile') {
-      return handleBasemapTile(request, env, ctx);
+      return handleBasemapTile(request, env);
     }
     if (path === '/api/zones') {
       return handleZoneGeometry(request, env, ctx);
@@ -1869,9 +1801,18 @@ export default {
     if (contentType.includes('text/html')) {
       const country = request.cf?.country || 'US';
       const defaultUnits = getDefaultUnits(country);
-      return new HTMLRewriter()
+      const transformed = new HTMLRewriter()
         .on('head', new DefaultUnitsInjector(defaultUnits))
         .transform(response);
+      // Body varies by requester country under the same URL - never let the
+      // front Workers Cache store one country's HTML for everyone
+      const headers = new Headers(transformed.headers);
+      headers.set('Cache-Control', 'no-store');
+      return new Response(transformed.body, {
+        status: transformed.status,
+        statusText: transformed.statusText,
+        headers
+      });
     }
 
     return response;

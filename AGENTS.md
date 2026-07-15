@@ -117,20 +117,38 @@ Both NWS and Open-Meteo data are normalized to these condition codes:
 
 ### Caching Strategy
 
-Multi-layer caching using Cloudflare Cache API:
+Two layers:
+
+**1. Front-side Workers Cache (whole responses):** The Workers Cache feature (`[cache] enabled = true` in `wrangler.toml`, with `cross_version_cache = true`) sits *in front of* the Worker. Any response with a cacheable `Cache-Control` header is cached keyed by request URL, and cache hits are served without running the Worker at all. It fully supports `stale-while-revalidate` (RFC 5861). Because of this, the Worker's old hand-rolled whole-response caches (`location:{lat},{lon}` / `location:q:{query}`, request-URL-keyed geocode and Unsplash caches, `wxstory:{office}`, and the radar/basemap tile caches) were **removed** — handlers just emit the right `Cache-Control` header:
+
+| Endpoint | Cache-Control |
+|----------|---------------|
+| `/api/location` | `public, max-age=300, stale-while-revalidate=600` |
+| `/api/geocode` | `public, max-age=86400, stale-while-revalidate=86400` |
+| `/api/unsplash` | `public, max-age=86400, stale-while-revalidate=86400` |
+| `/api/wxstory` | `public, max-age=300, stale-while-revalidate=600` |
+| `/api/radar` (metadata) | `public, max-age=60, stale-while-revalidate=120` |
+| `/api/radar/tile` | `public, max-age=120` |
+| `/api/basemap/tile` | `public, max-age=86400` |
+| `/api/zones` | `public, max-age=2592000` (30 days) |
+| `/api/cf-location` | `no-store` (per-user body under a shared URL) |
+| `/api/unsplash/download` | `no-store` (side-effecting) |
+
+`jsonResponse(data, status, cacheTTL, swrTTL)` builds these headers; passing the string `'no-store'` as `cacheTTL` emits `Cache-Control: no-store`. Error responses (4xx/5xx) carry no Cache-Control and are not cached.
+
+**2. Internal Cache API sub-resource caches (kept):** Data shared across *different* response URLs is still cached inside the Worker via `caches.default` with synthetic keys:
 
 | Data | TTL | Cache Key Pattern |
 |------|-----|-------------------|
-| Location response | 5min | `location:{lat},{lon}` |
 | Reverse geocode | 24hr | `reverse-geocode:{lat},{lon}` |
 | NWS grid points | 24hr | `nws-points:{lat},{lon}` |
 | NWS alerts | 60sec | `alerts:{lat},{lon}` |
-| Open-Meteo weather | 5min | `openmeteo:{lat},{lon}` |
-| Geocoding results | 24hr | Request URL |
-| Unsplash images | 24hr | Request URL |
-| Weather story | 5min | `wxstory:{office}` |
+| Open-Meteo weather | 15min | `openmeteo:{lat},{lon}` |
+| NWS zone geometry | 30 days | `zone-{id}` |
 | Radar timestamp | 1min | `radar-timestamp:{region}` |
-| Radar tiles | 2min | Constructed NOAA WMS URL |
+| Weather story images | 30min | Upstream image URL (`/api/wxstory/image?url=...`) |
+
+**`?cache=false` bypass:** Handlers that honor it (`/api/location`, `/api/geocode`, `/api/unsplash`, `/api/wxstory`) return `Cache-Control: no-store`, which bypasses the front Workers Cache, and also force-refresh the internal sub-resource caches (nws-points, openmeteo) — so it bypasses all caches end to end.
 
 **Performance Optimizations:**
 - Speculative NWS points fetch for likely-US coordinates (parallel with geocode)
@@ -401,7 +419,7 @@ Canvas-based weather cards use Web Awesome's color palette system for consistent
 ### Configuration
 
 - `vite.config.js` - Vite build config (`root: 'frontend'`, `publicDir: 'static'`, `outDir: '../public'`)
-- `wrangler.toml` - Worker configuration, points to `src/index.js` as entry point
+- `wrangler.toml` - Worker configuration, points to `src/index.js` as entry point (`compatibility_date = "2026-06-16"`). Enables the front-side Workers Cache (`[cache] enabled = true`, `cross_version_cache = true` so caches survive deploys) and Smart Placement (`[placement] mode = "smart"`)
 - `.dev.vars` - Local environment secrets (UNSPLASH_ACCESS_KEY, FONTAWESOME_NPM_TOKEN, WEBAWESOME_NPM_TOKEN)
 - `.npmrc` - Private npm registry configuration for `@fortawesome` and `@awesome.me` scoped packages
 - `package.json` - Build scripts and dependencies
