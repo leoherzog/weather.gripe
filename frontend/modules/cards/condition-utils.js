@@ -59,7 +59,7 @@ export function formatPrecip(amount) {
 
 // Get formatted condition text with precipitation if applicable
 // condition: { code, text, icon, detail? }
-// precipitation: { probability, amount, snow, rain }
+// precipitation: { snow, rain }
 export function getConditionText(condition, precipitation = {}) {
   let text = condition?.text || 'Unknown';
 

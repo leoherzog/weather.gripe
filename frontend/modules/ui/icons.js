@@ -4,7 +4,7 @@
 import { library } from '@fortawesome/fontawesome-svg-core';
 import { registerIconLibrary } from '@web.awesome.me/webawesome-pro/dist/webawesome.js';
 
-// Import all needed icons (27 total)
+// Import all needed icons (29 total)
 import {
   faAngleLeft,
   faAngleRight,
@@ -32,6 +32,8 @@ import {
   faSmog,
   faSnowflake,
   faSun,
+  faSunrise,
+  faSunset,
   faTriangleExclamation
 } from '@fortawesome/pro-solid-svg-icons';
 
@@ -68,6 +70,8 @@ library.add(
   faSmog,
   faSnowflake,
   faSun,
+  faSunrise,
+  faSunset,
   faTriangleExclamation
 );
 
@@ -99,6 +103,8 @@ const iconDefinitions = {
   'smog': faSmog,
   'snowflake': faSnowflake,
   'sun': faSun,
+  'sunrise': faSunrise,
+  'sunset': faSunset,
   'triangle-exclamation': faTriangleExclamation
 };
 

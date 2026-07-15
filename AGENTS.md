@@ -32,7 +32,7 @@ This is a Cloudflare Workers application that serves a weather website with shar
 - `/api/cf-location` - Returns Cloudflare edge-detected geolocation
 - `/api/radar` - Returns radar metadata for a location (US only)
   - Accepts `lat`+`lon` coordinates
-  - Returns `{ coverage, region, timestamp, bbox, center }`
+  - Returns `{ coverage, region, timestamp, bbox }`
   - Returns `{ coverage: false }` for non-US locations
 - `/api/radar/tile` - Proxies NOAA radar WMS tiles (2min cache, handles CORS)
   - Accepts `region`, `layer`, `time`, `bbox` parameters
@@ -46,7 +46,7 @@ Coordinates are truncated to 3 decimal places (~111m precision) for cache effici
 **US Locations (NWS - National Weather Service):**
 - Primary source for all US coordinates (detected via reverse geocode `country_code`)
 - Provides detailed forecasts, current observations, and weather alerts
-- Icon URLs parsed for reliable condition codes (e.g., `snow,40` → "Snow" with 40% probability)
+- Icon URLs parsed for reliable condition codes (e.g., `snow,40` → "Snow")
 - Falls back to Open-Meteo if NWS fails
 
 **International Locations (Open-Meteo):**
@@ -111,7 +111,7 @@ Both NWS and Open-Meteo data are normalized to these condition codes:
 | `thunderstorm` | Thunderstorm |
 | `thunderstorm-severe` | Severe thunderstorm/tornado |
 
-**NWS Icon Mapping:** `NWS_ICON_CONDITIONS` maps ~70 NWS icon codes (e.g., `sn`, `snow`, `tsra`, `bkn`) to unified codes. Icon URLs like `https://api.weather.gov/icons/land/day/snow,40` are parsed to extract condition and probability.
+**NWS Icon Mapping:** `NWS_ICON_CONDITIONS` maps ~70 NWS icon codes (e.g., `sn`, `snow`, `tsra`, `bkn`) to unified codes. Icon URLs like `https://api.weather.gov/icons/land/day/snow,40` are parsed to extract the condition code.
 
 **WMO Code Mapping:** `WMO_CONDITIONS` maps WMO numeric codes (0-99) from Open-Meteo to unified codes.
 
@@ -168,6 +168,7 @@ Two layers:
   - `alert.js` / `alert-map.js` - Alert cards (text-only and map-overlay variants)
   - `alert-renderer.js` - Shared alert drawing utilities (colors, layout, text/icon rendering)
   - `radar.js` - Radar card with embedded MapLibre map
+  - `sun-times.js` - Sunrise & sunset card (side-by-side `fa-sunrise`/`fa-sunset` icons with times; skipped when both are missing, e.g. polar day/night)
   - `core.js` - Shared canvas utilities (watermark, icons, text wrapping)
 - **`modules/utils/`** - Shared utilities
   - `temperature-colors.js` - Dynamic color system based on windy.com scale, favicon & theme-color updates
@@ -195,13 +196,9 @@ Two layers:
 - CSS `:has(ins[data-ad-status="filled"])` hides the fallback when an ad loads. If the ad is blocked or unfilled, the fallback "Buy Me a Tea" button remains visible.
 - The ad card has `cursor: default` and no lightbox handler (unlike weather cards).
 
-### Default Units Injection
+### Default Units
 
-The Worker injects default units into HTML responses based on Cloudflare's detected country:
-- **Imperial** (°F, mph): US, Liberia, Myanmar
-- **Metric** (°C, km/h): All other countries
-
-Injected as `<script>window.__defaultUnits="imperial";</script>` in `<head>`. User preference saved to `localStorage.weatherUnits` overrides this.
+Units default to imperial; user preference saved to `localStorage.weatherUnits` overrides this.
 
 ### UI Framework (Web Awesome)
 
@@ -466,8 +463,8 @@ Note: this pattern assumes `.dev.vars` values contain no spaces or shell metacha
         "date": "2024-01-15",
         "high": 8,
         "low": -2,
-        "condition": { "code": "snow", "text": "Snow", "icon": "snowflake", "probability": 60 },
-        "precipitation": { "probability": 60, "amount": null, "snow": null, "rain": null },
+        "condition": { "code": "snow", "text": "Snow", "icon": "snowflake" },
+        "precipitation": { "snow": null, "rain": null },
         "sunrise": "2024-01-15T07:15:00-05:00",
         "sunset": "2024-01-15T16:55:00-05:00",
         "dayForecast": {

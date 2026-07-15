@@ -9,7 +9,7 @@ export function initUnitToggle() {
 
   let stored;
   try { stored = localStorage.getItem('weatherUnits'); } catch(e) {}
-  const current = stored || window.__defaultUnits || 'imperial';
+  const current = stored || 'imperial';
 
   radioGroup.value = current;
   Units.setSystem(current);

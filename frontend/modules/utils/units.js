@@ -2,8 +2,8 @@
 // Temperature and wind are fetched in metric (Celsius, km/h); precipitation in inches
 
 export const Units = {
-  // Current unit system: 'metric' or 'imperial' (default set by Worker based on country)
-  current: window.__defaultUnits || 'imperial',
+  // Current unit system: 'metric' or 'imperial'
+  current: 'imperial',
 
   // Temperature: Celsius to Fahrenheit
   tempToImperial(celsius) {

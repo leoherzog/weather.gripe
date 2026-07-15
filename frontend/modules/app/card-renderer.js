@@ -349,6 +349,24 @@ export function createCardRenderer(app) {
         })());
       }
 
+      // Sunrise & sunset card (order: 5.7, depends on background)
+      cardPromises.push((async () => {
+        const backgrounds = await backgroundsPromise;
+        const startIndex = backgrounds.length > 0 ? Math.floor(Math.random() * backgrounds.length) : -1;
+        const background = startIndex >= 0 ? backgrounds[startIndex] : null;
+        const canvas = document.createElement('canvas');
+        const result = await WeatherCards.renderSunTimes(canvas, weather, cityName, background?.url, background?.username, timezone);
+        if (!result) return null;
+        const rerender = async (photo) => {
+          await WeatherCards.renderSunTimes(canvas, weather, cityName, photo?.url, photo?.username, timezone);
+        };
+        const card = WeatherCards.createCardContainer(canvas, 'sun-times', {
+          photos: backgrounds, currentIndex: startIndex, rerender
+        });
+        this.addPhotoAttribution(card, background);
+        return { order: 5.7, card };
+      })());
+
       // Radar card (order: 6, depends on radar data)
       if (isNWS && radarPromise) {
         cardPromises.push((async () => {

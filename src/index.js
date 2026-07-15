@@ -24,27 +24,22 @@ const UNSPLASH_SWR_TTL = 24 * 60 * 60; // 24 hours
 // NOAA radar region configurations
 const NOAA_RADAR_CONFIG = {
   conus: {
-    name: 'Continental US',
     bounds: { minLat: 21, maxLat: 50, minLon: -130, maxLon: -60 },
     layer: 'conus_bref_qcd'
   },
   alaska: {
-    name: 'Alaska',
     bounds: { minLat: 51, maxLat: 72, minLon: -180, maxLon: -129 },
     layer: 'alaska_bref_qcd'
   },
   hawaii: {
-    name: 'Hawaii',
     bounds: { minLat: 18, maxLat: 23, minLon: -161, maxLon: -154 },
     layer: 'hawaii_bref_qcd'
   },
   carib: {
-    name: 'Caribbean',
     bounds: { minLat: 16, maxLat: 20, minLon: -68, maxLon: -63 },
     layer: 'carib_bref_qcd'
   },
   guam: {
-    name: 'Guam',
     bounds: { minLat: 12, maxLat: 15, minLon: 144, maxLon: 146 },
     layer: 'guam_bref_qcd'
   }
@@ -257,7 +252,7 @@ const NWS_ICON_CONDITIONS = {
   'ts_watch': { code: 'thunderstorm-severe', text: 'Tropical Storm Watch', icon: 'cloud-bolt' },
 };
 
-// Parse NWS icon URL to extract condition code and probability
+// Parse NWS icon URL to extract the condition code
 // URL format: https://api.weather.gov/icons/land/{day|night}/{condition}?size=medium
 // Condition can be: "bkn" or "tsra,40" or "tsra,40/ra,60" (dual icons with probabilities)
 function parseNWSIconUrl(iconUrl) {
@@ -268,26 +263,11 @@ function parseNWSIconUrl(iconUrl) {
     // Find the condition part (after "day" or "night")
     const dayNightIndex = parts.findIndex(p => p === 'day' || p === 'night');
     if (dayNightIndex === -1 || dayNightIndex >= parts.length - 1) return null;
-    const isNight = parts[dayNightIndex] === 'night';
 
+    // Take the more severe (first) condition of dual icons and strip the
+    // probability suffix: "tsra,40/ra,60" -> "tsra"
     const conditionPart = parts[dayNightIndex + 1];
-    // Handle dual icons: "tsra,40/ra,60" - take the more severe (first) condition
-    const conditions = conditionPart.split('/');
-    const firstCondition = conditions[0];
-    // Split condition and probability: "tsra,40" -> ["tsra", "40"]
-    const [conditionCode, probStr] = firstCondition.split(',');
-    const probability = probStr ? parseInt(probStr, 10) : null;
-
-    return {
-      code: conditionCode,
-      probability,
-      isNight,
-      // If dual icon, include secondary condition info
-      secondary: conditions[1] ? {
-        code: conditions[1].split(',')[0],
-        probability: conditions[1].split(',')[1] ? parseInt(conditions[1].split(',')[1], 10) : null
-      } : null
-    };
+    return { code: conditionPart.split('/')[0].split(',')[0] };
   } catch (e) {
     return null;
   }
@@ -297,12 +277,7 @@ function parseNWSIconUrl(iconUrl) {
 function mapNWSIconToCondition(iconUrl, fallbackText) {
   const parsed = parseNWSIconUrl(iconUrl);
   if (parsed && NWS_ICON_CONDITIONS[parsed.code]) {
-    const condition = { ...NWS_ICON_CONDITIONS[parsed.code] };
-    // Include probability if present in icon URL
-    if (parsed.probability != null) {
-      condition.probability = parsed.probability;
-    }
-    return condition;
+    return { ...NWS_ICON_CONDITIONS[parsed.code] };
   }
   // Fallback to text-based parsing if icon not recognized
   return mapNWSConditionFromText(fallbackText);
@@ -705,11 +680,7 @@ async function fetchWeatherNWS(lat, lon, cache, ctx, skipCache = false, existing
         detail: precipDetail
       },
       precipitation: {
-        probability: Math.max(
-          dayPeriod?.probabilityOfPrecipitation?.value ?? 0,
-          nightPeriod?.probabilityOfPrecipitation?.value ?? 0
-        ),
-        amount: null, // NWS doesn't provide this in standard forecast
+        // NWS doesn't provide amounts in standard forecast (see condition.detail)
         snow: null,
         rain: null
       },
@@ -774,8 +745,7 @@ async function fetchWeatherNWS(lat, lon, cache, ctx, skipCache = false, existing
       hourly = hourlyPeriods.slice(0, 24).map(period => ({
         time: period.startTime,
         temperature: fahrenheitToCelsius(period.temperature),
-        condition: mapNWSIconToCondition(period.icon, period.shortForecast),
-        precipProbability: period.probabilityOfPrecipitation?.value || 0
+        condition: mapNWSIconToCondition(period.icon, period.shortForecast)
       }));
     }
   } catch (e) {
@@ -837,10 +807,9 @@ function latLonToWebMercator(lat, lon) {
 }
 
 // Helper: Calculate BBOX for radar tile request
-function calculateRadarBbox(lat, lon, zoom = 7) {
+// Fixed ~600x400 km viewport centered on the location
+function calculateRadarBbox(lat, lon) {
   const { x, y } = latLonToWebMercator(lat, lon);
-  // Approximate meters per pixel at this zoom level
-  // At zoom 7, we want roughly 50-100 mile radius
   const halfWidth = 300000; // ~186 miles total width
   const halfHeight = 200000; // ~124 miles total height (card aspect ratio)
   return {
@@ -874,8 +843,8 @@ async function fetchWeatherOpenMeteo(lat, lon, cache, ctx, skipCache = false) {
   url.searchParams.set('latitude', lat.toString());
   url.searchParams.set('longitude', lon.toString());
   url.searchParams.set('current', 'temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,wind_direction_10m');
-  url.searchParams.set('daily', 'weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,precipitation_probability_max,precipitation_sum,snowfall_sum,rain_sum');
-  url.searchParams.set('hourly', 'temperature_2m,weather_code,precipitation_probability');
+  url.searchParams.set('daily', 'weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,snowfall_sum,rain_sum');
+  url.searchParams.set('hourly', 'temperature_2m,weather_code');
   url.searchParams.set('timezone', 'auto');
   url.searchParams.set('forecast_days', '7');
   url.searchParams.set('precipitation_unit', 'inch');
@@ -927,8 +896,6 @@ async function fetchWeatherOpenMeteo(lat, lon, cache, ctx, skipCache = false) {
         detail: null
       },
       precipitation: {
-        probability: data.daily.precipitation_probability_max[i],
-        amount: data.daily.precipitation_sum[i],
         snow: data.daily.snowfall_sum[i],
         rain: data.daily.rain_sum[i]
       },
@@ -938,8 +905,7 @@ async function fetchWeatherOpenMeteo(lat, lon, cache, ctx, skipCache = false) {
     hourly: data.hourly?.time?.slice(0, 24).map((time, i) => ({
       time,
       temperature: data.hourly.temperature_2m[i],
-      condition: WMO_CONDITIONS[data.hourly.weather_code[i]] || WMO_CONDITIONS[2],
-      precipProbability: data.hourly.precipitation_probability[i] || 0
+      condition: WMO_CONDITIONS[data.hourly.weather_code[i]] || WMO_CONDITIONS[2]
     })) || [],
     timezone: data.timezone,
     source: 'open-meteo'
@@ -1429,25 +1395,6 @@ class ImageCollector {
   }
 }
 
-// Countries that use imperial units
-const IMPERIAL_COUNTRIES = new Set(['US', 'LR', 'MM']);
-
-// Get default unit system based on country
-function getDefaultUnits(countryCode) {
-  return IMPERIAL_COUNTRIES.has(countryCode) ? 'imperial' : 'metric';
-}
-
-// HTMLRewriter to inject default units script
-class DefaultUnitsInjector {
-  constructor(units) {
-    this.units = units;
-  }
-
-  element(element) {
-    element.prepend(`<script>window.__defaultUnits="${this.units}";</script>`, { html: true });
-  }
-}
-
 // Handle Cloudflare location detection API
 // Same URL for every user but per-user body (edge geolocation) - must be
 // no-store so the front Workers Cache never serves one user's location to another
@@ -1460,10 +1407,7 @@ async function handleCfLocation(request) {
 
   return jsonResponse({
     latitude: cf.latitude,
-    longitude: cf.longitude,
-    city: cf.city || null,
-    region: cf.region || null,
-    country: cf.country || null
+    longitude: cf.longitude
   }, 200, 'no-store');
 }
 
@@ -1644,8 +1588,7 @@ async function handleRadar(request, env, ctx) {
     coverage: true,
     region,
     timestamp,
-    bbox: bboxStr,
-    center: { lat, lon }
+    bbox: bboxStr
   }, 200, timestamp ? RADAR_TIMESTAMP_CACHE_TTL : null, RADAR_METADATA_SWR_TTL);
 }
 
@@ -1794,27 +1737,6 @@ export default {
     }
 
     // For all other routes, let the static assets handler take over
-    const response = await env.ASSETS.fetch(request);
-
-    // Inject default units into HTML responses based on country
-    const contentType = response.headers.get('content-type') || '';
-    if (contentType.includes('text/html')) {
-      const country = request.cf?.country || 'US';
-      const defaultUnits = getDefaultUnits(country);
-      const transformed = new HTMLRewriter()
-        .on('head', new DefaultUnitsInjector(defaultUnits))
-        .transform(response);
-      // Body varies by requester country under the same URL - never let the
-      // front Workers Cache store one country's HTML for everyone
-      const headers = new Headers(transformed.headers);
-      headers.set('Cache-Control', 'no-store');
-      return new Response(transformed.body, {
-        status: transformed.status,
-        statusText: transformed.statusText,
-        headers
-      });
-    }
-
-    return response;
+    return env.ASSETS.fetch(request);
   }
 };
