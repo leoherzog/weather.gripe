@@ -259,7 +259,7 @@ The frontend uses [Web Awesome](https://webawesome.com) v3.4, a web component li
 
 **Header Logo:** The poo-storm duotone icon in the header uses temperature-based coloring via `.header-logo-icon` class. Uses `--color-primary-dark` in light mode, `--color-primary-light` in dark mode for visibility against the background.
 
-**Dark Mode:** Uses `wa-dark` class on `<html>` element. Toggle persists to `localStorage.theme`. Canvas-rendered weather cards are theme-aware: dark mode uses light text/icons on dark overlays; light mode uses dark text/icons on light overlays. A `MutationObserver` on `<html>` class changes triggers `cardRenderer.refreshCards()` to re-render all cards when the theme toggles.
+**Dark Mode:** Uses `wa-dark` class on `<html>` element. Toggle persists to `localStorage.theme`. Canvas-rendered weather cards are theme-aware: dark mode uses light text/icons on dark overlays; light mode uses dark text/icons on light overlays. A `MutationObserver` on `<html>` class changes triggers `cardRenderer.refreshTheme()` to re-render all cards when the theme toggles.
 
 **Canvas Theme Helpers** (`frontend/modules/cards/core.js`):
 - `isDarkMode()` - Checks for `wa-dark` class on `<html>`
@@ -374,7 +374,6 @@ The app's primary color dynamically changes based on current temperature using t
 
 **Accessibility:**
 - `getContrastingText(bgColor, targetRatio = 7)` - Returns white or dark text meeting WCAG AAA
-- `meetsAAA(bgColor, textColor, isLargeText)` - Checks if color pair passes AAA (7:1 normal, 4.5:1 large)
 
 ### Palette Color System (Canvas Rendering)
 

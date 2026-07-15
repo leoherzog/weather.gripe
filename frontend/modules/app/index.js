@@ -64,13 +64,9 @@ export const App = {
     // Track current search query for Enter key handler
     let currentQuery = '';
 
-    // Debounced keyup handler for autocomplete (wa-combobox doesn't fire 'input' on typing)
+    // Debounced input handler for autocomplete
     let searchTimeout;
-    const ignoreKeys = ['ArrowUp', 'ArrowDown', 'Enter', 'Escape', 'Tab', 'Shift', 'Control', 'Alt', 'Meta'];
-    combobox.addEventListener('keyup', (e) => {
-      // Ignore navigation and modifier keys
-      if (ignoreKeys.includes(e.key)) return;
-
+    combobox.addEventListener('input', () => {
       clearTimeout(searchTimeout);
       currentQuery = combobox.inputValue?.trim() || '';
 

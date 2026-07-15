@@ -25,16 +25,6 @@ async function createRadarCard(...args) {
   return create(...args);
 }
 
-async function renderRadarUnavailable(...args) {
-  const { renderRadarUnavailable: render } = await import('./radar.js');
-  return render(...args);
-}
-
-async function renderRadarError(...args) {
-  const { renderRadarError: render } = await import('./radar.js');
-  return render(...args);
-}
-
 async function createSatelliteCard(...args) {
   const { createSatelliteCard: create } = await import('./satellite.js');
   return create(...args);
@@ -60,8 +50,6 @@ export const WeatherCards = {
   createAlertMapCard,
   renderDetailedForecast,
   createRadarCard,
-  renderRadarUnavailable,
-  renderRadarError,
   createSatelliteCard,
 
   // Share/download utilities
@@ -84,8 +72,6 @@ export {
   createAlertMapCard,
   renderDetailedForecast,
   createRadarCard,
-  renderRadarUnavailable,
-  renderRadarError,
   createSatelliteCard,
   shareCard,
   downloadCard,

@@ -94,11 +94,11 @@
       <wa-tooltip for="location-reset-btn">Return to detected location</wa-tooltip>
       <wa-combobox
         id="search-combobox"
+        class="wa-visually-hidden-label"
         placeholder="Search Location..."
         size="large"
         pill
-        autocomplete="none"
-        aria-label="Search for a location"
+        label="Search for a location"
       >
         <wa-icon slot="start" name="magnifying-glass"></wa-icon>
         <wa-button id="location-reset-btn" slot="end" appearance="plain" size="small" hidden>
@@ -111,7 +111,7 @@
     <main class="wa-stack wa-gap-l page-content-width">
       <!-- Current Location Display -->
       <section id="location-display" hidden>
-        <h2 id="location-name" class="location-heading"></h2>
+        <h2 id="location-name" class="wa-heading-2xl"></h2>
       </section>
 
       <!-- Error State -->
@@ -153,7 +153,7 @@
 
     <!-- FOOTER SLOT: attribution -->
     <footer id="site-footer" slot="footer">
-      <small class="footer-text page-content-width" style="display: block; text-align: center;">
+      <small class="footer-text page-content-width wa-text-center" style="display: block;">
         <span id="footer-attribution" hidden>
           Weather via <span id="data-source"></span> |
           Photos from <a href="https://unsplash.com/" target="_blank" rel="noopener noreferrer" class="footer-link" aria-label="Unsplash (opens in new tab)">Unsplash</a> |

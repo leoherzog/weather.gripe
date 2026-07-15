@@ -8,9 +8,6 @@ import {
 } from './alert-renderer.js';
 import { getSeverityColors } from '../utils/palette-colors.js';
 
-// Re-export alertLayout for consumers
-export { alertLayout } from './alert-renderer.js';
-
 // Create Severe Weather Alert Card
 // timezone: IANA timezone string for displaying location's local time
 export async function renderAlert(canvas, alertData, timezone = null) {

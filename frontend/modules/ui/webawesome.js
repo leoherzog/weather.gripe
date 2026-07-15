@@ -4,7 +4,6 @@ import '@web.awesome.me/webawesome-pro/dist/styles/webawesome.css';
 import '@web.awesome.me/webawesome-pro/dist/components/button/button.js';
 import '@web.awesome.me/webawesome-pro/dist/components/radio-group/radio-group.js';
 import '@web.awesome.me/webawesome-pro/dist/components/radio/radio.js';
-import '@web.awesome.me/webawesome-pro/dist/components/input/input.js';
 import '@web.awesome.me/webawesome-pro/dist/components/icon/icon.js';
 import '@web.awesome.me/webawesome-pro/dist/components/card/card.js';
 import '@web.awesome.me/webawesome-pro/dist/components/skeleton/skeleton.js';

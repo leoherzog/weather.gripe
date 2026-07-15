@@ -11,11 +11,9 @@ const EASE_OUT_EXPONENT = 3; // Cubic ease-out
 const INITIAL_TEMP_F = 70; // Gold color temperature
 const GRADIENT_RANGE_F = 5; // ±5°F from current temperature
 const FALLBACK_COLOR = 'gold';
-const FALLBACK_HEX = '#ffd700';
 
 // Accessibility constants (WCAG)
 const WCAG_AAA_CONTRAST_RATIO = 7;
-const WCAG_AAA_LARGE_TEXT_RATIO = 4.5;
 const DARK_TEXT_COLOR = '#1a1a1a';
 
 // Color adjustment constants
@@ -134,12 +132,6 @@ export const TemperatureColors = {
   getColor(tempF) {
     if (!this.scale) return this.chroma?.(FALLBACK_COLOR) || null;
     return this.scale(tempF);
-  },
-
-  // Get hex color for a temperature
-  getHex(tempF) {
-    const color = this.getColor(tempF);
-    return color ? color.hex() : FALLBACK_HEX;
   },
 
   // Set the primary color (can be a color name, hex, or chroma color)
@@ -297,14 +289,6 @@ export const TemperatureColors = {
         ? { color: white, contrast: whiteContrast }
         : { color: black, contrast: blackContrast };
     }
-  },
-
-  // Check if a color combination meets WCAG AAA
-  meetsAAA(bgColor, textColor, isLargeText = false) {
-    if (!this.chroma) return { passes: true, ratio: 21, required: WCAG_AAA_CONTRAST_RATIO };
-    const ratio = this.chroma.contrast(bgColor, textColor);
-    const required = isLargeText ? WCAG_AAA_LARGE_TEXT_RATIO : WCAG_AAA_CONTRAST_RATIO;
-    return { passes: ratio >= required, ratio, required };
   },
 
   // Convert Celsius to Fahrenheit

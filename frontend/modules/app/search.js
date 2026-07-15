@@ -9,6 +9,10 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
+// Maps space-free option tokens to their lat/lon/name payload.
+// wa-option values must not contain spaces, so we key options by token.
+const optionPayloads = new Map();
+
 // Create search manager with dependency injection
 export function createSearchManager(app) {
   return {
@@ -21,6 +25,7 @@ export function createSearchManager(app) {
 
         // Clear existing options
         combobox.querySelectorAll('wa-option').forEach(opt => opt.remove());
+        optionPayloads.clear();
 
         if (results.length === 0) {
           combobox.open = false;
@@ -28,14 +33,17 @@ export function createSearchManager(app) {
         }
 
         // Add new options
-        results.forEach((loc) => {
+        results.forEach((loc, i) => {
           const option = document.createElement('wa-option');
-          // Value encodes lat/lon/name for retrieval on selection
-          option.value = JSON.stringify({
+          // wa-option values can't contain spaces, so use a token and store
+          // the lat/lon/name payload in a Map keyed by that token.
+          const token = `opt-${i}`;
+          optionPayloads.set(token, {
             lat: loc.latitude,
             lon: loc.longitude,
             name: loc.name
           });
+          option.value = token;
 
           // Build display label
           const fullName = [loc.name, loc.admin1, loc.country].filter(Boolean).join(', ');
@@ -63,13 +71,17 @@ export function createSearchManager(app) {
 
       if (!value) return;
 
+      const payload = optionPayloads.get(value);
+      if (!payload) return;
+
       try {
-        const { lat, lon, name } = JSON.parse(value);
+        const { lat, lon, name } = payload;
 
         // Clear the combobox
         combobox.value = '';
         combobox.inputValue = '';
         combobox.querySelectorAll('wa-option').forEach(opt => opt.remove());
+        optionPayloads.clear();
 
         // Mark as manual location
         app.isManualLocation = true;
@@ -86,6 +98,7 @@ export function createSearchManager(app) {
     clearOptions() {
       const combobox = app.elements.searchCombobox;
       combobox.querySelectorAll('wa-option').forEach(opt => opt.remove());
+      optionPayloads.clear();
     },
 
     // Geocode a location query

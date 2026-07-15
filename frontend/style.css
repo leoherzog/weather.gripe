@@ -28,13 +28,6 @@
   color: var(--wa-color-text-quiet);
 }
 
-/* Location heading */
-.location-heading {
-  font-size: var(--wa-font-size-2xl);
-  font-weight: var(--wa-font-weight-bold);
-}
-
-
 /* Accent icon (uses temperature-based primary color) */
 /* Masonry layout for weather cards (CSS columns for tight vertical packing) */
 .card-masonry {
@@ -175,6 +168,13 @@ wa-button[appearance="outlined"][variant="brand"]:hover::part(base) {
 
 .footer-link:hover {
   text-decoration: underline;
+}
+
+/* Firefox doesn't clip composited WebGL map canvases to the media slot's
+   overflow:hidden + border-radius; clip-path clips at the compositor level
+   and reuses the radii wa-card already sets on the media part. */
+.weather-card::part(media) {
+  clip-path: border-box;
 }
 
 /* Map card containers (radar, alert-map) */
@@ -330,10 +330,6 @@ wa-button[appearance="outlined"][variant="brand"]:hover::part(base) {
 }
 
 .ad-fallback {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--wa-space-s);
   padding-bottom: var(--wa-space-s);
 }
 

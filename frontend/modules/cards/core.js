@@ -4,9 +4,6 @@
 import { getIconData } from '../ui/icons.js';
 import { getTemperatureColors, getFallbackGradient } from '../utils/palette-colors.js';
 
-// Re-export for backward compatibility
-export { getIconData };
-
 // Card dimensions
 export const CARD_WIDTH = 1200;
 export const CARD_HEIGHT = 800;

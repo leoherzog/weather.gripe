@@ -393,27 +393,3 @@ export function renderRadarUnavailable(canvas, locationName, timezone = null) {
 
   return canvas;
 }
-
-// Render radar error card
-export function renderRadarError(canvas, message, timezone = null) {
-  const ctx = canvas.getContext('2d');
-  const width = CARD_WIDTH;
-  const height = CARD_HEIGHT;
-  canvas.width = width;
-  canvas.height = height;
-
-  // Dark background
-  drawFallbackBackground(ctx, width, height);
-
-  // Error message
-  ctx.fillStyle = cardText(UNAVAILABLE_TEXT_OPACITY);
-  ctx.font = `${UNAVAILABLE_MESSAGE_FONT_SIZE}px system-ui, sans-serif`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(message || 'Radar temporarily unavailable', width / 2, height / 2);
-
-  // Watermark
-  drawWatermark(ctx, width, height, null, timezone);
-
-  return canvas;
-}

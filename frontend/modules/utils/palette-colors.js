@@ -189,9 +189,6 @@ function getColorMap() {
 // Cache: variable name → resolved hex value
 const cache = new Map();
 
-// Palette change callbacks
-const callbacks = new Set();
-
 // Current palette class
 let currentPalette = null;
 
@@ -222,19 +219,6 @@ function resolve(colorName) {
  */
 function invalidateCache() {
   cache.clear();
-}
-
-/**
- * Notify all registered callbacks of palette change
- */
-function notifyPaletteChange() {
-  for (const callback of callbacks) {
-    try {
-      callback();
-    } catch (e) {
-      console.error('Palette change callback error:', e);
-    }
-  }
 }
 
 /**
@@ -271,7 +255,6 @@ function handleMutations(mutations) {
 
       if (changed) {
         invalidateCache();
-        notifyPaletteChange();
       }
     }
   }
@@ -292,16 +275,6 @@ export function init() {
     attributes: true,
     attributeFilter: ['class']
   });
-}
-
-/**
- * Register a callback for palette changes
- * @param {Function} callback - Function to call when palette changes
- * @returns {Function} Unsubscribe function
- */
-export function onPaletteChange(callback) {
-  callbacks.add(callback);
-  return () => callbacks.delete(callback);
 }
 
 /**
@@ -367,17 +340,3 @@ export function getFallbackGradient() {
   };
 }
 
-/**
- * Force cache refresh (useful for testing)
- */
-export function refreshCache() {
-  invalidateCache();
-}
-
-/**
- * Get current palette name
- * @returns {string|null} Current palette class or null
- */
-export function getCurrentPalette() {
-  return currentPalette;
-}

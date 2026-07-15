@@ -10,11 +10,6 @@ export const Units = {
     return (celsius * 9/5) + 32;
   },
 
-  // Wind speed: km/h to mph
-  windToImperial(kmh) {
-    return kmh * 0.621371;
-  },
-
   // Format temperature with unit
   formatTemp(celsius, decimals = 0) {
     if (celsius == null || !Number.isFinite(celsius)) return '--';
@@ -22,23 +17,6 @@ export const Units = {
     const formatted = value.toFixed(decimals);
     const display = formatted === '-0' ? '0' : formatted; // Avoid "-0"
     return `${display}°${this.current === 'imperial' ? 'F' : 'C'}`;
-  },
-
-  // Format temperature value only (no unit)
-  formatTempValue(celsius, decimals = 0) {
-    if (celsius == null || !Number.isFinite(celsius)) return '--';
-    const value = this.current === 'imperial' ? this.tempToImperial(celsius) : celsius;
-    const formatted = value.toFixed(decimals);
-    return formatted === '-0' ? '0' : formatted; // Avoid "-0"
-  },
-
-  // Format wind speed with unit
-  formatWind(kmh, decimals = 0) {
-    if (kmh == null || !Number.isFinite(kmh)) return '--';
-    if (this.current === 'imperial') {
-      return `${this.windToImperial(kmh).toFixed(decimals)} mph`;
-    }
-    return `${kmh.toFixed(decimals)} km/h`;
   },
 
   // Describe wind speed in plain language

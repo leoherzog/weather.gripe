@@ -458,7 +458,7 @@ export function createCardRenderer(app) {
         adCard.dataset.cardType = 'ad';
 
         const fallback = document.createElement('div');
-        fallback.className = 'ad-fallback';
+        fallback.className = 'ad-fallback wa-stack wa-align-items-center wa-gap-s';
         const text = document.createElement('p');
         text.className = 'ad-fallback-text';
         text.textContent = 'Was this helpful?';
@@ -497,13 +497,6 @@ export function createCardRenderer(app) {
 
       // Update footer attribution based on data source
       this.updateDataSource(weather);
-    },
-
-    // Refresh cards with current data (after unit change)
-    async refreshCards() {
-      if (app.currentWeather) {
-        await this.renderAllCards(app.currentWeather, app.currentAlerts || [], app.currentWxStory, app.currentLocation?.name);
-      }
     },
 
     // Re-render existing card canvases for theme change (preserves current photos)
