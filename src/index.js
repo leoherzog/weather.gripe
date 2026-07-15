@@ -1,7 +1,7 @@
 // Weather.gripe Cloudflare Worker
 // Proxies and caches Open-Meteo and Unsplash APIs
 
-import SunCalc from 'suncalc';
+import * as SunCalc from 'suncalc';
 
 const GEOCODE_CACHE_TTL = 24 * 60 * 60; // 24 hours
 const NWS_POINTS_CACHE_TTL = 24 * 60 * 60; // 24 hours
