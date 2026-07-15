@@ -141,6 +141,20 @@ export function createWeatherLoader(app) {
       }
     },
 
+    // Fetch SPC severe weather outlook for a location (US only)
+    // Returns null unless the point is inside a severe risk area on at least one day
+    async fetchSpc(lat, lon) {
+      try {
+        const response = await fetch(`/api/spc?lat=${truncateCoord(lat)}&lon=${truncateCoord(lon)}`);
+        if (!response.ok) return null;
+        const data = await response.json();
+        return data.risk && data.days?.length > 0 ? data : null;
+      } catch (e) {
+        console.warn('SPC outlook fetch failed:', e);
+        return null;
+      }
+    },
+
     // Fetch satellite imagery data for a location
     async fetchSatellite(lat, lon) {
       try {

@@ -10,6 +10,9 @@ const UNSPLASH_CACHE_TTL = 24 * 60 * 60; // 24 hours
 const LOCATION_CACHE_TTL = 5 * 60; // 5 minutes (limited by alerts)
 const WXSTORY_CACHE_TTL = 5 * 60; // 5 minutes
 const WXSTORY_IMAGE_CACHE_TTL = 30 * 60; // 30 minutes
+const SPC_CACHE_TTL = 5 * 60; // 5 minutes (outlooks are re-issued several times a day)
+const SPC_OUTLOOK_CACHE_TTL = 5 * 60; // internal GeoJSON cache
+const SPC_IMAGE_CACHE_TTL = 5 * 60; // state graphics regenerate with each issuance
 const RADAR_TIMESTAMP_CACHE_TTL = 60; // 1 minute
 const RADAR_TILE_CACHE_TTL = 120; // 2 minutes
 const SATELLITE_TIMESTAMP_CACHE_TTL = 120; // 2 minutes (GOES imagery updates every ~5 minutes)
@@ -19,6 +22,7 @@ const BASEMAP_TILE_CACHE_TTL = 86400; // 24 hours
 // stale-while-revalidate windows (RFC 5861) for the front Workers Cache
 const LOCATION_SWR_TTL = 10 * 60; // 10 minutes
 const WXSTORY_SWR_TTL = 10 * 60; // 10 minutes
+const SPC_SWR_TTL = 10 * 60; // 10 minutes
 const RADAR_METADATA_SWR_TTL = 120; // 2 minutes
 const SATELLITE_METADATA_SWR_TTL = 240; // 4 minutes
 const GEOCODE_SWR_TTL = 24 * 60 * 60; // 24 hours
@@ -66,6 +70,24 @@ const NOAA_SATELLITE_CONFIG = {
 const NOMINATIM_HEADERS = {
   'User-Agent': 'weather.gripe/1.0 (https://weather.gripe)',
   'Accept': 'application/json'
+};
+
+// US state names (as returned by Nominatim reverse geocoding) to postal codes,
+// used to pick the SPC partner state outlook graphic. DC has no SPC graphic.
+const US_STATE_CODES = {
+  'Alabama': 'AL', 'Alaska': 'AK', 'Arizona': 'AZ', 'Arkansas': 'AR',
+  'California': 'CA', 'Colorado': 'CO', 'Connecticut': 'CT', 'Delaware': 'DE',
+  'Florida': 'FL', 'Georgia': 'GA', 'Hawaii': 'HI', 'Idaho': 'ID',
+  'Illinois': 'IL', 'Indiana': 'IN', 'Iowa': 'IA', 'Kansas': 'KS',
+  'Kentucky': 'KY', 'Louisiana': 'LA', 'Maine': 'ME', 'Maryland': 'MD',
+  'Massachusetts': 'MA', 'Michigan': 'MI', 'Minnesota': 'MN', 'Mississippi': 'MS',
+  'Missouri': 'MO', 'Montana': 'MT', 'Nebraska': 'NE', 'Nevada': 'NV',
+  'New Hampshire': 'NH', 'New Jersey': 'NJ', 'New Mexico': 'NM', 'New York': 'NY',
+  'North Carolina': 'NC', 'North Dakota': 'ND', 'Ohio': 'OH', 'Oklahoma': 'OK',
+  'Oregon': 'OR', 'Pennsylvania': 'PA', 'Rhode Island': 'RI', 'South Carolina': 'SC',
+  'South Dakota': 'SD', 'Tennessee': 'TN', 'Texas': 'TX', 'Utah': 'UT',
+  'Vermont': 'VT', 'Virginia': 'VA', 'Washington': 'WA', 'West Virginia': 'WV',
+  'Wisconsin': 'WI', 'Wyoming': 'WY'
 };
 
 // Fallback images when Unsplash API fails (all by @leoherzog)
@@ -1559,6 +1581,176 @@ async function handleWxStoryImage(request, env, ctx) {
   }
 }
 
+// Ray-casting point-in-ring test (GeoJSON positions are [lon, lat])
+function pointInRing(lon, lat, ring) {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [xi, yi] = ring[i];
+    const [xj, yj] = ring[j];
+    if (((yi > lat) !== (yj > lat)) && (lon < (xj - xi) * (lat - yi) / (yj - yi) + xi)) {
+      inside = !inside;
+    }
+  }
+  return inside;
+}
+
+// Point-in-geometry test for GeoJSON Polygon/MultiPolygon (outer ring minus holes)
+function pointInGeometry(lon, lat, geometry) {
+  if (!geometry) return false;
+  const polygons = geometry.type === 'Polygon' ? [geometry.coordinates]
+    : geometry.type === 'MultiPolygon' ? geometry.coordinates
+    : [];
+  return polygons.some(rings =>
+    pointInRing(lon, lat, rings[0]) && !rings.slice(1).some(hole => pointInRing(lon, lat, hole))
+  );
+}
+
+// Fetch the latest SPC categorical convective outlook GeoJSON for a day (1-3), with caching
+async function fetchSpcOutlook(day, cache, ctx, skipCache = false) {
+  const cacheRequest = new Request(`https://weather.gripe/api/spc-cache/spc-outlook:day${day}`);
+
+  if (skipCache) {
+    ctx.waitUntil(cache.delete(cacheRequest));
+  } else {
+    const cached = await cache.match(cacheRequest);
+    if (cached) {
+      return cached.json();
+    }
+  }
+
+  const response = await fetch(`https://www.spc.noaa.gov/products/outlook/day${day}otlk_cat.lyr.geojson`, {
+    headers: { 'User-Agent': 'weather.gripe (https://weather.gripe)' }
+  });
+  if (!response.ok) {
+    throw new Error(`SPC outlook API error: ${response.status}`);
+  }
+
+  const data = await response.json();
+
+  const cacheResponse = new Response(JSON.stringify(data), {
+    headers: { 'Cache-Control': `public, max-age=${SPC_OUTLOOK_CACHE_TTL}` }
+  });
+  ctx.waitUntil(cache.put(cacheRequest, cacheResponse));
+
+  return data;
+}
+
+// Handle SPC severe weather outlook API - returns state outlook graphics for
+// days 1-3 when the point sits inside a severe risk area. General thunderstorm
+// areas (TSTM, DN 2) don't count; severe risk starts at Marginal (DN 3).
+async function handleSpc(request, env, ctx) {
+  const url = new URL(request.url);
+  const lat = parseFloat(url.searchParams.get('lat'));
+  const lon = parseFloat(url.searchParams.get('lon'));
+  const skipCache = shouldSkipCache(request);
+  const cacheTTL = skipCache ? 'no-store' : SPC_CACHE_TTL;
+
+  if (isNaN(lat) || isNaN(lon)) {
+    return jsonResponse({ error: 'Invalid lat/lon parameters' }, 400);
+  }
+
+  const cache = caches.default;
+
+  try {
+    // The state determines which pre-rendered SPC graphic to show
+    const location = await reverseGeocode(lat, lon, cache, ctx);
+    if (location.country_code !== 'us') {
+      return jsonResponse({ risk: false, days: [] }, 200, cacheTTL, SPC_SWR_TTL);
+    }
+    const stateName = location.region.split(',')[0]?.trim();
+    const stateCode = US_STATE_CODES[stateName];
+    if (!stateCode) {
+      return jsonResponse({ risk: false, days: [] }, 200, cacheTTL, SPC_SWR_TTL);
+    }
+
+    const outlooks = await Promise.all([1, 2, 3].map(async day => {
+      try {
+        const geojson = await fetchSpcOutlook(day, cache, ctx, skipCache);
+        // Highest-severity category containing the point
+        const hit = (geojson.features || [])
+          .filter(f => (f.properties?.DN ?? 0) >= 3 && pointInGeometry(lon, lat, f.geometry))
+          .sort((a, b) => b.properties.DN - a.properties.DN)[0];
+        if (!hit) return null;
+        const props = hit.properties;
+        const imageUrl = `https://www.spc.noaa.gov/partners/outlooks/state/images/${stateCode}_swody${day}.png`;
+        return {
+          day,
+          label: props.LABEL,
+          label2: props.LABEL2,
+          fill: props.fill,
+          stroke: props.stroke,
+          issued: props.ISSUE_ISO,
+          valid: props.VALID_ISO,
+          expires: props.EXPIRE_ISO,
+          image: `/api/spc/image?url=${encodeURIComponent(imageUrl)}`
+        };
+      } catch (e) {
+        console.error(`SPC day ${day} outlook error:`, e);
+        return null;
+      }
+    }));
+
+    const days = outlooks.filter(Boolean);
+    return jsonResponse({ risk: days.length > 0, state: stateCode, days }, 200, cacheTTL, SPC_SWR_TTL);
+  } catch (e) {
+    console.error('SPC outlook error:', e);
+    return jsonResponse({ error: 'Failed to fetch SPC outlook' }, 500);
+  }
+}
+
+// Handle SPC outlook image proxy - caches and serves state outlook graphics
+async function handleSpcImage(request, env, ctx) {
+  const url = new URL(request.url);
+  const imageUrl = url.searchParams.get('url');
+
+  if (!imageUrl) {
+    return jsonResponse({ error: 'Missing url parameter' }, 400);
+  }
+
+  if (!imageUrl.startsWith('https://www.spc.noaa.gov/partners/outlooks/state/images/')) {
+    return jsonResponse({ error: 'Invalid SPC image URL' }, 400);
+  }
+
+  const cache = caches.default;
+  const cacheRequest = new Request(imageUrl);
+
+  const cached = await cache.match(cacheRequest);
+  if (cached) {
+    return new Response(cached.body, {
+      headers: {
+        'Content-Type': cached.headers.get('Content-Type') || 'image/png',
+        'Cache-Control': `public, max-age=${SPC_IMAGE_CACHE_TTL}`,
+        'Access-Control-Allow-Origin': '*'
+      }
+    });
+  }
+
+  try {
+    const response = await fetch(imageUrl, {
+      headers: { 'User-Agent': 'weather.gripe (https://weather.gripe)' }
+    });
+
+    if (!response.ok) {
+      return jsonResponse({ error: 'Failed to fetch SPC image' }, 502);
+    }
+
+    const contentType = response.headers.get('Content-Type') || 'image/png';
+    const proxyResponse = new Response(response.body, {
+      headers: {
+        'Content-Type': contentType,
+        'Cache-Control': `public, max-age=${SPC_IMAGE_CACHE_TTL}`,
+        'Access-Control-Allow-Origin': '*'
+      }
+    });
+
+    ctx.waitUntil(cache.put(cacheRequest, proxyResponse.clone()));
+    return proxyResponse;
+  } catch (e) {
+    console.error('SPC image fetch error:', e);
+    return jsonResponse({ error: 'Failed to fetch SPC image' }, 500);
+  }
+}
+
 // Handle radar API - returns radar and basemap URLs for a location
 async function handleRadar(request, env, ctx) {
   const url = new URL(request.url);
@@ -1918,6 +2110,12 @@ export default {
     }
     if (path === '/api/wxstory/image') {
       return handleWxStoryImage(request, env, ctx);
+    }
+    if (path === '/api/spc') {
+      return handleSpc(request, env, ctx);
+    }
+    if (path === '/api/spc/image') {
+      return handleSpcImage(request, env, ctx);
     }
     if (path === '/api/cf-location') {
       return handleCfLocation(request);

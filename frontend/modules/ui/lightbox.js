@@ -48,8 +48,8 @@ async function getCardCanvas(card) {
     return null;
   }
 
-  // Handle wxstory cards (img-based)
-  if (cardType === 'wxstory') {
+  // Handle wxstory and SPC outlook cards (img-based)
+  if (cardType === 'wxstory' || cardType === 'spc') {
     const img = card.querySelector('img[slot="media"]');
     if (img) {
       const canvas = document.createElement('canvas');

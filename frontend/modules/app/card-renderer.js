@@ -53,6 +53,10 @@ export function createCardRenderer(app) {
       // Start satellite fetch early (near-global coverage, all locations)
       const satellitePromise = app.weatherLoader.fetchSatellite(app.currentLocation?.lat, app.currentLocation?.lon);
 
+      // Start SPC severe weather outlook fetch early (US only, resolves null
+      // unless the location is inside a severe risk area)
+      const spcPromise = isNWS ? app.weatherLoader.fetchSpc(app.currentLocation?.lat, app.currentLocation?.lon) : null;
+
       // For detailed cards, fetch backgrounds based on their specific conditions and temps
       let detailedBgs1Promise = null;
       let detailedBgs2Promise = null;
@@ -370,6 +374,20 @@ export function createCardRenderer(app) {
         return { order: 5.7, card };
       })());
 
+      // SPC severe weather outlook cards (order: 5.81-5.83, one per day with
+      // severe risk at this location; skipped entirely otherwise)
+      if (spcPromise) {
+        [1, 2, 3].forEach(day => {
+          cardPromises.push((async () => {
+            const spc = await spcPromise;
+            const dayRisk = spc?.days?.find(d => d.day === day);
+            if (!dayRisk) return null;
+            const card = this.createSpcCard(dayRisk, spc.state);
+            return { order: 5.8 + day * 0.01, card };
+          })());
+        });
+      }
+
       // Radar card (order: 6, depends on radar data)
       if (isNWS && radarPromise) {
         cardPromises.push((async () => {
@@ -610,6 +628,59 @@ export function createCardRenderer(app) {
       link.href = imageUrl;
       link.click();
       notifyEngagement(); // Triggers PWA install prompt after first engagement
+    },
+
+    // Create an SPC severe weather outlook card (img-based, like weather story cards)
+    createSpcCard(dayRisk, state) {
+      const container = document.createElement('wa-card');
+      container.className = 'weather-card';
+      container.dataset.cardType = 'spc';
+
+      const img = document.createElement('img');
+      img.slot = 'media';
+      img.src = dayRisk.image;
+      img.alt = `SPC Day ${dayRisk.day} Severe Weather Outlook for ${state}: ${dayRisk.label2}`;
+      img.loading = 'lazy';
+      container.appendChild(img);
+
+      container.appendChild(WeatherCards.createCardActions(
+        () => this.shareSpcCard(dayRisk, state),
+        () => this.downloadSpcCard(dayRisk, state)
+      ));
+
+      // Attach lightbox click handler
+      attachLightboxHandler(container);
+
+      return container;
+    },
+
+    // Share SPC outlook card using Web Share API
+    async shareSpcCard(dayRisk, state) {
+      try {
+        const response = await fetch(dayRisk.image);
+        const blob = await response.blob();
+        const file = new File([blob], `spc-day${dayRisk.day}-${state}.png`, { type: 'image/png' });
+
+        await navigator.share({
+          title: `SPC Day ${dayRisk.day} Severe Weather Outlook`,
+          files: [file]
+        });
+        notifyEngagement();
+      } catch (e) {
+        if (e.name !== 'AbortError') {
+          console.error('Share failed:', e);
+          this.downloadSpcCard(dayRisk, state);
+        }
+      }
+    },
+
+    // Download SPC outlook card as image
+    downloadSpcCard(dayRisk, state) {
+      const link = document.createElement('a');
+      link.download = `spc-day${dayRisk.day}-${state}.png`;
+      link.href = dayRisk.image;
+      link.click();
+      notifyEngagement();
     },
 
     // Clean up MapLibre maps in radar, satellite, and alert-map cards before removing them
