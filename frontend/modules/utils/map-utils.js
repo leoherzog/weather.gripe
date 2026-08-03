@@ -1,5 +1,11 @@
 // Shared MapLibre utilities for radar and alert-map cards
 
+// MapLibre v6 resolves its worker at runtime from `import.meta.url`, which bundlers can't
+// rewrite, so it 404s without a one-time setWorkerUrl(). `?worker&url` (not plain `?url`)
+// is required: the dist worker imports a sibling `maplibre-gl-shared.mjs`, and only the
+// worker pipeline emits a self-contained chunk with that dependency inlined.
+import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
+
 // MapLibre is lazy-loaded and cached
 let maplibregl = null;
 
@@ -11,6 +17,7 @@ export async function ensureMapLibre() {
   if (!maplibregl) {
     // MapLibre v6 is ESM-only with no default export; the namespace is the API
     maplibregl = await import('maplibre-gl');
+    maplibregl.setWorkerUrl(maplibreWorkerUrl);
     await import('maplibre-gl/dist/maplibre-gl.css');
   }
   return maplibregl;

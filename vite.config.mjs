@@ -3,6 +3,8 @@ import { defineConfig } from 'vite';
 export default defineConfig({
   root: 'frontend',
   publicDir: 'static',
+  // MapLibre spawns its worker with `{ type: 'module' }`, so it must be emitted as ESM
+  worker: { format: 'es' },
   build: {
     outDir: '../public',
     emptyOutDir: true,

@@ -433,11 +433,13 @@ Canvas-based weather cards use Web Awesome's color palette system for consistent
 
 ### Configuration
 
-- `vite.config.mjs` - Vite build config (`root: 'frontend'`, `publicDir: 'static'`, `outDir: '../public'`)
+- `vite.config.mjs` - Vite build config (`root: 'frontend'`, `publicDir: 'static'`, `outDir: '../public'`, `worker.format: 'es'`)
 - `wrangler.toml` - Worker configuration, points to `src/index.js` as entry point (`compatibility_date = "2026-06-16"`). Enables the front-side Workers Cache (`[cache] enabled = true`, `cross_version_cache = true` so caches survive deploys) and Smart Placement (`[placement] mode = "smart"`)
 - `.dev.vars` - Local environment secrets (UNSPLASH_ACCESS_KEY, FONTAWESOME_NPM_TOKEN, WEBAWESOME_NPM_TOKEN)
 - `.npmrc` - Private npm registry configuration for `@fortawesome` and `@awesome.me` scoped packages
 - `package.json` - Build scripts and dependencies
+
+**MapLibre worker setup:** MapLibre v6 is ESM-only and loads its web worker from a separate file, resolving the URL at runtime from `import.meta.url`. Bundlers can't rewrite that, so the request 404s and the SPA fallback returns HTML — which the browser rejects for a module worker (`NS_ERROR_CORRUPTED_CONTENT` in Firefox). `map-utils.js` fixes this by importing `maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url` and passing the result to `maplibregl.setWorkerUrl()` before any map is constructed. Two details matter: `?worker&url` rather than plain `?url` (the dist worker imports a sibling `maplibre-gl-shared.mjs`, and only the worker pipeline emits a self-contained chunk), and `worker.format: 'es'` in the Vite config (MapLibre spawns the worker with `{ type: 'module' }`).
 
 **Running npm with `.dev.vars` secrets:** The `.npmrc` references `${FONTAWESOME_NPM_TOKEN}` and `${WEBAWESOME_NPM_TOKEN}` from the environment. To run `npm install` (or any npm command that touches the private registries), export the vars from `.dev.vars` first:
 
