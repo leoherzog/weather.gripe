@@ -153,7 +153,7 @@ export async function createAlertMapCard(alertData, userLocation, timezone = nul
         [bounds.sw.lon - lonPad, bounds.sw.lat - latPad],
         [bounds.ne.lon + lonPad, bounds.ne.lat + latPad]
       ],
-      preserveDrawingBuffer: true,
+      canvasContextAttributes: { preserveDrawingBuffer: true },
       interactive: false,
       attributionControl: false,
       fitBoundsOptions: {

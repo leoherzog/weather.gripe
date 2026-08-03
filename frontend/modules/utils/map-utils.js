@@ -9,8 +9,8 @@ let maplibregl = null;
  */
 export async function ensureMapLibre() {
   if (!maplibregl) {
-    const mod = await import('maplibre-gl');
-    maplibregl = mod.default;
+    // MapLibre v6 is ESM-only with no default export; the namespace is the API
+    maplibregl = await import('maplibre-gl');
     await import('maplibre-gl/dist/maplibre-gl.css');
   }
   return maplibregl;

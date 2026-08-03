@@ -147,7 +147,7 @@ export async function createSatelliteCard(satelliteData, locationName, timezone 
       container: mapContainer,
       style: 'https://tiles.openfreemap.org/styles/fiord',
       bounds: mapBounds,
-      preserveDrawingBuffer: true,
+      canvasContextAttributes: { preserveDrawingBuffer: true },
       interactive: false,
       attributionControl: false,
       minZoom: 1,

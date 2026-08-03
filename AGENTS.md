@@ -433,7 +433,7 @@ Canvas-based weather cards use Web Awesome's color palette system for consistent
 
 ### Configuration
 
-- `vite.config.js` - Vite build config (`root: 'frontend'`, `publicDir: 'static'`, `outDir: '../public'`)
+- `vite.config.mjs` - Vite build config (`root: 'frontend'`, `publicDir: 'static'`, `outDir: '../public'`)
 - `wrangler.toml` - Worker configuration, points to `src/index.js` as entry point (`compatibility_date = "2026-06-16"`). Enables the front-side Workers Cache (`[cache] enabled = true`, `cross_version_cache = true` so caches survive deploys) and Smart Placement (`[placement] mode = "smart"`)
 - `.dev.vars` - Local environment secrets (UNSPLASH_ACCESS_KEY, FONTAWESOME_NPM_TOKEN, WEBAWESOME_NPM_TOKEN)
 - `.npmrc` - Private npm registry configuration for `@fortawesome` and `@awesome.me` scoped packages
